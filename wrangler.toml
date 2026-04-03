@@ -1,0 +1,17 @@
+name = "vibe-pub"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vibe-pub"
+database_id = "placeholder-will-update-after-create"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "vibe-pub"
+
+[vars]
+RESEND_FROM = "noreply@vibe.pub"
+BASE_URL = "https://vibe.pub"

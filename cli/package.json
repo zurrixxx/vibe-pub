@@ -1,0 +1,8 @@
+{
+  "name": "@vibe/pub",
+  "version": "0.1.0",
+  "description": "Publish markdown to vibe.pub",
+  "bin": { "vibe": "./bin/vibe.js" },
+  "type": "module",
+  "files": ["bin/", "lib/"]
+}
