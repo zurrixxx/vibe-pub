@@ -40,23 +40,26 @@
 </script>
 
 <div>
-  <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-4">
-    Comments {#if comments.length > 0}<span class="text-zinc-400">({comments.length})</span>{/if}
+  <h3 style="font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 20px; display: flex; align-items: center; gap: 6px;">
+    Comments
+    {#if comments.length > 0}
+      <span style="color: var(--text-tertiary); font-weight: 400;">({comments.length})</span>
+    {/if}
   </h3>
 
   {#if comments.length > 0}
-    <div class="flex flex-col gap-4 mb-8">
+    <div class="flex flex-col gap-5" style="margin-bottom: 32px;">
       {#each comments as comment}
         <div class="flex gap-3">
-          <div class="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-500">
+          <div style="width: 32px; height: 32px; border-radius: 9999px; background: var(--surface); box-shadow: var(--shadow-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--text-secondary);">
             {(comment.display_name || 'A')[0].toUpperCase()}
           </div>
           <div class="flex-1">
-            <div class="flex items-baseline gap-2">
-              <span class="text-sm font-medium">{comment.display_name || 'Anonymous'}</span>
-              <span class="text-xs text-zinc-400">{timeAgo(comment.created)}</span>
+            <div class="flex items-baseline gap-2" style="margin-bottom: 4px;">
+              <span style="font-size: 14px; font-weight: 500; color: var(--text-primary);">{comment.display_name || 'Anonymous'}</span>
+              <span style="font-size: 12px; color: var(--text-tertiary);">{timeAgo(comment.created)}</span>
             </div>
-            <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{comment.body}</p>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;">{comment.body}</p>
           </div>
         </div>
       {/each}
@@ -68,20 +71,27 @@
       type="text"
       bind:value={displayName}
       placeholder="Name (optional)"
-      class="w-48 px-3 py-1.5 text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400"
+      style="width: 192px; padding: 10px 14px; font-size: 14px; background: var(--surface); box-shadow: var(--shadow-card); border: none; outline: none; border-radius: 6px; color: var(--text-primary); transition: box-shadow 150ms;"
+      onfocus={(e) => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px var(--accent), 0 0 0 4px rgba(59,130,246,0.15)'}
+      onblur={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
     />
     <div class="flex gap-2">
       <input
         type="text"
         bind:value={newComment}
         placeholder="Add a comment..."
-        class="flex-1 px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400"
+        style="flex: 1; padding: 10px 14px; font-size: 14px; background: var(--surface); box-shadow: var(--shadow-card); border: none; outline: none; border-radius: 6px; color: var(--text-primary); transition: box-shadow 150ms;"
+        onfocus={(e) => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px var(--accent), 0 0 0 4px rgba(59,130,246,0.15)'}
+        onblur={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
         onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); }}}
       />
       <button
         onclick={submitComment}
         disabled={!newComment.trim() || submitting}
-        class="px-4 py-2 text-sm bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg disabled:opacity-40 transition-colors"
+        style="padding: 10px 16px; font-size: 14px; font-weight: 500; background: var(--accent); color: var(--bg); border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms; opacity: 1;"
+        onmouseenter={(e) => { if (!(e.currentTarget as HTMLButtonElement).disabled) (e.currentTarget as HTMLElement).style.background = 'var(--accent-hover)'; }}
+        onmouseleave={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--accent)'}
+        class="disabled:opacity-40"
       >
         Post
       </button>

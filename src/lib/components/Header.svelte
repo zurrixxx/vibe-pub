@@ -5,19 +5,34 @@
   let { user = null }: Props = $props();
 </script>
 
-<header class="border-b border-zinc-200 dark:border-zinc-800 py-3 px-6">
-  <nav class="max-w-3xl mx-auto flex items-center justify-between">
-    <a href="/" class="font-mono font-bold text-lg tracking-tight text-zinc-900 dark:text-zinc-100 hover:opacity-70 transition-opacity">
+<header style="height: 56px; border-bottom: 1px solid var(--border); background: var(--bg);">
+  <nav class="max-w-[680px] mx-auto px-6 h-full flex items-center justify-between">
+    <a
+      href="/"
+      style="font-family: var(--font-mono); font-size: 18px; font-weight: 600; letter-spacing: -0.36px; color: var(--text-primary); text-decoration: none; transition: opacity 150ms;"
+      onmouseenter={(e) => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
+      onmouseleave={(e) => (e.currentTarget as HTMLElement).style.opacity = '1'}
+    >
       vibe.pub
     </a>
-    <div class="flex items-center gap-4 text-sm">
+    <div class="flex items-center gap-4">
       {#if user}
-        <a href={`/@${user.username}`} class="font-mono text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+        <a
+          href={`/@${user.username}`}
+          style="font-family: var(--font-mono); font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 150ms;"
+          onmouseenter={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+          onmouseleave={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'}
+        >
           @{user.username}
         </a>
       {:else}
-        <a href="/auth/sign-in" class="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-          sign in →
+        <a
+          href="/auth/login"
+          style="font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 150ms;"
+          onmouseenter={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+          onmouseleave={(e) => (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'}
+        >
+          sign in
         </a>
       {/if}
     </div>

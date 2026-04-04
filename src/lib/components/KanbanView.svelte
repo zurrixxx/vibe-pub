@@ -57,20 +57,25 @@
   <div class="flex gap-4 min-w-max pb-4">
     {#each columns as column}
       <div class="w-72 flex-shrink-0">
-        <h3 class="font-semibold text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3 px-1">
+        <h3 style="font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 12px; padding: 0 4px; display: flex; align-items: center; gap: 6px;">
           {column.title}
-          <span class="text-zinc-400 dark:text-zinc-600 ml-1">{column.cards.length}</span>
+          <span style="color: var(--text-tertiary); font-weight: 400;">{column.cards.length}</span>
         </h3>
         <div class="flex flex-col gap-2">
           {#each column.cards as card}
-            <div class="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+            <div
+              style="padding: 12px 16px; background: var(--surface); box-shadow: var(--shadow-card); border-radius: 8px; transition: box-shadow 150ms;"
+              onmouseenter={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-elevated)'}
+              onmouseleave={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
+              role="listitem"
+            >
               <div class="flex items-start gap-2">
                 {#if card.checked}
-                  <span class="text-emerald-500 mt-0.5">&#10003;</span>
-                  <span class="text-zinc-400 line-through text-sm">{card.text}</span>
+                  <span style="color: #22c55e; margin-top: 1px; flex-shrink: 0;">&#10003;</span>
+                  <span style="font-size: 14px; color: var(--text-tertiary); text-decoration: line-through; line-height: 1.5;">{card.text}</span>
                 {:else}
-                  <span class="text-zinc-300 dark:text-zinc-600 mt-0.5">&#9675;</span>
-                  <span class="text-sm">{card.text}</span>
+                  <span style="color: var(--text-tertiary); margin-top: 2px; flex-shrink: 0;">&#9675;</span>
+                  <span style="font-size: 14px; color: var(--text-primary); line-height: 1.5;">{card.text}</span>
                 {/if}
               </div>
             </div>

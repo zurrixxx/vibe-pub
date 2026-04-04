@@ -16,12 +16,14 @@
   <title>{page.title ?? page.slug} — vibe.pub</title>
 </svelte:head>
 
-<main class="max-w-3xl mx-auto px-6 py-12">
+<main class="max-w-[680px] mx-auto px-6 py-12">
   {#if page.view === 'kanban'}
     <KanbanView markdown={page.markdown} />
   {:else}
     <DocView {html} title={page.title} />
   {/if}
 
-  <Comments {comments} pageId={page.id} />
+  <div style="margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--border);">
+    <Comments {comments} pageId={page.id} />
+  </div>
 </main>

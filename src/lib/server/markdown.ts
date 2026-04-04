@@ -30,7 +30,12 @@ export function parseFrontmatter(raw: string): { data: Partial<PageFrontmatter>;
 }
 
 export async function renderMarkdown(md: string): Promise<string> {
-  const highlighter = await getHighlighter();
+  let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null;
+  try {
+    highlighter = await getHighlighter();
+  } catch {
+    // Shiki may fail in Workers (WASM loading issues) — fall back to plain code blocks
+  }
 
   const processor = unified()
     .use(remarkParse)
@@ -39,19 +44,22 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(rehypeRaw)
     .use(rehypeStringify);
 
-  // Pre-process code blocks with Shiki
+  // Pre-process code blocks with Shiki (or fallback)
   const highlighted = md.replace(
     /```(\w+)?\n([\s\S]*?)```/g,
     (_, lang, code) => {
       const language = lang || 'text';
-      try {
-        return highlighter.codeToHtml(code.trimEnd(), {
-          lang: language,
-          themes: { light: 'github-light', dark: 'github-dark' }
-        });
-      } catch {
-        return `<pre><code class="language-${language}">${escapeHtml(code)}</code></pre>`;
+      if (highlighter) {
+        try {
+          return highlighter.codeToHtml(code.trimEnd(), {
+            lang: language,
+            themes: { light: 'github-light', dark: 'github-dark' }
+          });
+        } catch {
+          // fall through to plain rendering
+        }
       }
+      return `<pre><code class="language-${language}">${escapeHtml(code)}</code></pre>`;
     }
   );
 

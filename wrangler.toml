@@ -6,12 +6,13 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 [[d1_databases]]
 binding = "DB"
 database_name = "vibe-pub"
-database_id = "placeholder-will-update-after-create"
+database_id = "48965b82-002e-41c6-83ca-fab466131c3a"
 
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "vibe-pub"
+# R2 disabled until enabled in Cloudflare dashboard
+# [[r2_buckets]]
+# binding = "BUCKET"
+# bucket_name = "vibe-pub"
 
 [vars]
 RESEND_FROM = "noreply@vibe.pub"
-BASE_URL = "https://vibe.pub"
+BASE_URL = "https://vibe-pub.pages.dev"

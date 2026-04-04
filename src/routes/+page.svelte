@@ -14,17 +14,21 @@
   <title>vibe.pub — paste markdown, get a link</title>
 </svelte:head>
 
-<main class="max-w-3xl mx-auto px-6 py-16">
+<main class="max-w-[680px] mx-auto px-6 py-20">
   <div class="mb-10">
-    <p class="font-mono text-zinc-500 dark:text-zinc-400 text-sm">Paste markdown. Get a link.</p>
+    <p style="font-family: var(--font-mono); font-size: 13px; color: var(--text-tertiary); letter-spacing: 0;">
+      Paste markdown. Get a link.
+    </p>
   </div>
 
   {#if form?.url}
-    <div class="mb-8 p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded font-mono text-sm">
-      <span class="text-zinc-500 dark:text-zinc-400">published → </span>
+    <div style="margin-bottom: 32px; padding: 16px 20px; background: var(--surface); box-shadow: var(--shadow-card); border-radius: 8px; font-family: var(--font-mono); font-size: 13px;">
+      <span style="color: var(--text-tertiary);">published → </span>
       <a
         href={`/${form.slug}`}
-        class="text-zinc-900 dark:text-zinc-100 underline underline-offset-2 hover:opacity-70 break-all"
+        style="color: var(--text-primary); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--border); transition: text-decoration-color 150ms; word-break: break-all;"
+        onmouseenter={(e) => (e.currentTarget as HTMLElement).style.textDecorationColor = 'var(--text-primary)'}
+        onmouseleave={(e) => (e.currentTarget as HTMLElement).style.textDecorationColor = 'var(--border)'}
       >
         {form.url}
       </a>
@@ -32,23 +36,27 @@
   {/if}
 
   {#if form?.error}
-    <div class="mb-4 text-sm text-red-600 dark:text-red-400 font-mono">{form.error}</div>
+    <div style="margin-bottom: 16px; font-family: var(--font-mono); font-size: 13px; color: #ef4444;">{form.error}</div>
   {/if}
 
   <form method="POST" action="?/publish" use:enhance>
     <textarea
       name="markdown"
       placeholder="# Your title&#10;&#10;Start writing..."
-      rows={14}
-      class="w-full font-mono text-sm bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded p-4 resize-y focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 placeholder-zinc-400 dark:placeholder-zinc-600 text-zinc-900 dark:text-zinc-100"
+      rows={16}
+      style="width: 100%; font-family: var(--font-mono); font-size: 14px; line-height: 1.6; background: var(--surface); box-shadow: var(--shadow-card); border: none; outline: none; border-radius: 8px; padding: 20px 24px; resize: vertical; color: var(--text-primary); transition: box-shadow 150ms;"
+      onfocus={(e) => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px var(--accent), 0 0 0 4px rgba(59,130,246,0.15)'}
+      onblur={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
     ></textarea>
 
     <input type="hidden" name="view" value={view} />
 
-    <div class="mt-3 flex items-center gap-4">
+    <div class="mt-4 flex items-center gap-3">
       <button
         type="submit"
-        class="font-mono text-sm px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded hover:opacity-80 transition-opacity"
+        style="font-family: var(--font-sans); font-size: 14px; font-weight: 500; padding: 8px 16px; background: var(--accent); color: var(--bg); border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms;"
+        onmouseenter={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--accent-hover)'}
+        onmouseleave={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--accent)'}
       >
         Publish
       </button>
@@ -57,17 +65,21 @@
         <button
           type="button"
           onclick={() => (showViewMenu = !showViewMenu)}
-          class="font-mono text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+          style="font-family: var(--font-mono); font-size: 13px; padding: 8px 12px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: color 150ms, border-color 150ms;"
+          onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)'; }}
+          onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
         >
           view: {view} ▾
         </button>
         {#if showViewMenu}
-          <div class="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded shadow-sm z-10">
+          <div style="position: absolute; top: calc(100% + 4px); left: 0; background: var(--surface); box-shadow: var(--shadow-elevated); border-radius: 6px; overflow: hidden; z-index: 10; min-width: 120px;">
             {#each ['doc', 'kanban'] as v}
               <button
                 type="button"
                 onclick={() => { view = v as 'doc' | 'kanban'; showViewMenu = false; }}
-                class="block w-full text-left font-mono text-sm px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                style="display: block; width: 100%; text-align: left; font-family: var(--font-mono); font-size: 13px; padding: 10px 16px; background: transparent; color: var(--text-secondary); border: none; cursor: pointer; transition: background-color 150ms, color 150ms;"
+                onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+                onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
               >
                 {v}
               </button>
@@ -78,9 +90,9 @@
     </div>
   </form>
 
-  <div class="mt-10 border-t border-zinc-100 dark:border-zinc-800 pt-8">
-    <p class="font-mono text-xs text-zinc-400 dark:text-zinc-600 mb-2">— or —</p>
-    <pre class="font-mono text-xs text-zinc-500 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-900 rounded p-3 overflow-x-auto">curl -X POST vibe.pub/api/pub \
+  <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border);">
+    <p style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); margin-bottom: 10px;">— or via curl —</p>
+    <pre style="font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary); background: var(--surface); box-shadow: var(--shadow-card); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 0;">curl -X POST vibe.pub/api/pub \
   -d @file.md</pre>
   </div>
 </main>

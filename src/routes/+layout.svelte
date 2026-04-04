@@ -9,7 +9,15 @@
   let { data, children }: Props = $props();
 </script>
 
-<div class="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+<svelte:head>
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</svelte:head>
+
+<div class="min-h-screen" style="background: var(--bg); color: var(--text-primary);">
   <Header user={data.user} />
   {@render children()}
 </div>
