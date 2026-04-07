@@ -6,15 +6,15 @@ export function getDb(platform: App.Platform) {
 
 export async function createPage(
   db: D1Database,
-  data: { slug: string; user_id?: string; workspace_id?: string; title?: string; markdown: string; view: string; access: string; expires_at?: string }
+  data: { slug: string; user_id?: string; workspace_id?: string; title?: string; markdown: string; view: string; theme?: string; access: string; expires_at?: string }
 ): Promise<Page> {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   await db
     .prepare(
-      `INSERT INTO pages (id, slug, user_id, workspace_id, title, markdown, view, access, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO pages (id, slug, user_id, workspace_id, title, markdown, view, theme, access, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, data.slug, data.user_id ?? null, data.workspace_id ?? null, data.title ?? null, data.markdown, data.view, data.access, data.expires_at ?? null)
+    .bind(id, data.slug, data.user_id ?? null, data.workspace_id ?? null, data.title ?? null, data.markdown, data.view, data.theme ?? 'default', data.access, data.expires_at ?? null)
     .run();
 
   return getPageById(db, id) as Promise<Page>;
@@ -36,13 +36,14 @@ export async function getPagesByUser(db: D1Database, userId: string): Promise<Pa
   return result.results;
 }
 
-export async function updatePage(db: D1Database, id: string, data: { markdown?: string; title?: string; view?: string; access?: string }): Promise<void> {
+export async function updatePage(db: D1Database, id: string, data: { markdown?: string; title?: string; view?: string; theme?: string; access?: string }): Promise<void> {
   const sets: string[] = [];
   const values: (string | null)[] = [];
 
   if (data.markdown !== undefined) { sets.push('markdown = ?'); values.push(data.markdown); }
   if (data.title !== undefined) { sets.push('title = ?'); values.push(data.title); }
   if (data.view !== undefined) { sets.push('view = ?'); values.push(data.view); }
+  if (data.theme !== undefined) { sets.push('theme = ?'); values.push(data.theme); }
   if (data.access !== undefined) { sets.push('access = ?'); values.push(data.access); }
 
   if (sets.length === 0) return;

@@ -1,3 +1,5 @@
+export type PageTheme = 'default' | 'paper' | 'terminal' | 'midnight' | 'rose' | 'ocean' | 'stripe' | 'claude' | 'raycast' | 'nord' | 'monokai' | 'dracula' | 'solarized' | 'github';
+
 export interface Page {
   id: string;
   slug: string;
@@ -6,6 +8,7 @@ export interface Page {
   title: string | null;
   markdown: string;
   view: 'doc' | 'kanban';
+  theme: PageTheme;
   access: 'public' | 'unlisted' | 'private';
   expires_at: string | null;
   created: string;
@@ -32,6 +35,7 @@ export interface Comment {
 
 export interface PageFrontmatter {
   view?: 'doc' | 'kanban';
+  theme?: PageTheme;
   access?: 'public' | 'unlisted' | 'private';
   title?: string;
   expires?: string;

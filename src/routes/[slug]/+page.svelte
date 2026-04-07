@@ -16,14 +16,20 @@
   <title>{page.title ?? page.slug} — vibe.pub</title>
 </svelte:head>
 
-<main class="max-w-[680px] mx-auto px-6 py-12">
-  {#if page.view === 'kanban'}
-    <KanbanView markdown={page.markdown} />
-  {:else}
-    <DocView {html} title={page.title} />
-  {/if}
+<div
+  class="theme-{page.theme ?? 'default'}"
+  class:dark={['terminal', 'midnight', 'raycast', 'monokai', 'dracula'].includes(page.theme)}
+  style="background: var(--bg); color: var(--text-primary); min-height: 100vh;"
+>
+  <main class="max-w-[680px] mx-auto px-6 py-12">
+    {#if page.view === 'kanban'}
+      <KanbanView markdown={page.markdown} />
+    {:else}
+      <DocView {html} title={page.title} />
+    {/if}
 
-  <div style="margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--border);">
-    <Comments {comments} pageId={page.id} />
-  </div>
-</main>
+    <div style="margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--border);">
+      <Comments {comments} pageId={page.id} />
+    </div>
+  </main>
+</div>

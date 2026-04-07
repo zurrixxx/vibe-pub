@@ -12,6 +12,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   let markdown: string;
   let slugOverride: string | undefined;
   let viewOverride: 'doc' | 'kanban' | undefined;
+  let themeOverride: string | undefined;
   let accessOverride: 'public' | 'unlisted' | 'private' | undefined;
 
   if (contentType.includes('application/json')) {
@@ -19,6 +20,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     markdown = body.markdown ?? '';
     slugOverride = body.slug;
     viewOverride = body.view;
+    themeOverride = body.theme;
     accessOverride = body.access;
   } else {
     // Plain text body treated as raw markdown
@@ -41,6 +43,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   }
 
   const view = viewOverride ?? fm.view ?? 'doc';
+  const theme = themeOverride ?? fm.theme ?? 'default';
   const access = accessOverride ?? fm.access ?? 'unlisted';
   const title = fm.title ?? null;
   const userId = locals.user?.id;
@@ -51,6 +54,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     title: title ?? undefined,
     markdown,
     view,
+    theme,
     access,
     expires_at: fm.expires ?? undefined
   });

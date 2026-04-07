@@ -37,64 +37,227 @@
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
   }
+
+  // Generate a consistent gradient for each user initial
+  function avatarGradient(name: string): string {
+    const gradients = [
+      'linear-gradient(135deg, #6366f1, #8b5cf6)',
+      'linear-gradient(135deg, #3b82f6, #06b6d4)',
+      'linear-gradient(135deg, #10b981, #3b82f6)',
+      'linear-gradient(135deg, #f59e0b, #ef4444)',
+      'linear-gradient(135deg, #ec4899, #8b5cf6)',
+    ];
+    const idx = (name.charCodeAt(0) || 0) % gradients.length;
+    return gradients[idx];
+  }
 </script>
 
 <div>
-  <h3 style="font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 20px; display: flex; align-items: center; gap: 6px;">
+  <h3 class="comments-heading">
     Comments
     {#if comments.length > 0}
-      <span style="color: var(--text-tertiary); font-weight: 400;">({comments.length})</span>
+      <span class="comments-count">{comments.length}</span>
     {/if}
   </h3>
 
   {#if comments.length > 0}
-    <div class="flex flex-col gap-5" style="margin-bottom: 32px;">
+    <div class="comments-list">
       {#each comments as comment}
-        <div class="flex gap-3">
-          <div style="width: 32px; height: 32px; border-radius: 9999px; background: var(--surface); box-shadow: var(--shadow-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--text-secondary);">
+        <div class="comment-row">
+          <div class="avatar" style="background: {avatarGradient(comment.display_name || 'A')};">
             {(comment.display_name || 'A')[0].toUpperCase()}
           </div>
-          <div class="flex-1">
-            <div class="flex items-baseline gap-2" style="margin-bottom: 4px;">
-              <span style="font-size: 14px; font-weight: 500; color: var(--text-primary);">{comment.display_name || 'Anonymous'}</span>
-              <span style="font-size: 12px; color: var(--text-tertiary);">{timeAgo(comment.created)}</span>
+          <div class="comment-body">
+            <div class="comment-meta">
+              <span class="comment-author">{comment.display_name || 'Anonymous'}</span>
+              <span class="comment-time">{timeAgo(comment.created)}</span>
             </div>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;">{comment.body}</p>
+            <p class="comment-text">{comment.body}</p>
           </div>
         </div>
       {/each}
     </div>
   {/if}
 
-  <div class="flex flex-col gap-3">
+  <div class="compose-area">
     <input
       type="text"
       bind:value={displayName}
       placeholder="Name (optional)"
-      style="width: 192px; padding: 10px 14px; font-size: 14px; background: var(--surface); box-shadow: var(--shadow-card); border: none; outline: none; border-radius: 6px; color: var(--text-primary); transition: box-shadow 150ms;"
-      onfocus={(e) => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px var(--accent), 0 0 0 4px rgba(59,130,246,0.15)'}
-      onblur={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
+      class="compose-input name-input"
     />
-    <div class="flex gap-2">
-      <input
-        type="text"
-        bind:value={newComment}
-        placeholder="Add a comment..."
-        style="flex: 1; padding: 10px 14px; font-size: 14px; background: var(--surface); box-shadow: var(--shadow-card); border: none; outline: none; border-radius: 6px; color: var(--text-primary); transition: box-shadow 150ms;"
-        onfocus={(e) => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px var(--accent), 0 0 0 4px rgba(59,130,246,0.15)'}
-        onblur={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
-        onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); }}}
-      />
+    <textarea
+      bind:value={newComment}
+      placeholder="Add a comment..."
+      rows={3}
+      class="compose-input comment-textarea"
+      onkeydown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitComment(); }}}
+    ></textarea>
+    <div class="compose-footer">
+      <span class="compose-hint">⌘↵ to post</span>
       <button
         onclick={submitComment}
         disabled={!newComment.trim() || submitting}
-        style="padding: 10px 16px; font-size: 14px; font-weight: 500; background: var(--accent); color: var(--bg); border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms; opacity: 1;"
-        onmouseenter={(e) => { if (!(e.currentTarget as HTMLButtonElement).disabled) (e.currentTarget as HTMLElement).style.background = 'var(--accent-hover)'; }}
-        onmouseleave={(e) => (e.currentTarget as HTMLElement).style.background = 'var(--accent)'}
-        class="disabled:opacity-40"
+        class="post-btn"
       >
-        Post
+        {submitting ? 'Posting…' : 'Post'}
       </button>
     </div>
   </div>
 </div>
+
+<style>
+  .comments-heading {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .comments-count {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: var(--surface-hover);
+    color: var(--text-tertiary);
+  }
+
+  .comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .comment-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+  }
+
+  .comment-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .comment-author {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .comment-time {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  .comment-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .compose-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .compose-input {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    color: var(--text-primary);
+    transition: border-color 150ms, box-shadow 150ms;
+    box-sizing: border-box;
+  }
+
+  .compose-input:focus {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  }
+
+  .compose-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .name-input {
+    max-width: 200px;
+  }
+
+  .comment-textarea {
+    resize: none;
+    line-height: 1.6;
+  }
+
+  .compose-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+
+  .compose-hint {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .post-btn {
+    padding: 7px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 150ms, opacity 150ms;
+  }
+
+  .post-btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .post-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+</style>

@@ -16,6 +16,7 @@ export const actions: Actions = {
     const formData = await request.formData();
     const markdown = (formData.get('markdown') as string)?.trim();
     const viewParam = (formData.get('view') as string) || 'doc';
+    const themeParam = (formData.get('theme') as string) || 'default';
 
     if (!markdown) {
       return fail(400, { error: 'Markdown content is required' });
@@ -25,6 +26,7 @@ export const actions: Actions = {
 
     const slug = generateSlug();
     const view = (fm.view ?? viewParam) as 'doc' | 'kanban';
+    const theme = fm.theme ?? themeParam;
     const access = fm.access ?? 'unlisted';
 
     const page = await createPage(db, {
@@ -33,6 +35,7 @@ export const actions: Actions = {
       title: fm.title ?? undefined,
       markdown,
       view,
+      theme,
       access,
       expires_at: fm.expires ?? undefined
     });

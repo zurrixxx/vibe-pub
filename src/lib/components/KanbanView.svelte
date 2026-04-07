@@ -53,29 +53,24 @@
   const columns = $derived(parseKanban(markdown));
 </script>
 
-<div class="overflow-x-auto">
-  <div class="flex gap-4 min-w-max pb-4">
+<div class="kanban-scroll">
+  <div class="kanban-board">
     {#each columns as column}
-      <div class="w-72 flex-shrink-0">
-        <h3 style="font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 12px; padding: 0 4px; display: flex; align-items: center; gap: 6px;">
-          {column.title}
-          <span style="color: var(--text-tertiary); font-weight: 400;">{column.cards.length}</span>
-        </h3>
-        <div class="flex flex-col gap-2">
+      <div class="kanban-column">
+        <div class="column-header">
+          <h3 class="column-title">{column.title}</h3>
+          <span class="column-count">{column.cards.length}</span>
+        </div>
+        <div class="cards-list" role="list">
           {#each column.cards as card}
-            <div
-              style="padding: 12px 16px; background: var(--surface); box-shadow: var(--shadow-card); border-radius: 8px; transition: box-shadow 150ms;"
-              onmouseenter={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-elevated)'}
-              onmouseleave={(e) => (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'}
-              role="listitem"
-            >
-              <div class="flex items-start gap-2">
+            <div class="kanban-card" role="listitem">
+              <div class="card-inner">
                 {#if card.checked}
-                  <span style="color: #22c55e; margin-top: 1px; flex-shrink: 0;">&#10003;</span>
-                  <span style="font-size: 14px; color: var(--text-tertiary); text-decoration: line-through; line-height: 1.5;">{card.text}</span>
+                  <span class="card-icon card-done">✓</span>
+                  <span class="card-text card-text-done">{card.text}</span>
                 {:else}
-                  <span style="color: var(--text-tertiary); margin-top: 2px; flex-shrink: 0;">&#9675;</span>
-                  <span style="font-size: 14px; color: var(--text-primary); line-height: 1.5;">{card.text}</span>
+                  <span class="card-icon card-todo">○</span>
+                  <span class="card-text">{card.text}</span>
                 {/if}
               </div>
             </div>
@@ -85,3 +80,107 @@
     {/each}
   </div>
 </div>
+
+<style>
+  .kanban-scroll {
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .kanban-board {
+    display: flex;
+    gap: 16px;
+    min-width: max-content;
+    align-items: flex-start;
+    padding-bottom: 8px;
+  }
+
+  .kanban-column {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+  }
+
+  .column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .column-title {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .column-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    background: var(--surface-hover);
+    padding: 2px 7px;
+    border-radius: 9999px;
+  }
+
+  .cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .kanban-card {
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: border-color 150ms, box-shadow 150ms, transform 150ms;
+    cursor: default;
+  }
+
+  .kanban-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-1px);
+  }
+
+  .card-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 13px;
+  }
+
+  .card-done {
+    color: #22c55e;
+  }
+
+  .card-todo {
+    color: var(--text-tertiary);
+  }
+
+  .card-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+
+  .card-text-done {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-tertiary);
+  }
+</style>
