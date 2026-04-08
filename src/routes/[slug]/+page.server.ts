@@ -4,6 +4,7 @@ import type { PageServerLoad } from './$types';
 import { getDb, getCommentsByPage } from '$lib/server/db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 import { parseBlocks } from '$lib/templates';
+import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 
 async function getPageBySlugPublic(db: D1Database, slug: string) {
   return db.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first<import('$lib/types').Page>();
@@ -30,11 +31,22 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 
   const comments = await getCommentsByPage(db, page.id);
 
+  // Parse kanban data server-side (gray-matter needs Node.js Buffer)
+  let kanbanData = null;
+  if (templateName === 'kanban') {
+    const parsed = parseKanbanBlocks(page.markdown);
+    kanbanData = {
+      columns: parsed.columns,
+      labels: parsed.labels,
+    };
+  }
+
   return {
     page,
     html,
     blocks,
     comments,
     frontmatter: fm,
+    kanbanData,
   };
 };

@@ -1,35 +1,45 @@
 <script lang="ts">
   import type { Comment } from '$lib/types';
-  import { parseKanbanBlocks, serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './parser';
+  import { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './parser';
   import KanbanCardComponent from './KanbanCard.svelte';
   import { marked } from 'marked';
-  import matter from 'gray-matter';
-  import { nanoid } from 'nanoid';
 
   interface Props {
     markdown: string;
     pageId: string;
     comments: Comment[];
+    initialColumns: KanbanColumn[];
+    initialLabels: KanbanLabels;
   }
 
-  let { markdown, pageId, comments }: Props = $props();
+  let { markdown, pageId, comments, initialColumns, initialLabels }: Props = $props();
 
-  let parsed = $derived(parseKanbanBlocks(markdown));
-  let columns = $state<KanbanColumn[]>([]);
-  let labels = $derived(parsed.labels);
+  let columns = $state<KanbanColumn[]>(initialColumns.map((col) => ({
+    title: col.title,
+    cards: col.cards.map((c) => ({ ...c })),
+  })));
+  let labels = $state<KanbanLabels>({ ...initialLabels });
 
-  // Keep columns in sync with parsed (but also allow local mutation)
-  $effect(() => {
-    columns = parsed.columns.map((col) => ({
-      title: col.title,
-      cards: col.cards.map((c) => ({ ...c })),
-    }));
-  });
-
-  // Extract frontmatter data for serializeKanban
+  // Extract frontmatter from markdown for serialization (simple regex, no gray-matter)
   function getFrontmatter(): Record<string, unknown> {
-    const { data } = matter(markdown);
-    return data as Record<string, unknown>;
+    const match = markdown.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) return { view: 'kanban' };
+    const fm: Record<string, unknown> = { view: 'kanban' };
+    for (const line of match[1].split('\n')) {
+      const kv = line.match(/^(\w[\w-]*)\s*:\s*(.+)/);
+      if (kv && kv[1] !== 'labels') {
+        let val: unknown = kv[2].trim();
+        if (val === 'true') val = true;
+        else if (val === 'false') val = false;
+        else if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+        fm[kv[1]] = val;
+      }
+    }
+    return fm;
+  }
+
+  function generateId(): string {
+    return 'c' + Math.random().toString(36).slice(2, 8);
   }
 
   // Count comments per card (by block_id in anchor JSON)
@@ -133,7 +143,7 @@
     if (!newCardTitle.trim() || !addingToColumn) return;
     saving = true;
     const fm = getFrontmatter();
-    const newId = 'c' + nanoid(6);
+    const newId = generateId();
     const newColumns = columns.map((col) => {
       if (col.title !== addingToColumn) return col;
       return {

@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { getUserByUsername, getPagesByUser, getCommentsByPage } from '$lib/server/db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 import { parseBlocks } from '$lib/templates';
+import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 
 export const load: PageServerLoad = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'Platform not available');
@@ -31,5 +32,11 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
 
   const comments = await getCommentsByPage(db, page.id);
 
-  return { page, html, blocks, comments, frontmatter: fm, isOwner };
+  let kanbanData = null;
+  if (templateName === 'kanban') {
+    const parsed = parseKanbanBlocks(page.markdown);
+    kanbanData = { columns: parsed.columns, labels: parsed.labels };
+  }
+
+  return { page, html, blocks, comments, frontmatter: fm, isOwner, kanbanData };
 };

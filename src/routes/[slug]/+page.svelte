@@ -24,7 +24,7 @@
   <div style="max-width: {page.view === 'kanban' ? '1200px' : '720px'}; margin: 0 auto;">
     <div style="background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-elevated); padding: 40px 48px; {page.view === 'kanban' ? 'overflow-x: auto;' : ''}">
       {#if page.view === 'kanban'}
-        <KanbanView markdown={page.markdown} pageId={page.id} {comments} />
+        <KanbanView markdown={page.markdown} pageId={page.id} {comments} initialColumns={data.kanbanData?.columns ?? []} initialLabels={data.kanbanData?.labels ?? {}} />
       {:else}
         <DocView {html} title={page.title} />
       {/if}
