@@ -191,18 +191,18 @@
     gap: 8px;
     background: var(--surface);
     box-shadow: var(--shadow-card);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     padding: 16px;
   }
 
   .compose-input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 8px 14px;
     font-size: 14px;
     font-family: var(--font-sans);
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-input);
     outline: none;
     color: var(--text-primary);
     transition: border-color 150ms, box-shadow 150ms;
@@ -241,13 +241,13 @@
   }
 
   .post-btn {
-    padding: 7px 16px;
+    padding: 7px 20px;
     font-size: 14px;
     font-weight: 500;
     background: var(--accent);
     color: var(--bg);
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-button);
     cursor: pointer;
     transition: background-color 150ms, opacity 150ms;
   }

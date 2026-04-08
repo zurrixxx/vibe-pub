@@ -69,8 +69,8 @@
     max-width: 360px;
     background: var(--surface);
     box-shadow: var(--shadow-elevated);
-    border-radius: 12px;
-    padding: 32px;
+    border-radius: var(--radius-card);
+    padding: 36px;
   }
 
   .login-brand {
@@ -79,10 +79,10 @@
   }
 
   .brand-link {
-    font-family: var(--font-mono);
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.5px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.3px;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -102,9 +102,10 @@
   }
 
   .login-title {
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.4px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
     color: var(--text-primary);
     margin: 0 0 6px 0;
   }
@@ -151,11 +152,11 @@
 
   .form-input {
     width: 100%;
-    padding: 11px 14px;
+    padding: 11px 16px;
     font-size: 15px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: var(--radius-input);
     outline: none;
     color: var(--text-primary);
     transition: border-color 150ms, box-shadow 150ms;
@@ -173,13 +174,13 @@
 
   .submit-btn {
     width: 100%;
-    padding: 11px 16px;
+    padding: 12px 16px;
     font-size: 14px;
     font-weight: 500;
     background: var(--accent);
     color: var(--bg);
     border: none;
-    border-radius: 7px;
+    border-radius: var(--radius-button);
     cursor: pointer;
     transition: background-color 150ms, box-shadow 150ms;
   }

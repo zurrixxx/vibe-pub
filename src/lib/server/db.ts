@@ -60,15 +60,22 @@ export async function deletePage(db: D1Database, id: string): Promise<void> {
 
 export async function createComment(
   db: D1Database,
-  data: { page_id: string; user_id?: string; display_name?: string; body: string; anchor?: string }
+  data: { page_id: string; user_id?: string; display_name?: string; body: string; anchor?: unknown; anchor_hint?: string }
 ): Promise<Comment> {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  // Serialize anchor: if object, JSON.stringify; if string, store as-is; if null/undefined, null
+  const anchorStr =
+    data.anchor == null
+      ? null
+      : typeof data.anchor === 'string'
+        ? data.anchor
+        : JSON.stringify(data.anchor);
   await db
     .prepare(
-      `INSERT INTO comments (id, page_id, user_id, display_name, body, anchor)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO comments (id, page_id, user_id, display_name, body, anchor, anchor_hint)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, data.page_id, data.user_id ?? null, data.display_name ?? null, data.body, data.anchor ?? null)
+    .bind(id, data.page_id, data.user_id ?? null, data.display_name ?? null, data.body, anchorStr, data.anchor_hint ?? null)
     .run();
 
   return db.prepare('SELECT * FROM comments WHERE id = ?').bind(id).first<Comment>() as Promise<Comment>;
@@ -77,6 +84,19 @@ export async function createComment(
 export async function getCommentsByPage(db: D1Database, pageId: string): Promise<Comment[]> {
   const result = await db.prepare('SELECT * FROM comments WHERE page_id = ? ORDER BY created ASC').bind(pageId).all<Comment>();
   return result.results;
+}
+
+export async function updateCommentAnchor(db: D1Database, commentId: string, anchor: unknown, orphaned?: boolean): Promise<void> {
+  const anchorStr =
+    anchor == null
+      ? null
+      : typeof anchor === 'string'
+        ? anchor
+        : JSON.stringify(anchor);
+  await db
+    .prepare('UPDATE comments SET anchor = ? WHERE id = ?')
+    .bind(anchorStr, commentId)
+    .run();
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {

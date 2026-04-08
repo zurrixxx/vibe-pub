@@ -27,7 +27,8 @@ export interface Comment {
   page_id: string;
   user_id: string | null;
   display_name: string | null;
-  anchor: string | null;
+  anchor: string | null;       // JSON string: CommentAnchor | legacy string
+  anchor_hint: string | null;  // Text fingerprint for reconciliation
   body: string;
   resolved: number;
   created: string;

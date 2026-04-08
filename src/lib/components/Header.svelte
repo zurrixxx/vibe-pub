@@ -26,26 +26,19 @@
 
 <style>
   .site-header {
-    height: 52px;
+    height: 56px;
     position: sticky;
     top: 0;
     z-index: 40;
-    background: rgba(250, 250, 250, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
+    background: transparent;
     transition: border-color 200ms;
   }
 
-  :global(.dark) .site-header {
-    background: rgba(10, 10, 11, 0.75);
-  }
-
   .logo-link {
-    font-family: var(--font-mono);
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: -0.5px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: -0.3px;
     color: var(--text-primary);
     text-decoration: none;
     display: flex;
@@ -54,7 +47,7 @@
   }
 
   .logo-link:hover {
-    opacity: 0.75;
+    opacity: 0.7;
   }
 
   .logo-vibe {
@@ -72,13 +65,13 @@
   }
 
   .nav-link {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
     text-decoration: none;
-    padding: 5px 12px;
-    border-radius: 6px;
+    padding: 6px 16px;
+    border-radius: var(--radius-button);
     border: 1px solid var(--border);
     transition: color 150ms, border-color 150ms, background 150ms;
   }
@@ -86,6 +79,6 @@
   .nav-link:hover {
     color: var(--text-primary);
     border-color: var(--border-hover);
-    background: var(--surface-hover);
+    background: var(--surface);
   }
 </style>

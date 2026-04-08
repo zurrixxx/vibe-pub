@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getUserByUsername, getPagesByUser, getCommentsByPage } from '$lib/server/db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
+import { parseBlocks } from '$lib/templates';
 
 export const load: PageServerLoad = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'Platform not available');
@@ -21,9 +22,14 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
     throw error(403, 'This page is private');
   }
 
-  const { content } = parseFrontmatter(page.markdown);
+  const { content, data: fm } = parseFrontmatter(page.markdown);
   const html = await renderMarkdown(content);
+
+  // Parse blocks using the template system
+  const templateName = page.view || 'doc';
+  const blocks = parseBlocks(templateName, page.markdown);
+
   const comments = await getCommentsByPage(db, page.id);
 
-  return { page, html, comments, isOwner };
+  return { page, html, blocks, comments, frontmatter: fm, isOwner };
 };

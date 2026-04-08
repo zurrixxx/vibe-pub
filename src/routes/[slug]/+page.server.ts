@@ -1,9 +1,10 @@
+// src/routes/[slug]/+page.server.ts
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getCommentsByPage } from '$lib/server/db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
+import { parseBlocks } from '$lib/templates';
 
-// Anonymous slug lookup — no userId filter
 async function getPageBySlugPublic(db: D1Database, slug: string) {
   return db.prepare('SELECT * FROM pages WHERE slug = ?').bind(slug).first<import('$lib/types').Page>();
 }
@@ -20,14 +21,20 @@ export const load: PageServerLoad = async ({ params, platform }) => {
   }
 
   // Strip frontmatter before rendering
-  const { content } = parseFrontmatter(page.markdown);
+  const { content, data: fm } = parseFrontmatter(page.markdown);
   const html = await renderMarkdown(content);
+
+  // Parse blocks using the template system
+  const templateName = page.view || 'doc';
+  const blocks = parseBlocks(templateName, page.markdown);
 
   const comments = await getCommentsByPage(db, page.id);
 
   return {
     page,
     html,
-    comments
+    blocks,
+    comments,
+    frontmatter: fm,
   };
 };

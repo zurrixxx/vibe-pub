@@ -95,10 +95,10 @@
   }
 
   .workspace-username {
-    font-family: var(--font-mono);
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.4px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
     color: var(--text-primary);
     margin: 0 0 4px 0;
   }
@@ -115,8 +115,8 @@
     font-weight: 500;
     color: var(--text-secondary);
     text-decoration: none;
-    padding: 7px 14px;
-    border-radius: 7px;
+    padding: 8px 18px;
+    border-radius: var(--radius-button);
     border: 1px solid var(--border);
     transition: color 150ms, border-color 150ms, background 150ms;
   }
@@ -162,10 +162,10 @@
     flex-direction: column;
     justify-content: space-between;
     gap: 12px;
-    padding: 18px 20px;
+    padding: 20px 22px;
     background: var(--surface);
     box-shadow: var(--shadow-card);
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     text-decoration: none;
     transition: box-shadow 150ms, transform 150ms, border-color 150ms;
     border: 1px solid transparent;

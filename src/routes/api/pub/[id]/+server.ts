@@ -1,7 +1,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDb, getPageById, updatePage, deletePage } from '$lib/server/db';
+import { getDb, getPageById, updatePage, deletePage, getCommentsByPage, updateCommentAnchor } from '$lib/server/db';
 import { parseFrontmatter } from '$lib/server/markdown';
+import { reconcileComments } from '$lib/templates/reconcile';
+import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 
 export const GET: RequestHandler = async ({ params, platform }) => {
   if (!platform) throw error(500, 'No platform');
@@ -32,6 +34,7 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   let viewOverride: string | undefined;
   let accessOverride: string | undefined;
   let titleOverride: string | undefined;
+  let themeOverride: string | undefined;
 
   if (contentType.includes('application/json')) {
     const body = await request.json();
@@ -39,24 +42,48 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     viewOverride = body.view;
     accessOverride = body.access;
     titleOverride = body.title;
+    themeOverride = body.theme;
   } else {
     markdown = await request.text() || undefined;
   }
 
   // Re-parse frontmatter if markdown is being updated
+  let oldBlocks: import('$lib/templates/types').Block[] = [];
+  let newBlocks: import('$lib/templates/types').Block[] = [];
+
   if (markdown) {
     const { data: fm } = parseFrontmatter(markdown);
     viewOverride = viewOverride ?? fm.view;
     accessOverride = accessOverride ?? fm.access;
     titleOverride = titleOverride ?? fm.title;
+
+    // Capture old blocks for reconciliation (before update)
+    const oldMarkdown = page.markdown;
+    const effectiveView = viewOverride ?? page.view;
+    if (effectiveView === 'kanban') {
+      oldBlocks = parseKanbanBlocks(oldMarkdown).blocks;
+      newBlocks = parseKanbanBlocks(markdown).blocks;
+    }
   }
 
   await updatePage(db, params.id, {
     markdown,
     view: viewOverride,
     access: accessOverride,
-    title: titleOverride
+    title: titleOverride,
+    theme: themeOverride
   });
+
+  // Reconcile comment anchors if markdown changed and we have block info
+  if (markdown && (oldBlocks.length > 0 || newBlocks.length > 0)) {
+    const comments = await getCommentsByPage(db, params.id);
+    const reconciled = reconcileComments(oldBlocks, newBlocks, comments);
+    await Promise.all(
+      reconciled
+        .filter((r) => r.changed)
+        .map((r) => updateCommentAnchor(db, r.commentId, r.newAnchor))
+    );
+  }
 
   const updated = await getPageById(db, params.id);
   return json(updated);
