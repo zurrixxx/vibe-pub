@@ -3,12 +3,22 @@
   "version": "0.1.0",
   "description": "Publish markdown to the web in one command. The publishing layer for humans and AI agents — clean URLs, themes, templates (doc/kanban), unlisted by default.",
   "bin": {
-    "vibe-pub": "./bin/vibe.js",
-    "vibe": "./bin/vibe.js"
+    "vibe-pub": "bin/vibe.js",
+    "vibe": "bin/vibe.js"
   },
   "type": "module",
-  "files": ["bin/", "lib/"],
-  "keywords": ["markdown", "publish", "vibe", "cli", "ai-agents", "mcp"],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "keywords": [
+    "markdown",
+    "publish",
+    "vibe",
+    "cli",
+    "ai-agents",
+    "mcp"
+  ],
   "license": "MIT",
   "author": "Charles Yang <zurrix@gmail.com>",
   "homepage": "https://vibe.pub",
