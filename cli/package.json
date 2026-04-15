@@ -1,7 +1,6 @@
 {
   "name": "vibe-pub",
   "version": "0.1.0",
-  "private": true,
   "description": "Publish markdown to the web in one command. The publishing layer for humans and AI agents — clean URLs, themes, templates (doc/kanban), unlisted by default.",
   "bin": {
     "vibe-pub": "./bin/vibe.js",
