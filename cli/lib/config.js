@@ -20,7 +20,7 @@ export function saveConfig(data) {
 }
 
 export function getBaseUrl() {
-  return getConfig().baseUrl ?? 'https://vibe.pub';
+  return getConfig().baseUrl ?? 'https://vibe-pub.pages.dev';
 }
 
 export function getToken() {

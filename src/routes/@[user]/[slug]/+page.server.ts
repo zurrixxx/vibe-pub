@@ -24,19 +24,30 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
   }
 
   const { content, data: fm } = parseFrontmatter(page.markdown);
-  const html = await renderMarkdown(content);
+  const html = (page.view === 'kanban') ? '' : await renderMarkdown(content);
 
-  // Parse blocks using the template system
   const templateName = page.view || 'doc';
-  const blocks = parseBlocks(templateName, page.markdown);
+  let blocks: import('$lib/templates/types').Block[] = [];
+  let kanbanData = null;
+
+  if (templateName === 'kanban') {
+    try {
+      const parsed = parseKanbanBlocks(page.markdown);
+      blocks = parsed.blocks;
+      kanbanData = { columns: parsed.columns, labels: parsed.labels };
+    } catch (e) {
+      console.error('Kanban parse error:', e);
+      kanbanData = { columns: [], labels: {} };
+    }
+  } else {
+    try {
+      blocks = parseBlocks(templateName, page.markdown);
+    } catch (e) {
+      console.error('Block parse error:', e);
+    }
+  }
 
   const comments = await getCommentsByPage(db, page.id);
-
-  let kanbanData = null;
-  if (templateName === 'kanban') {
-    const parsed = parseKanbanBlocks(page.markdown);
-    kanbanData = { columns: parsed.columns, labels: parsed.labels };
-  }
 
   return { page, html, blocks, comments, frontmatter: fm, isOwner, kanbanData };
 };

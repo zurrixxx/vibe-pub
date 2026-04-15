@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getDb, createPage, getPagesByUser } from '$lib/server/db';
 import { generateSlug, isValidSlug } from '$lib/server/slug';
 import { parseFrontmatter } from '$lib/server/markdown';
+import { detectView } from '$lib/templates/detect';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!platform) throw error(500, 'No platform');
@@ -42,7 +43,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     slug = generateSlug();
   }
 
-  const view = viewOverride ?? fm.view ?? 'doc';
+  const view = viewOverride ?? fm.view ?? detectView(markdown);
   const theme = themeOverride ?? fm.theme ?? 'default';
   const access = accessOverride ?? fm.access ?? 'unlisted';
   const title = fm.title ?? null;

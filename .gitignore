@@ -3,3 +3,14 @@
 node_modules
 build
 dist
+
+# env / secrets
+.env
+.env.*
+.dev.vars
+
+# os / editor
+.DS_Store
+*.log
+.vscode/
+.idea/

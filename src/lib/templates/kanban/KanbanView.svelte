@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Comment } from '$lib/types';
-  import { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './parser';
+  import { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './serialize';
   import KanbanCardComponent from './KanbanCard.svelte';
   import { marked } from 'marked';
 
@@ -10,9 +10,10 @@
     comments: Comment[];
     initialColumns: KanbanColumn[];
     initialLabels: KanbanLabels;
+    isOwner?: boolean;
   }
 
-  let { markdown, pageId, comments, initialColumns, initialLabels }: Props = $props();
+  let { markdown, pageId, comments, initialColumns, initialLabels, isOwner = false }: Props = $props();
 
   let columns = $state<KanbanColumn[]>(initialColumns.map((col) => ({
     title: col.title,
@@ -339,6 +340,11 @@
     function attachHandlers() {
       const inputs = node.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
       inputs.forEach((input, idx) => {
+        if (!isOwner) {
+          input.setAttribute('disabled', '');
+          input.style.cursor = 'default';
+          return;
+        }
         input.removeAttribute('disabled');
         input.style.cursor = 'pointer';
         input.onclick = (e) => {
@@ -409,9 +415,9 @@
             <div
               class="card-drag-wrapper"
               class:dragging={dragCardId === card.id}
-              draggable="true"
-              ondragstart={(e) => onDragStart(e, card, column.title)}
-              ondragend={onDragEnd}
+              draggable={isOwner ? 'true' : 'false'}
+              ondragstart={isOwner ? (e) => onDragStart(e, card, column.title) : undefined}
+              ondragend={isOwner ? onDragEnd : undefined}
               role="listitem"
             >
               <KanbanCardComponent
@@ -427,48 +433,52 @@
           {/each}
         </div>
 
-        <!-- Add card -->
-        {#if addingToColumn === column.title}
-          <div class="add-card-form">
-            <!-- svelte-ignore a11y_autofocus -->
-            <input
-              autofocus
-              class="add-card-input"
-              type="text"
-              placeholder="Card title..."
-              bind:value={newCardTitle}
-              onkeydown={(e) => { if (e.key === 'Enter') confirmAddCard(); if (e.key === 'Escape') cancelAddCard(); }}
-            />
-            <div class="add-card-actions">
-              <button class="btn-add" onclick={confirmAddCard} type="button" disabled={saving}>Add</button>
-              <button class="btn-cancel" onclick={cancelAddCard} type="button">Cancel</button>
+        <!-- Add card (owner only) -->
+        {#if isOwner}
+          {#if addingToColumn === column.title}
+            <div class="add-card-form">
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                autofocus
+                class="add-card-input"
+                type="text"
+                placeholder="Card title..."
+                bind:value={newCardTitle}
+                onkeydown={(e) => { if (e.key === 'Enter') confirmAddCard(); if (e.key === 'Escape') cancelAddCard(); }}
+              />
+              <div class="add-card-actions">
+                <button class="btn-add" onclick={confirmAddCard} type="button" disabled={saving}>Add</button>
+                <button class="btn-cancel" onclick={cancelAddCard} type="button">Cancel</button>
+              </div>
             </div>
-          </div>
-        {:else}
-          <button class="add-card-btn" onclick={() => startAddCard(column.title)} type="button">+ Add card</button>
+          {:else}
+            <button class="add-card-btn" onclick={() => startAddCard(column.title)} type="button">+ Add card</button>
+          {/if}
         {/if}
       </div>
     {/each}
 
-    <!-- Add column -->
-    {#if addingColumn}
-      <div class="kanban-column add-column-form">
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          autofocus
-          class="add-card-input"
-          type="text"
-          placeholder="Column name..."
-          bind:value={newColumnTitle}
-          onkeydown={(e) => { if (e.key === 'Enter') confirmAddColumn(); if (e.key === 'Escape') cancelAddColumn(); }}
-        />
-        <div class="add-card-actions">
-          <button class="btn-add" onclick={confirmAddColumn} type="button" disabled={saving}>Add</button>
-          <button class="btn-cancel" onclick={cancelAddColumn} type="button">Cancel</button>
+    <!-- Add column (owner only) -->
+    {#if isOwner}
+      {#if addingColumn}
+        <div class="kanban-column add-column-form">
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            autofocus
+            class="add-card-input"
+            type="text"
+            placeholder="Column name..."
+            bind:value={newColumnTitle}
+            onkeydown={(e) => { if (e.key === 'Enter') confirmAddColumn(); if (e.key === 'Escape') cancelAddColumn(); }}
+          />
+          <div class="add-card-actions">
+            <button class="btn-add" onclick={confirmAddColumn} type="button" disabled={saving}>Add</button>
+            <button class="btn-cancel" onclick={cancelAddColumn} type="button">Cancel</button>
+          </div>
         </div>
-      </div>
-    {:else}
-      <button class="add-column-btn" onclick={startAddColumn} type="button">+ Add column</button>
+      {:else}
+        <button class="add-column-btn" onclick={startAddColumn} type="button">+ Add column</button>
+      {/if}
     {/if}
   </div>
 </div>
@@ -493,12 +503,14 @@
         {/if}
 
         <div class="modal-actions">
-          {#if !editMode}
-            <button class="btn-edit" onclick={startEdit} type="button">Edit</button>
-            <button class="btn-delete" onclick={deleteCard} type="button" disabled={saving}>Delete</button>
-          {:else}
-            <button class="btn-add" onclick={saveEdit} type="button" disabled={saving}>Save</button>
-            <button class="btn-cancel" onclick={() => { editMode = false; }} type="button">Cancel</button>
+          {#if isOwner}
+            {#if !editMode}
+              <button class="btn-edit" onclick={startEdit} type="button">Edit</button>
+              <button class="btn-delete" onclick={deleteCard} type="button" disabled={saving}>Delete</button>
+            {:else}
+              <button class="btn-add" onclick={saveEdit} type="button" disabled={saving}>Save</button>
+              <button class="btn-cancel" onclick={() => { editMode = false; }} type="button">Cancel</button>
+            {/if}
           {/if}
           <button class="modal-close" onclick={closeExpanded} type="button">✕</button>
         </div>
@@ -569,6 +581,8 @@
   .kanban-scroll {
     overflow-x: auto;
     padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 
   .kanban-board {
@@ -582,7 +596,7 @@
   .kanban-column {
     width: 280px;
     flex-shrink: 0;
-    background: var(--surface);
+    background: var(--surface-subtle, var(--surface));
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     padding: 18px;
@@ -599,6 +613,8 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
   }
 
   .column-title {
@@ -627,13 +643,17 @@
     gap: 6px;
   }
 
-  /* Drag wrapper */
-  .card-drag-wrapper {
+  /* Drag wrapper — cursor set via draggable attribute */
+  .card-drag-wrapper[draggable="true"] {
     cursor: grab;
   }
 
-  .card-drag-wrapper:active {
+  .card-drag-wrapper[draggable="true"]:active {
     cursor: grabbing;
+  }
+
+  .card-drag-wrapper[draggable="false"] {
+    cursor: default;
   }
 
   .card-drag-wrapper.dragging {
@@ -1043,5 +1063,11 @@
     font-size: 12px;
     color: #ef4444;
     margin: 0;
+  }
+
+  @media (max-width: 640px) {
+    .modal-content { padding: 20px; max-height: 85vh; }
+    .modal-title { font-size: 17px; }
+    .kanban-column { width: 240px; }
   }
 </style>

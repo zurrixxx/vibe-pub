@@ -7,21 +7,28 @@ const args = process.argv.slice(2);
 const cmd = args[0];
 
 function help() {
-  console.log(`vibe — publish markdown to vibe.pub
+  console.log(`vibe-pub — publish markdown to vibe.pub
 
 Usage:
-  vibe pub <file.md> [options]   Publish a file
-  vibe pub                        Publish from stdin
-  vibe ls                         List your pages
-  vibe update <id>                Update page from stdin
-  vibe rm <id>                    Delete a page
-  vibe login <email>              Get login instructions
-  vibe config --token <token>     Save session token
+  vibe-pub publish <file.md> [options]   Publish a file
+  vibe-pub publish                        Publish from stdin
+  vibe-pub list                           List your pages
+  vibe-pub update <id> [file.md]          Update a page (file or stdin)
+  vibe-pub delete <id>                    Delete a page
+  vibe-pub login <email>                  Get login instructions
+  vibe-pub config --token <token>         Save session token
 
-Options for pub:
-  --view <doc|kanban>             Page view (default: doc)
-  --access <public|unlisted|private>  Access level (default: unlisted)
-  --slug <slug>                   Custom slug
+Options for publish:
+  --slug <slug>           Custom URL slug
+  --access <level>        public, unlisted (default), or private
+  --theme <theme>         Page theme
+
+Examples:
+  vibe-pub publish notes.md
+  vibe-pub publish report.md --slug q1-report --access public
+  cat README.md | vibe-pub publish
+  vibe-pub list
+  vibe-pub update abc123 updated.md
 `);
 }
 
@@ -29,8 +36,7 @@ function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
-      const key = argv[i].slice(2);
-      flags[key] = argv[i + 1] ?? true;
+      flags[argv[i].slice(2)] = argv[i + 1] ?? true;
       i++;
     }
   }
@@ -46,28 +52,31 @@ async function readStdin() {
   });
 }
 
+function readMarkdown(fileArg) {
+  if (fileArg) {
+    try {
+      return readFileSync(fileArg, 'utf8');
+    } catch {
+      console.error(`Error: could not read file: ${fileArg}`);
+      process.exit(1);
+    }
+  }
+  return null;
+}
+
 async function main() {
-  if (!cmd || cmd === '--help' || cmd === '-h') {
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
     help();
     process.exit(0);
   }
 
-  if (cmd === 'pub') {
+  // ─── publish ───
+  if (cmd === 'publish' || cmd === 'pub') {
     const fileArg = args[1] && !args[1].startsWith('--') ? args[1] : null;
     const flagArgs = fileArg ? args.slice(2) : args.slice(1);
     const flags = parseFlags(flagArgs);
 
-    let markdown;
-    if (fileArg) {
-      try {
-        markdown = readFileSync(fileArg, 'utf8');
-      } catch {
-        console.error(`Error: could not read file: ${fileArg}`);
-        process.exit(1);
-      }
-    } else {
-      markdown = await readStdin();
-    }
+    const markdown = readMarkdown(fileArg) ?? await readStdin();
 
     if (!markdown.trim()) {
       console.error('Error: no markdown content');
@@ -76,12 +85,11 @@ async function main() {
 
     try {
       const page = await publish(markdown, {
-        view: flags.view,
+        slug: flags.slug,
         access: flags.access,
-        slug: flags.slug
+        theme: flags.theme,
       });
-      console.log(`Published: ${getBaseUrl()}/${page.slug}`);
-      console.log(`ID: ${page.id}`);
+      console.log(page.url ?? `${getBaseUrl()}/${page.slug}`);
     } catch (err) {
       console.error(err.message);
       process.exit(1);
@@ -89,9 +97,10 @@ async function main() {
     return;
   }
 
-  if (cmd === 'ls') {
+  // ─── list ───
+  if (cmd === 'list' || cmd === 'ls') {
     if (!getToken()) {
-      console.error('Not logged in. Run: vibe login <email>');
+      console.error('Not logged in. Run: vibe-pub login <email>');
       process.exit(1);
     }
     try {
@@ -101,8 +110,7 @@ async function main() {
         return;
       }
       for (const p of pages) {
-        const title = p.title ?? p.slug;
-        console.log(`${p.id}  ${p.access.padEnd(8)}  ${p.view.padEnd(6)}  ${title}`);
+        console.log(`${p.id}  ${p.access.padEnd(8)}  ${p.view.padEnd(6)}  ${p.title ?? p.slug}  ${p.url}`);
       }
     } catch (err) {
       console.error(err.message);
@@ -111,15 +119,18 @@ async function main() {
     return;
   }
 
+  // ─── update ───
   if (cmd === 'update') {
     const id = args[1];
     if (!id) {
-      console.error('Usage: vibe update <id> < file.md');
+      console.error('Usage: vibe-pub update <id> [file.md]');
       process.exit(1);
     }
-    const markdown = await readStdin();
+    const fileArg = args[2] && !args[2].startsWith('--') ? args[2] : null;
+    const markdown = readMarkdown(fileArg) ?? await readStdin();
+
     if (!markdown.trim()) {
-      console.error('Error: no markdown content on stdin');
+      console.error('Error: no markdown content');
       process.exit(1);
     }
     try {
@@ -132,10 +143,11 @@ async function main() {
     return;
   }
 
-  if (cmd === 'rm') {
+  // ─── delete ───
+  if (cmd === 'delete' || cmd === 'rm') {
     const id = args[1];
     if (!id) {
-      console.error('Usage: vibe rm <id>');
+      console.error('Usage: vibe-pub delete <id>');
       process.exit(1);
     }
     try {
@@ -148,20 +160,22 @@ async function main() {
     return;
   }
 
+  // ─── login ───
   if (cmd === 'login') {
     const email = args[1];
     if (!email) {
-      console.error('Usage: vibe login <email>');
+      console.error('Usage: vibe-pub login <email>');
       process.exit(1);
     }
-    console.log(`To log in as ${email}:`);
-    console.log(`  1. Open ${getBaseUrl()}/auth/login?email=${encodeURIComponent(email)}`);
-    console.log(`  2. Check your email for the magic link`);
-    console.log(`  3. After clicking the link, copy your session token from the browser`);
-    console.log(`  4. Run: vibe config --token <token>`);
+    console.log(`To log in:`);
+    console.log(`  1. Visit ${getBaseUrl()}/auth/login`);
+    console.log(`  2. Sign in with ${email}`);
+    console.log(`  3. Copy your session token from browser cookies (vibe_session)`);
+    console.log(`  4. Run: vibe-pub config --token <token>`);
     return;
   }
 
+  // ─── config ───
   if (cmd === 'config') {
     const flags = parseFlags(args.slice(1));
     if (flags.token) {
@@ -169,9 +183,9 @@ async function main() {
       console.log('Token saved.');
     } else if (flags['base-url']) {
       saveConfig({ baseUrl: flags['base-url'] });
-      console.log(`Base URL set to: ${flags['base-url']}`);
+      console.log(`Base URL: ${flags['base-url']}`);
     } else {
-      console.error('Usage: vibe config --token <token>');
+      console.error('Usage: vibe-pub config --token <token>');
       process.exit(1);
     }
     return;
@@ -183,6 +197,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Unexpected error:', err.message);
+  console.error('Error:', err.message);
   process.exit(1);
 });

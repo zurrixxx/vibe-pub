@@ -1,23 +1,17 @@
-// src/lib/templates/kanban/parser.ts
+// src/lib/templates/kanban/parser.ts — server-only (imports gray-matter)
 import type { Block } from '../types';
 import matter from 'gray-matter';
-import { nanoid } from 'nanoid';
+// Re-export types and serialize from the client-safe module
+export { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './serialize';
+import type { KanbanCard, KanbanColumn, KanbanLabels } from './serialize';
 
-export interface KanbanLabels {
-  [name: string]: string; // label name -> hex color
-}
-
-export interface KanbanCard {
-  id: string;
-  title: string;
-  labels: string[];
-  body: string;       // raw markdown body of the card
-  column: string;
-}
-
-export interface KanbanColumn {
-  title: string;
-  cards: KanbanCard[];
+function nanoid(size = 6): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < size; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
 }
 
 export interface KanbanParseResult {
@@ -157,43 +151,4 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
   };
 }
 
-/**
- * Serialize columns back to markdown.
- * Used after drag-and-drop, add card, delete card, etc.
- */
-export function serializeKanban(
-  frontmatter: Record<string, unknown>,
-  columns: KanbanColumn[],
-  labels: KanbanLabels
-): string {
-  const fmLines: string[] = ['---'];
-  if (frontmatter.view) fmLines.push(`view: ${frontmatter.view}`);
-  if (frontmatter.title) fmLines.push(`title: ${frontmatter.title}`);
-  if (Object.keys(labels).length > 0) {
-    fmLines.push('labels:');
-    for (const [name, color] of Object.entries(labels)) {
-      fmLines.push(`  ${name}: "${color}"`);
-    }
-  }
-  // Preserve any other frontmatter fields
-  for (const [key, value] of Object.entries(frontmatter)) {
-    if (!['view', 'title', 'labels'].includes(key)) {
-      fmLines.push(`${key}: ${JSON.stringify(value)}`);
-    }
-  }
-  fmLines.push('---');
-
-  const bodyParts: string[] = [];
-  for (const col of columns) {
-    bodyParts.push(`\n## ${col.title}`);
-    for (const card of col.cards) {
-      const labelsStr = card.labels.length > 0 ? ` [${card.labels.join(', ')}]` : '';
-      bodyParts.push(`\n### ${card.title} {#${card.id}}${labelsStr}`);
-      if (card.body) {
-        bodyParts.push(card.body);
-      }
-    }
-  }
-
-  return fmLines.join('\n') + '\n' + bodyParts.join('\n') + '\n';
-}
+// serializeKanban moved to ./serialize.ts (client-safe)

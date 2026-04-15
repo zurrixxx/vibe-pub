@@ -1,8 +1,27 @@
 {
-  "name": "@vibe/pub",
+  "name": "vibe-pub",
   "version": "0.1.0",
-  "description": "Publish markdown to vibe.pub",
-  "bin": { "vibe": "./bin/vibe.js" },
+  "private": true,
+  "description": "Publish markdown to vibe.pub — the publishing layer for AI agents",
+  "bin": {
+    "vibe-pub": "./bin/vibe.js",
+    "vibe": "./bin/vibe.js"
+  },
   "type": "module",
-  "files": ["bin/", "lib/"]
+  "files": ["bin/", "lib/"],
+  "keywords": ["markdown", "publish", "vibe", "cli", "ai-agents", "mcp"],
+  "license": "MIT",
+  "author": "Charles Yang <zurrix@gmail.com>",
+  "homepage": "https://vibe.pub",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zurrixxx/vibe-pub.git",
+    "directory": "cli"
+  },
+  "bugs": {
+    "url": "https://github.com/zurrixxx/vibe-pub/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

@@ -11,6 +11,10 @@ declare global {
         JWT_SECRET: string;
         BASE_URL: string;
         RESEND_FROM: string;
+        GITHUB_CLIENT_ID: string;
+        GITHUB_CLIENT_SECRET: string;
+        GOOGLE_CLIENT_ID: string;
+        GOOGLE_CLIENT_SECRET: string;
       };
     }
   }

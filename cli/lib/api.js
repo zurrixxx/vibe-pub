@@ -3,7 +3,7 @@ import { getBaseUrl, getToken } from './config.js';
 function headers(extra = {}) {
   const token = getToken();
   const h = { 'Content-Type': 'application/json', ...extra };
-  if (token) h['Cookie'] = `session=${token}`;
+  if (token) h['Cookie'] = `vibe_session=${token}`;
   return h;
 }
 

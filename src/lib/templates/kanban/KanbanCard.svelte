@@ -66,8 +66,13 @@
 
   .kanban-card:hover {
     border-color: var(--border-hover);
-    box-shadow: var(--shadow-elevated);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transform: translateY(-1px);
+  }
+
+  .kanban-card:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-card);
   }
 
   .card-labels {

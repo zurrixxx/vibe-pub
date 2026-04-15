@@ -2,9 +2,11 @@ import matter from 'gray-matter';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeRaw from 'rehype-raw';
+import rehypeSlug from 'rehype-slug';
 import { createHighlighter } from 'shiki';
 import type { PageFrontmatter } from '$lib/types';
 
@@ -40,8 +42,10 @@ export async function renderMarkdown(md: string): Promise<string> {
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(remarkBreaks)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
+    .use(rehypeSlug)
     .use(rehypeStringify);
 
   // Pre-process code blocks with Shiki (or fallback)

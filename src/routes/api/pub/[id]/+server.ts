@@ -4,6 +4,7 @@ import { getDb, getPageById, updatePage, deletePage, getCommentsByPage, updateCo
 import { parseFrontmatter } from '$lib/server/markdown';
 import { reconcileComments } from '$lib/templates/reconcile';
 import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
+import { parseDocBlocks } from '$lib/templates/doc/parser';
 
 export const GET: RequestHandler = async ({ params, platform }) => {
   if (!platform) throw error(500, 'No platform');
@@ -63,6 +64,9 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     if (effectiveView === 'kanban') {
       oldBlocks = parseKanbanBlocks(oldMarkdown).blocks;
       newBlocks = parseKanbanBlocks(markdown).blocks;
+    } else {
+      oldBlocks = parseDocBlocks(oldMarkdown);
+      newBlocks = parseDocBlocks(markdown);
     }
   }
 
