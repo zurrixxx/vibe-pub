@@ -1,13 +1,18 @@
 // src/lib/templates/kanban/parser.ts — server-only (imports gray-matter)
-import type { Block } from '../types';
-import matter from 'gray-matter';
+import type { Block } from "../types";
+import matter from "gray-matter";
 // Re-export types and serialize from the client-safe module
-export { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './serialize';
-import type { KanbanCard, KanbanColumn, KanbanLabels } from './serialize';
+export {
+  serializeKanban,
+  type KanbanCard,
+  type KanbanColumn,
+  type KanbanLabels,
+} from "./serialize";
+import type { KanbanCard, KanbanColumn, KanbanLabels } from "./serialize";
 
 function nanoid(size = 6): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
   for (let i = 0; i < size; i++) {
     result += chars[Math.floor(Math.random() * chars.length)];
   }
@@ -18,7 +23,7 @@ export interface KanbanParseResult {
   columns: KanbanColumn[];
   blocks: Block[];
   labels: KanbanLabels;
-  needsIdInjection: boolean;  // true if any card was missing {#id}
+  needsIdInjection: boolean; // true if any card was missing {#id}
   normalizedMarkdown: string; // markdown with auto-generated IDs injected
 }
 
@@ -33,12 +38,19 @@ export interface KanbanParseResult {
 export function parseKanbanBlocks(markdown: string): KanbanParseResult {
   const { data: fm, content } = matter(markdown);
   const labels: KanbanLabels = (fm.labels as KanbanLabels) || {};
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   const columns: KanbanColumn[] = [];
   const blocks: Block[] = [];
   let currentColumn: KanbanColumn | null = null;
-  let currentCard: { titleLine: string; id: string; title: string; labels: string[]; bodyLines: string[]; generated: boolean } | null = null;
+  let currentCard: {
+    titleLine: string;
+    id: string;
+    title: string;
+    labels: string[];
+    bodyLines: string[];
+    generated: boolean;
+  } | null = null;
   let blockIndex = 0;
   let needsIdInjection = false;
   const outputLines: string[] = [];
@@ -51,7 +63,7 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
 
   function flushCard() {
     if (!currentCard || !currentColumn) return;
-    const body = currentCard.bodyLines.join('\n').trim();
+    const body = currentCard.bodyLines.join("\n").trim();
     const card: KanbanCard = {
       id: currentCard.id,
       title: currentCard.title,
@@ -62,10 +74,10 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
     currentColumn.cards.push(card);
     blocks.push({
       id: currentCard.id,
-      type: 'card',
+      type: "card",
       index: blockIndex++,
       hint: currentCard.title.slice(0, 80),
-      content: currentCard.titleLine + (body ? '\n' + body : ''),
+      content: currentCard.titleLine + (body ? "\n" + body : ""),
       metadata: {
         column: currentColumn.title,
         labels: currentCard.labels,
@@ -83,7 +95,7 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
       flushCard();
       currentColumn = { title: colMatch[1].trim(), cards: [] };
       columns.push(currentColumn);
-      outputLines.push('', line);
+      outputLines.push("", line);
       continue;
     }
 
@@ -97,28 +109,32 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
       let cardLabels: string[] = [];
       const labelMatch = rest.match(/\[([^\]]*)\]\s*$/);
       if (labelMatch) {
-        cardLabels = labelMatch[1].split(',').map((l) => l.trim()).filter(Boolean);
+        cardLabels = labelMatch[1]
+          .split(",")
+          .map((l) => l.trim())
+          .filter(Boolean);
         rest = rest.slice(0, labelMatch.index).trim();
       }
 
       // Extract {#id}
-      let cardId = '';
+      let cardId = "";
       let generated = false;
       const idMatch = rest.match(/\{#([^}]+)\}\s*$/);
       if (idMatch) {
         cardId = idMatch[1];
         rest = rest.slice(0, idMatch.index).trim();
       } else {
-        cardId = 'c' + nanoid(6);
+        cardId = "c" + nanoid(6);
         generated = true;
       }
 
       const cardTitle = rest;
 
       // Rebuild the line with id injected (for normalization)
-      const labelsStr = cardLabels.length > 0 ? ` [${cardLabels.join(', ')}]` : '';
+      const labelsStr =
+        cardLabels.length > 0 ? ` [${cardLabels.join(", ")}]` : "";
       const normalizedLine = `### ${cardTitle} {#${cardId}}${labelsStr}`;
-      outputLines.push('', normalizedLine);
+      outputLines.push("", normalizedLine);
 
       currentCard = {
         titleLine: normalizedLine,
@@ -147,7 +163,7 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
     blocks,
     labels,
     needsIdInjection,
-    normalizedMarkdown: outputLines.join('\n').trim() + '\n',
+    normalizedMarkdown: outputLines.join("\n").trim() + "\n",
   };
 }
 

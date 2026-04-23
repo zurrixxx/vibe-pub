@@ -1,6 +1,6 @@
 // src/lib/templates/doc/parser.ts
-import type { Block } from '../types';
-import matter from 'gray-matter';
+import type { Block } from "../types";
+import matter from "gray-matter";
 
 /**
  * Parse markdown into doc blocks.
@@ -9,15 +9,15 @@ import matter from 'gray-matter';
  */
 export function parseDocBlocks(markdown: string): Block[] {
   const { content } = matter(markdown);
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const blocks: Block[] = [];
-  let currentHeadingSlug = '';
+  let currentHeadingSlug = "";
   let buffer: string[] = [];
   let blockIndex = 0;
   let paragraphIndex = 0;
 
   function flushBuffer() {
-    const text = buffer.join('\n').trim();
+    const text = buffer.join("\n").trim();
     if (!text) {
       buffer = [];
       return;
@@ -27,7 +27,7 @@ export function parseDocBlocks(markdown: string): Block[] {
       : `p:${paragraphIndex}:top`;
     blocks.push({
       id,
-      type: 'paragraph',
+      type: "paragraph",
       index: blockIndex++,
       hint: text.slice(0, 80),
       content: text,
@@ -39,9 +39,9 @@ export function parseDocBlocks(markdown: string): Block[] {
   function slugify(text: string): string {
     return text
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
       .trim();
   }
 
@@ -55,7 +55,7 @@ export function parseDocBlocks(markdown: string): Block[] {
       paragraphIndex = 0;
       blocks.push({
         id: `heading:${currentHeadingSlug}`,
-        type: 'heading',
+        type: "heading",
         index: blockIndex++,
         hint: title.slice(0, 80),
         content: line,

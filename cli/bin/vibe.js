@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { readFileSync } from 'fs';
-import { publish, list, update, remove } from '../lib/api.js';
-import { saveConfig, getToken, getBaseUrl } from '../lib/config.js';
+import { readFileSync } from "fs";
+import { publish, list, update, remove } from "../lib/api.js";
+import { saveConfig, getToken, getBaseUrl } from "../lib/config.js";
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -35,7 +35,7 @@ Examples:
 function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith('--')) {
+    if (argv[i].startsWith("--")) {
       flags[argv[i].slice(2)] = argv[i + 1] ?? true;
       i++;
     }
@@ -45,17 +45,17 @@ function parseFlags(argv) {
 
 async function readStdin() {
   return new Promise((resolve) => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => (data += chunk));
-    process.stdin.on('end', () => resolve(data));
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("end", () => resolve(data));
   });
 }
 
 function readMarkdown(fileArg) {
   if (fileArg) {
     try {
-      return readFileSync(fileArg, 'utf8');
+      return readFileSync(fileArg, "utf8");
     } catch {
       console.error(`Error: could not read file: ${fileArg}`);
       process.exit(1);
@@ -65,21 +65,21 @@ function readMarkdown(fileArg) {
 }
 
 async function main() {
-  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
+  if (!cmd || cmd === "--help" || cmd === "-h" || cmd === "help") {
     help();
     process.exit(0);
   }
 
   // ─── publish ───
-  if (cmd === 'publish' || cmd === 'pub') {
-    const fileArg = args[1] && !args[1].startsWith('--') ? args[1] : null;
+  if (cmd === "publish" || cmd === "pub") {
+    const fileArg = args[1] && !args[1].startsWith("--") ? args[1] : null;
     const flagArgs = fileArg ? args.slice(2) : args.slice(1);
     const flags = parseFlags(flagArgs);
 
-    const markdown = readMarkdown(fileArg) ?? await readStdin();
+    const markdown = readMarkdown(fileArg) ?? (await readStdin());
 
     if (!markdown.trim()) {
-      console.error('Error: no markdown content');
+      console.error("Error: no markdown content");
       process.exit(1);
     }
 
@@ -98,19 +98,21 @@ async function main() {
   }
 
   // ─── list ───
-  if (cmd === 'list' || cmd === 'ls') {
+  if (cmd === "list" || cmd === "ls") {
     if (!getToken()) {
-      console.error('Not logged in. Run: vibe-pub login <email>');
+      console.error("Not logged in. Run: vibe-pub login <email>");
       process.exit(1);
     }
     try {
       const pages = await list();
       if (!pages.length) {
-        console.log('No pages.');
+        console.log("No pages.");
         return;
       }
       for (const p of pages) {
-        console.log(`${p.id}  ${p.access.padEnd(8)}  ${p.view.padEnd(6)}  ${p.title ?? p.slug}  ${p.url}`);
+        console.log(
+          `${p.id}  ${p.access.padEnd(8)}  ${p.view.padEnd(6)}  ${p.title ?? p.slug}  ${p.url}`,
+        );
       }
     } catch (err) {
       console.error(err.message);
@@ -120,17 +122,17 @@ async function main() {
   }
 
   // ─── update ───
-  if (cmd === 'update') {
+  if (cmd === "update") {
     const id = args[1];
     if (!id) {
-      console.error('Usage: vibe-pub update <id> [file.md]');
+      console.error("Usage: vibe-pub update <id> [file.md]");
       process.exit(1);
     }
-    const fileArg = args[2] && !args[2].startsWith('--') ? args[2] : null;
-    const markdown = readMarkdown(fileArg) ?? await readStdin();
+    const fileArg = args[2] && !args[2].startsWith("--") ? args[2] : null;
+    const markdown = readMarkdown(fileArg) ?? (await readStdin());
 
     if (!markdown.trim()) {
-      console.error('Error: no markdown content');
+      console.error("Error: no markdown content");
       process.exit(1);
     }
     try {
@@ -144,10 +146,10 @@ async function main() {
   }
 
   // ─── delete ───
-  if (cmd === 'delete' || cmd === 'rm') {
+  if (cmd === "delete" || cmd === "rm") {
     const id = args[1];
     if (!id) {
-      console.error('Usage: vibe-pub delete <id>');
+      console.error("Usage: vibe-pub delete <id>");
       process.exit(1);
     }
     try {
@@ -161,31 +163,33 @@ async function main() {
   }
 
   // ─── login ───
-  if (cmd === 'login') {
+  if (cmd === "login") {
     const email = args[1];
     if (!email) {
-      console.error('Usage: vibe-pub login <email>');
+      console.error("Usage: vibe-pub login <email>");
       process.exit(1);
     }
     console.log(`To log in:`);
     console.log(`  1. Visit ${getBaseUrl()}/auth/login`);
     console.log(`  2. Sign in with ${email}`);
-    console.log(`  3. Copy your session token from browser cookies (vibe_session)`);
+    console.log(
+      `  3. Copy your session token from browser cookies (vibe_session)`,
+    );
     console.log(`  4. Run: vibe-pub config --token <token>`);
     return;
   }
 
   // ─── config ───
-  if (cmd === 'config') {
+  if (cmd === "config") {
     const flags = parseFlags(args.slice(1));
     if (flags.token) {
       saveConfig({ token: flags.token });
-      console.log('Token saved.');
-    } else if (flags['base-url']) {
-      saveConfig({ baseUrl: flags['base-url'] });
-      console.log(`Base URL: ${flags['base-url']}`);
+      console.log("Token saved.");
+    } else if (flags["base-url"]) {
+      saveConfig({ baseUrl: flags["base-url"] });
+      console.log(`Base URL: ${flags["base-url"]}`);
     } else {
-      console.error('Usage: vibe-pub config --token <token>');
+      console.error("Usage: vibe-pub config --token <token>");
       process.exit(1);
     }
     return;
@@ -197,6 +201,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Error:', err.message);
+  console.error("Error:", err.message);
   process.exit(1);
 });

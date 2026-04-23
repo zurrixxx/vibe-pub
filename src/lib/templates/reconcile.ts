@@ -1,6 +1,6 @@
 // src/lib/templates/reconcile.ts
-import type { Block, CommentAnchor } from './types';
-import type { Comment } from '$lib/types';
+import type { Block, CommentAnchor } from "./types";
+import type { Comment } from "$lib/types";
 
 /**
  * Reconcile comment anchors after the page markdown has been updated.
@@ -21,7 +21,7 @@ export interface ReconcileResult {
 export function reconcileComments(
   oldBlocks: Block[],
   newBlocks: Block[],
-  comments: Comment[]
+  comments: Comment[],
 ): ReconcileResult[] {
   const newBlockById = new Map(newBlocks.map((b) => [b.id, b]));
   const results: ReconcileResult[] = [];
@@ -32,8 +32,12 @@ export function reconcileComments(
     // Parse the anchor
     let anchor: CommentAnchor;
     try {
-      const parsed = typeof comment.anchor === 'string' ? JSON.parse(comment.anchor) : comment.anchor;
-      if (!parsed || typeof parsed !== 'object' || parsed.type !== 'block') continue;
+      const parsed =
+        typeof comment.anchor === "string"
+          ? JSON.parse(comment.anchor)
+          : comment.anchor;
+      if (!parsed || typeof parsed !== "object" || parsed.type !== "block")
+        continue;
       anchor = parsed as CommentAnchor;
     } catch {
       // Legacy string anchor — skip reconciliation
@@ -54,7 +58,7 @@ export function reconcileComments(
       const candidate = newBlocks.find((b) => b.index === anchor.block_index);
       if (candidate && anchor.block_id) {
         // Hint check: compare hint stored in anchor_hint vs candidate.hint
-        const storedHint = comment.anchor_hint ?? '';
+        const storedHint = comment.anchor_hint ?? "";
         if (!storedHint || candidate.hint.startsWith(storedHint.slice(0, 40))) {
           matched = candidate;
         }
@@ -77,11 +81,19 @@ export function reconcileComments(
         block_index: matched.index,
         orphaned: false,
       };
-      results.push({ commentId: comment.id, newAnchor: updated, changed: true });
+      results.push({
+        commentId: comment.id,
+        newAnchor: updated,
+        changed: true,
+      });
     } else {
       // 3. Nothing matched — orphan
       const orphaned: CommentAnchor = { ...anchor, orphaned: true };
-      results.push({ commentId: comment.id, newAnchor: orphaned, changed: true });
+      results.push({
+        commentId: comment.id,
+        newAnchor: orphaned,
+        changed: true,
+      });
     }
   }
 

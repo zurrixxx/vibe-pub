@@ -1,0 +1,7 @@
+node_modules
+.svelte-kit
+.wrangler
+dist
+build
+package-lock.json
+*.md
