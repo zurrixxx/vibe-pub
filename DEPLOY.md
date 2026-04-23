@@ -71,6 +71,12 @@ npm run build && npx wrangler pages deploy .svelte-kit/cloudflare --project-name
 npm run dev -- --port 5180
 ```
 
+run this command to format codes
+
+```bash
+npm run format
+```
+
 D1 runs locally via wrangler's local mode. To seed local DB:
 
 ```bash

@@ -16,3 +16,5 @@ database_id = "48965b82-002e-41c6-83ca-fab466131c3a"
 [vars]
 RESEND_FROM = "noreply@vibe.pub"
 BASE_URL = "https://vibe-pub.pages.dev"
+GITHUB_CLIENT_ID = "Ov23li07dxuZdYvSBwyd"
+GOOGLE_CLIENT_ID = "405921837588-t5bno9do1bach6c50gg47bsgrt1vk2q2.apps.googleusercontent.com"
