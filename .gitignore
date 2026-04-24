@@ -1,6 +1,5 @@
 .svelte-kit
 .wrangler
-.github
 node_modules
 build
 dist
