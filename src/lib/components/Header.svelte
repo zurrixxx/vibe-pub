@@ -18,6 +18,9 @@
     <div class="nav-right">
       {#if user}
         <a href={`/@${user.username}`} class="nav-link">@{user.username}</a>
+        <form method="POST" action="/auth/logout" class="logout-form">
+          <button type="submit" class="logout-btn">Log out</button>
+        </form>
       {:else}
         <a href="/auth/login" class="nav-link">Sign in</a>
       {/if}
@@ -85,6 +88,10 @@
     flex-shrink: 0;
   }
 
+  .logout-form {
+    margin: 0;
+  }
+
   .nav-link {
     font-size: 12px;
     color: var(--text-tertiary);
@@ -93,4 +100,16 @@
   }
 
   .nav-link:hover { color: var(--text-primary); }
+
+  .logout-btn {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: color 150ms;
+  }
+
+  .logout-btn:hover { color: var(--text-primary); }
 </style>
