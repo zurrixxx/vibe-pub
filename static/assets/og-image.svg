@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="vibe.pub — Markdown into shareable pages">
+  <rect width="1200" height="630" fill="#edeae5"></rect>
+  <text x="80" y="120" font-family="&#39;JetBrains Mono&#39;, ui-monospace, monospace" font-weight="500" font-size="20" letter-spacing="2.4" fill="#6b6860">VIBE · PUB · V1</text>
+  <text x="80" y="280" font-family="&#39;Playfair Display&#39;, Georgia, &#39;Times New Roman&#39;, serif" font-weight="400" font-size="128" letter-spacing="-5.76" fill="#1a1917">Markdown into</text>
+  <text x="80" y="410" font-family="&#39;Playfair Display&#39;, Georgia, &#39;Times New Roman&#39;, serif" font-weight="400" font-size="128" letter-spacing="-5.76" fill="#1a1917"><tspan font-style="italic">shareable</tspan> pages.</text>
+  <line x1="80" y1="500" x2="1120" y2="500" stroke="#d6d3cc" stroke-width="1"></line>
+  <text x="80" y="555" font-family="&#39;Playfair Display&#39;, Georgia, &#39;Times New Roman&#39;, serif" font-weight="400" font-size="38" letter-spacing="-0.76" fill="#1a1917">vibe.<tspan font-style="italic">pub</tspan></text>
+  <text x="1120" y="555" font-family="&#39;JetBrains Mono&#39;, ui-monospace, monospace" font-weight="500" font-size="22" fill="#6b6860" text-anchor="end">$ npx vibe-pub publish</text>
+</svg>
