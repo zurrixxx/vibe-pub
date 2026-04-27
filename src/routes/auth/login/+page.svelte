@@ -14,11 +14,11 @@
   <div class="login-card">
     <!-- Brand -->
     <div class="login-brand">
-      <a href="/" class="brand-link">vibe.pub</a>
+      <a href="/" class="brand-link">vibe.<em>pub</em></a>
     </div>
 
     <div class="login-header">
-      <h1 class="login-title">Sign in</h1>
+      <h1 class="login-title">Sign <em>in</em></h1>
       <p class="login-subtitle">Continue with your account</p>
     </div>
 
@@ -93,6 +93,8 @@
           </button>
         {/if}
       </div>
+
+      <p class="card-footer">no password needed &middot; link expires in 15 min</p>
     {/if}
   </div>
 </div>
@@ -122,12 +124,16 @@
   }
 
   .brand-link {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: var(--font-display);
     font-size: 24px;
     font-weight: 400;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     text-decoration: none;
     color: var(--text-primary);
+  }
+
+  .brand-link :global(em) {
+    font-style: italic;
   }
 
   .login-header {
@@ -136,12 +142,17 @@
   }
 
   .login-title {
-    font-family: 'Instrument Serif', Georgia, serif;
-    font-size: 28px;
+    font-family: var(--font-display);
+    font-size: 40px;
     font-weight: 400;
-    letter-spacing: -0.02em;
+    line-height: 1;
+    letter-spacing: -0.03em;
     color: var(--text-primary);
     margin: 0 0 6px 0;
+  }
+
+  .login-title :global(em) {
+    font-style: italic;
   }
 
   .login-subtitle {
@@ -167,7 +178,7 @@
     font-size: 14px;
     font-weight: 500;
     font-family: var(--font-sans);
-    border-radius: var(--radius-input);
+    border-radius: var(--radius-button);
     text-decoration: none;
     cursor: pointer;
     transition:
@@ -235,7 +246,7 @@
     background: transparent;
     color: var(--text-secondary);
     border: 1px solid var(--border);
-    border-radius: var(--radius-input);
+    border-radius: var(--radius-button);
     cursor: pointer;
     transition:
       color 150ms,
@@ -287,11 +298,11 @@
 
   .form-input {
     width: 100%;
-    padding: 11px 16px;
+    padding: 12px 20px;
     font-size: 15px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-input);
+    border-radius: 9999px;
     outline: none;
     color: var(--text-primary);
     transition:
@@ -326,5 +337,13 @@
 
   .submit-btn:hover {
     background: var(--accent-hover);
+  }
+
+  .card-footer {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin: 20px 0 0 0;
   }
 </style>

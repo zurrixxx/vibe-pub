@@ -24,7 +24,10 @@ interface CollectionPageRow {
   view: string;
 }
 
-export const load: PageServerLoad = async ({ params, url, platform }) => {
+export const load: PageServerLoad = async ({ params, url, platform, depends }) => {
+  // Re-run when ?page= query param changes
+  depends(`collection:${params.slug}:${url.searchParams.get('page') ?? ''}`);
+
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
@@ -56,7 +59,20 @@ export const load: PageServerLoad = async ({ params, url, platform }) => {
 
   const pages = pagesResult.results;
 
-  if (pages.length === 0) throw error(404, 'Collection is empty');
+  // Empty collection — return minimal data so the page can render an empty state
+  if (pages.length === 0) {
+    return {
+      collection: {
+        title: collection.title,
+        slug: collection.slug,
+        description: collection.description,
+        theme: collection.theme,
+      },
+      pages: [],
+      activePage: null,
+      allHeadings: [],
+    };
+  }
 
   // Determine active page (from ?page= query param, or first page)
   const activeSlug = url.searchParams.get('page') ?? pages[0].slug;

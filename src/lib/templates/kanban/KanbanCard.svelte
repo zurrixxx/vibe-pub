@@ -52,8 +52,7 @@
     border: 1px solid var(--border);
     transition:
       border-color 150ms,
-      box-shadow 150ms,
-      transform 150ms;
+      box-shadow 150ms;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -65,11 +64,9 @@
   .kanban-card:hover {
     border-color: var(--border-hover);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
   }
 
   .kanban-card:active {
-    transform: translateY(0);
     box-shadow: var(--shadow-card);
   }
 

@@ -107,17 +107,18 @@
   async function saveEdit() {
     if (!expandedCard) return;
     saving = true;
-    const fm = getFrontmatter();
     const newColumns = columns.map((col) => ({
       ...col,
       cards: col.cards.map((c) =>
         c.id === expandedCard!.id ? { ...c, title: editTitle, body: editBody } : c
       ),
     }));
-    const newMarkdown = serializeKanban(fm, newColumns, labels);
+    const newMarkdown = serializeKanban(getFrontmatter(), newColumns, labels);
     const ok = await putMarkdown(newMarkdown);
     if (ok) {
-      window.location.reload();
+      columns = newColumns;
+      expandedCard = { ...expandedCard, title: editTitle, body: editBody };
+      editMode = false;
     }
     saving = false;
   }
@@ -126,15 +127,16 @@
     if (!expandedCard) return;
     if (!confirm(`Delete card "${expandedCard.title}"?`)) return;
     saving = true;
-    const fm = getFrontmatter();
+    const cardId = expandedCard.id;
     const newColumns = columns.map((col) => ({
       ...col,
-      cards: col.cards.filter((c) => c.id !== expandedCard!.id),
+      cards: col.cards.filter((c) => c.id !== cardId),
     }));
-    const newMarkdown = serializeKanban(fm, newColumns, labels);
+    const newMarkdown = serializeKanban(getFrontmatter(), newColumns, labels);
     const ok = await putMarkdown(newMarkdown);
     if (ok) {
-      window.location.reload();
+      columns = newColumns;
+      closeExpanded();
     }
     saving = false;
   }
@@ -156,10 +158,10 @@
   async function confirmAddCard() {
     if (!newCardTitle.trim() || !addingToColumn) return;
     saving = true;
-    const fm = getFrontmatter();
     const newId = generateId();
+    const targetCol = addingToColumn;
     const newColumns = columns.map((col) => {
-      if (col.title !== addingToColumn) return col;
+      if (col.title !== targetCol) return col;
       return {
         ...col,
         cards: [
@@ -168,10 +170,11 @@
         ],
       };
     });
-    const newMarkdown = serializeKanban(fm, newColumns, labels);
+    const newMarkdown = serializeKanban(getFrontmatter(), newColumns, labels);
     const ok = await putMarkdown(newMarkdown);
     if (ok) {
-      window.location.reload();
+      columns = newColumns;
+      cancelAddCard();
     }
     saving = false;
   }
@@ -193,12 +196,12 @@
   async function confirmAddColumn() {
     if (!newColumnTitle.trim()) return;
     saving = true;
-    const fm = getFrontmatter();
     const newColumns = [...columns, { title: newColumnTitle.trim(), cards: [] }];
-    const newMarkdown = serializeKanban(fm, newColumns, labels);
+    const newMarkdown = serializeKanban(getFrontmatter(), newColumns, labels);
     const ok = await putMarkdown(newMarkdown);
     if (ok) {
-      window.location.reload();
+      columns = newColumns;
+      cancelAddColumn();
     }
     saving = false;
   }
@@ -263,11 +266,11 @@
     dragCardId = null;
     dragSourceColumn = null;
 
+    // Optimistic update
+    columns = newColumns;
+
     const newMarkdown = serializeKanban(fm, newColumns, labels);
-    const ok = await putMarkdown(newMarkdown);
-    if (ok) {
-      window.location.reload();
-    }
+    await putMarkdown(newMarkdown);
     saving = false;
   }
 
@@ -518,11 +521,14 @@
 
 <!-- Expanded card modal -->
 {#if expandedCard}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="modal-overlay"
     onclick={closeExpanded}
     onkeydown={(e) => e.key === 'Escape' && closeExpanded()}
     role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-card-title"
     tabindex="-1"
   >
     <div class="modal-content" onclick={(e) => e.stopPropagation()}>
@@ -545,7 +551,7 @@
             placeholder="Card title"
           />
         {:else}
-          <h2 class="modal-title">{expandedCard.title}</h2>
+          <h2 class="modal-title" id="modal-card-title">{expandedCard.title}</h2>
         {/if}
 
         <div class="modal-actions">
@@ -664,7 +670,7 @@
   }
 
   .kanban-column.drop-target {
-    outline: 2px solid var(--accent, #3b82f6);
+    outline: 2px solid var(--accent);
     box-shadow: var(--shadow-elevated);
   }
 
@@ -678,11 +684,11 @@
   }
 
   .column-title {
-    font-family: var(--font-sans);
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-secondary);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     margin: 0;
   }
@@ -731,7 +737,7 @@
     border: none;
     cursor: pointer;
     text-align: left;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     transition:
       color 120ms,
       background 120ms;
@@ -757,14 +763,14 @@
     font-family: var(--font-sans);
     background: var(--surface-hover);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
   }
 
   .add-card-input:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent);
   }
 
   .add-card-actions {
@@ -807,10 +813,10 @@
     padding: 5px 12px;
     font-size: 12px;
     font-weight: 500;
-    background: var(--accent, #3b82f6);
+    background: var(--accent);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
 
@@ -825,7 +831,7 @@
     background: none;
     color: var(--text-tertiary);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
 
@@ -873,6 +879,7 @@
   }
 
   .modal-title {
+    font-family: var(--font-sans);
     font-size: 20px;
     font-weight: 600;
     color: var(--text-primary);
@@ -909,7 +916,7 @@
     background: var(--surface-hover);
     color: var(--text-secondary);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
 
@@ -923,14 +930,14 @@
     font-size: 12px;
     font-weight: 500;
     background: none;
-    color: #ef4444;
-    border: 1px solid #ef4444;
-    border-radius: 6px;
+    color: var(--error);
+    border: 1px solid var(--error);
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
 
   .btn-delete:hover {
-    background: #fef2f2;
+    background: rgba(239, 68, 68, 0.06);
   }
 
   .btn-delete:disabled {
@@ -939,6 +946,7 @@
   }
 
   .modal-body {
+    font-family: var(--font-sans);
     color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.7;
@@ -974,7 +982,7 @@
   .modal-body :global(pre) {
     background: var(--surface-hover);
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow-x: auto;
   }
 
@@ -991,7 +999,7 @@
   }
 
   .modal-body :global(a) {
-    color: var(--accent, #3b82f6);
+    color: var(--accent);
     text-decoration: underline;
   }
 
@@ -1004,14 +1012,14 @@
     color: var(--text-primary);
     background: var(--surface-hover);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 8px 12px;
     outline: none;
     box-sizing: border-box;
   }
 
   .edit-title-input:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent);
   }
 
   .edit-body-textarea {
@@ -1021,7 +1029,7 @@
     color: var(--text-primary);
     background: var(--surface-hover);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 10px 12px;
     outline: none;
     resize: vertical;
@@ -1030,7 +1038,7 @@
   }
 
   .edit-body-textarea:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent);
   }
 
   .empty-body {
@@ -1046,10 +1054,11 @@
   }
 
   .card-comments-header {
+    font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     color: var(--text-tertiary);
     margin-bottom: 10px;
   }
@@ -1095,14 +1104,14 @@
     font-family: var(--font-sans);
     background: var(--surface-hover);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
   }
 
   .card-comment-input:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent);
   }
 
   .card-comment-textarea {
@@ -1112,7 +1121,7 @@
     font-family: var(--font-sans);
     background: var(--surface-hover);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     outline: none;
     resize: vertical;
@@ -1121,12 +1130,12 @@
   }
 
   .card-comment-textarea:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent);
   }
 
   .card-comment-error {
     font-size: 12px;
-    color: #ef4444;
+    color: var(--error);
     margin: 0;
   }
 

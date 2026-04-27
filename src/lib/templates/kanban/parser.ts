@@ -157,8 +157,18 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
   }
   flushCard();
 
+  // Sort columns by numeric prefix if present (e.g. "0-backlog", "1-signal", "3-scale")
+  const sortedColumns = [...columns].sort((a, b) => {
+    const aNum = a.title.match(/^(\d+)/);
+    const bNum = b.title.match(/^(\d+)/);
+    if (aNum && bNum) return parseInt(aNum[1]) - parseInt(bNum[1]);
+    if (aNum) return -1;
+    if (bNum) return 1;
+    return 0; // preserve original order for non-numeric
+  });
+
   return {
-    columns,
+    columns: sortedColumns,
     blocks,
     labels,
     needsIdInjection,

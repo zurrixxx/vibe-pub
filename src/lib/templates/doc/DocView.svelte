@@ -37,19 +37,41 @@
     if (!commentBody.trim() || !pageId || !activeBlockId) return;
     commentPosting = true;
     try {
+      const anchor = { type: 'block', block_id: activeBlockId };
       const res = await fetch(`/api/comment/${pageId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           body: commentBody.trim(),
           display_name: commentName.trim() || undefined,
-          anchor: { type: 'block', block_id: activeBlockId },
+          anchor,
           anchor_hint: activeBlockId,
         }),
       });
       if (res.ok) {
+        const saved = await res.json().catch(() => null);
+        comments = [
+          ...comments,
+          {
+            id: saved?.id ?? crypto.randomUUID(),
+            page_id: pageId,
+            user_id: null,
+            display_name: commentName.trim() || null,
+            anchor: JSON.stringify(anchor),
+            anchor_hint: activeBlockId,
+            body: commentBody.trim(),
+            resolved: 0,
+            created: new Date().toISOString(),
+          },
+        ];
         commentBody = '';
-        window.location.reload();
+        // Update the button count for this block
+        const btn = document.querySelector(`.bcb[data-for-block="${activeBlockId}"]`);
+        if (btn) {
+          const cnt = commentCount(activeBlockId);
+          btn.textContent = String(cnt);
+          btn.classList.add('has-comments');
+        }
       }
     } catch {}
     commentPosting = false;
@@ -62,6 +84,17 @@
     if (s < 86400) return `${Math.floor(s / 3600)}h`;
     return `${Math.floor(s / 86400)}d`;
   }
+
+  // Track active block highlight
+  $effect(() => {
+    if (typeof document === 'undefined') return;
+    document
+      .querySelectorAll('.block-el.block-active')
+      .forEach((el) => el.classList.remove('block-active'));
+    if (activeBlockId) {
+      document.getElementById(activeBlockId)?.classList.add('block-active');
+    }
+  });
 
   function enhanceDoc(node: HTMLElement) {
     // Code block enhancements
@@ -175,134 +208,188 @@
     position: relative;
   }
 
-  /* ── Block comment button (right margin) ── */
+  /* ── Block comment button (right margin, L3 design: 28px circle, serif italic glyph) ── */
   article.doc-view :global(.block-el) {
     position: relative;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  article.doc-view :global(.block-el:hover) {
+    background: rgba(0, 0, 0, 0.015);
   }
 
   article.doc-view :global(.bcb) {
     position: absolute;
-    right: -40px;
-    top: 3px;
-    width: 20px;
-    height: 20px;
+    right: -52px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    border: none;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 100ms;
-    border-radius: 3px;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 15px;
     color: var(--text-tertiary);
-    font-size: 10px;
-    font-family: var(--font-mono);
+    opacity: 0;
+    transition: opacity 0.15s;
     padding: 0;
   }
 
+  /* Show "+" glyph by default, count when has comments */
   article.doc-view :global(.bcb::before) {
-    content: '';
-    width: 12px;
-    height: 10px;
-    border: 1.2px solid currentColor;
-    border-radius: 2px 2px 2px 0;
-    display: block;
+    content: '+';
   }
 
   article.doc-view :global(.bcb.has-comments::before) {
-    display: none;
+    content: none;
   }
 
   article.doc-view :global(.bcb.has-comments) {
     opacity: 0.45;
     font-weight: 600;
     color: var(--accent);
-    font-size: 9px;
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-size: 10px;
   }
 
   article.doc-view :global(.block-el:hover > .bcb) {
-    opacity: 0.35;
+    opacity: 1;
   }
 
   article.doc-view :global(.bcb:hover) {
-    opacity: 0.8 !important;
+    opacity: 1 !important;
+    color: var(--text-primary);
+    box-shadow: 0 0 0 1.5px var(--text-primary);
   }
 
-  /* ── Inline comment card ── */
+  /* Active block highlight (L3: subtle background, no left-bar shift to avoid covering list numbers) */
+  article.doc-view :global(.block-el.block-active) {
+    background: rgba(26, 25, 23, 0.04);
+    border-left: 3px solid var(--text-primary);
+    padding-left: 12px;
+  }
+
+  /* Comment dot indicator on blocks with comments but not selected */
+  article.doc-view :global(.block-el.has-block-comments:not(.block-active))::after {
+    content: '';
+    position: absolute;
+    right: -28px;
+    top: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-primary);
+  }
+
+  /* Ensure pre/table don't clip the comment button */
+  article.doc-view :global(pre.block-el),
+  article.doc-view :global(table.block-el) {
+    overflow: visible;
+  }
+
+  article.doc-view :global(pre.block-el > code) {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* ── Inline comment card (L3 design: surface bg, shadow-card, serif quote) ── */
   .comment-card {
     position: absolute;
-    left: calc(100% + 24px);
-    width: 240px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    padding: 10px;
+    left: calc(100% + 32px);
+    width: 280px;
     z-index: 20;
   }
 
+  /* When inside a two-column grid layout, keep card from overlapping the rail */
+  @media (max-width: 1199px) {
+    .comment-card {
+      left: auto;
+      right: -20px;
+    }
+  }
+
   .cc-item {
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow-card);
   }
 
   .cc-item:last-of-type {
-    border-bottom: none;
     margin-bottom: 8px;
-    padding-bottom: 0;
   }
 
   .cc-author {
+    font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
   }
   .cc-time {
-    font-size: 10px;
-    color: var(--text-tertiary);
-    margin-left: 6px;
     font-family: var(--font-mono);
+    font-size: 10px;
+    opacity: 0.5;
+    margin-left: 6px;
   }
   .cc-body {
+    font-family: var(--font-prose);
     font-size: 13px;
+    line-height: 1.55;
     color: var(--text-secondary);
-    line-height: 1.5;
-    margin: 4px 0 0;
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
   }
 
   .cc-form {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: var(--shadow-card);
+    margin-top: 8px;
   }
 
   .cc-textarea {
     width: 100%;
-    padding: 6px 8px;
-    font-size: 12px;
-    font-family: var(--font-sans);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
+    border: none;
     outline: none;
-    box-sizing: border-box;
     resize: none;
-    line-height: 1.4;
+    font-family: var(--font-prose);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-primary);
+    background: transparent;
+    min-height: 20px;
+    box-sizing: border-box;
+    padding: 0;
   }
-  .cc-textarea:focus {
-    border-color: var(--border-hover);
+  .cc-textarea::placeholder {
+    color: var(--text-tertiary);
+    font-style: italic;
   }
 
   .cc-actions {
     display: flex;
     gap: 6px;
     justify-content: flex-end;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
   }
   .cc-cancel {
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
     color: var(--text-tertiary);
     background: none;
     border: none;
@@ -313,24 +400,23 @@
     color: var(--text-primary);
   }
   .cc-post {
+    font-family: var(--font-sans);
     font-size: 12px;
-    font-weight: 500;
-    color: white;
-    background: var(--accent);
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
     border: none;
-    border-radius: 6px;
-    padding: 4px 12px;
     cursor: pointer;
+    background: var(--text-primary);
+    color: var(--bg);
   }
   .cc-post:disabled {
-    opacity: 0.4;
-    cursor: default;
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 639px) {
     .comment-card {
-      left: auto;
-      right: 0;
       width: calc(100vw - 48px);
       max-width: 300px;
     }
@@ -352,16 +438,22 @@
     }
   }
 
-  /* ── Base article ── */
+  /* ── Base article (L3 design system prose) ── */
   article.doc-view {
-    font-family: var(--font-prose, var(--font-sans));
-    line-height: 1.8;
+    font-family: var(--font-prose);
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--text-primary);
     --tw-prose-body: var(--text-primary);
     --tw-prose-headings: var(--text-primary);
     --tw-prose-links: var(--text-primary);
     --tw-prose-code: var(--text-primary);
     --tw-prose-quotes: var(--text-secondary);
-    --tw-prose-quote-borders: var(--border);
+    --tw-prose-quote-borders: var(--text-primary);
+  }
+
+  article.doc-view :global(p) {
+    margin: 0 0 22px;
   }
 
   .doc-title,
@@ -369,20 +461,31 @@
   article.doc-view :global(h2),
   article.doc-view :global(h3),
   article.doc-view :global(h4) {
-    font-family: var(--font-serif, Georgia, serif);
+    font-family: var(--font-serif);
   }
 
   article.doc-view :global(h1) {
-    margin-top: 2em;
-    margin-bottom: 0.6em;
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin: 56px 0 20px;
   }
+
   article.doc-view :global(h2) {
-    margin-top: 1.8em;
-    margin-bottom: 0.5em;
+    font-weight: 400;
+    font-size: 32px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 48px 0 16px;
   }
+
   article.doc-view :global(h3) {
-    margin-top: 1.5em;
-    margin-bottom: 0.4em;
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 36px 0 12px;
   }
 
   article.doc-view :global(a) {
@@ -399,34 +502,44 @@
     color: var(--text-primary);
     font-weight: 700;
   }
+
   article.doc-view :global(blockquote) {
-    border-left: 3px solid var(--border);
-    padding-left: 1em;
+    margin: 24px 0;
+    padding: 8px 0 8px 24px;
+    border-left: 2px solid var(--text-primary);
     font-style: italic;
     color: var(--text-secondary);
+    font-family: var(--font-serif);
   }
+
   article.doc-view :global(:not(pre) > code) {
-    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
     border-radius: 4px;
-    padding: 0.15em 0.35em;
-    font-size: 0.875em;
   }
 
   article.doc-view :global(pre) {
     position: relative;
-    background: #1a1a2e;
-    border-radius: 8px;
-    padding: 1.25em 1.5em;
+    background: var(--text-primary);
+    color: var(--bg);
+    padding: 18px 22px;
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.65;
+    margin: 24px 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    font-size: 0.875em;
-    line-height: 1.6;
+    border: none;
+    box-shadow: none;
   }
   article.doc-view :global(pre.shiki) {
-    background: var(--shiki-light-bg, #fff) !important;
+    background: var(--shiki-light-bg, var(--text-primary)) !important;
   }
   :global(.dark) article.doc-view :global(pre.shiki) {
-    background: var(--shiki-dark-bg, #1a1a2e) !important;
+    background: var(--shiki-dark-bg, var(--text-primary)) !important;
   }
   article.doc-view :global(pre.shiki span) {
     color: var(--shiki-light) !important;
@@ -435,14 +548,15 @@
     color: var(--shiki-dark) !important;
   }
   article.doc-view :global(pre:not(.shiki)) {
-    background: #1a1a2e;
-    color: #e2e8f0;
+    background: var(--text-primary);
+    color: var(--bg);
   }
   article.doc-view :global(pre code) {
     background: transparent;
     padding: 0;
     border-radius: 0;
     font-size: inherit;
+    color: inherit;
   }
 
   article.doc-view :global(.code-lang) {
@@ -452,7 +566,7 @@
     padding: 0.15em 0.5em;
     font-size: 0.7em;
     font-family: var(--font-sans);
-    color: #94a3b8;
+    color: rgba(237, 234, 229, 0.5);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     user-select: none;
@@ -465,7 +579,7 @@
     padding: 0.2em 0.5em;
     font-size: 0.7em;
     font-family: var(--font-sans);
-    color: #94a3b8;
+    color: rgba(237, 234, 229, 0.5);
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
@@ -480,7 +594,7 @@
   }
   article.doc-view :global(.code-copy:hover) {
     background: rgba(255, 255, 255, 0.15);
-    color: #e2e8f0;
+    color: var(--bg);
   }
 
   article.doc-view :global(table) {

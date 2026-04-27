@@ -42,10 +42,7 @@ function getHighlighter() {
   return highlighterPromise;
 }
 
-export function parseFrontmatter(raw: string): {
-  data: Partial<PageFrontmatter>;
-  content: string;
-} {
+export function parseFrontmatter(raw: string): { data: Partial<PageFrontmatter>; content: string } {
   const { data, content } = matter(raw);
   return { data: data as Partial<PageFrontmatter>, content };
 }

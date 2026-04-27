@@ -12,7 +12,14 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const contentType = request.headers.get('content-type') ?? '';
   let markdown: string;
   let slugOverride: string | undefined;
-  let viewOverride: 'doc' | 'kanban' | undefined;
+  let viewOverride:
+    | 'doc'
+    | 'kanban'
+    | 'changelog'
+    | 'timeline'
+    | 'slides'
+    | 'dashboard'
+    | undefined;
   let themeOverride: string | undefined;
   let accessOverride: 'public' | 'unlisted' | 'private' | undefined;
 
@@ -32,7 +39,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     throw error(400, 'Markdown content is required');
   }
 
-  const { data: fm } = parseFrontmatter(markdown);
+  const { data: fm, content } = parseFrontmatter(markdown);
 
   // Determine slug
   let slug: string;
@@ -46,7 +53,13 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const view = viewOverride ?? fm.view ?? detectView(markdown);
   const theme = themeOverride ?? fm.theme ?? 'default';
   const access = accessOverride ?? fm.access ?? 'unlisted';
-  const title = fm.title ?? null;
+
+  // Extract title: frontmatter > first # heading > null
+  let title: string | null = (fm.title as string) ?? null;
+  if (!title) {
+    const h1Match = content.match(/^#\s+(.+)/m);
+    if (h1Match) title = h1Match[1].trim();
+  }
   const userId = locals.user?.id;
 
   const page = await createPage(db, {

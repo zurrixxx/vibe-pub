@@ -78,19 +78,11 @@ export function reconcileComments(
         block_index: matched.index,
         orphaned: false,
       };
-      results.push({
-        commentId: comment.id,
-        newAnchor: updated,
-        changed: true,
-      });
+      results.push({ commentId: comment.id, newAnchor: updated, changed: true });
     } else {
       // 3. Nothing matched — orphan
       const orphaned: CommentAnchor = { ...anchor, orphaned: true };
-      results.push({
-        commentId: comment.id,
-        newAnchor: orphaned,
-        changed: true,
-      });
+      results.push({ commentId: comment.id, newAnchor: orphaned, changed: true });
     }
   }
 

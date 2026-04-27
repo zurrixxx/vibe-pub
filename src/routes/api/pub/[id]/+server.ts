@@ -75,6 +75,38 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
       oldBlocks = parseDocBlocks(oldMarkdown);
       newBlocks = parseDocBlocks(markdown);
     }
+
+    // Snapshot current content as a version before updating
+    try {
+      const maxRow = await db
+        .prepare('SELECT MAX(version) as max_v FROM page_versions WHERE page_id = ?')
+        .bind(params.id)
+        .first<{ max_v: number | null }>();
+      const nextVersion = (maxRow?.max_v ?? 0) + 1;
+
+      const versionId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+      await db
+        .prepare(
+          `INSERT INTO page_versions (id, page_id, version, markdown, title)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .bind(versionId, params.id, nextVersion, page.markdown, page.title ?? null)
+        .run();
+
+      // Prune versions older than 20
+      await db
+        .prepare(
+          `DELETE FROM page_versions
+           WHERE page_id = ? AND version <= (
+             SELECT MAX(version) - 20 FROM page_versions WHERE page_id = ?
+           )`
+        )
+        .bind(params.id, params.id)
+        .run();
+    } catch (e) {
+      console.error('Version snapshot failed:', e);
+      // Don't block the update if snapshot fails
+    }
   }
 
   await updatePage(db, params.id, {

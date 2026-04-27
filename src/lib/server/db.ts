@@ -73,13 +73,7 @@ export async function getPagesByUser(db: D1Database, userId: string): Promise<Pa
 export async function updatePage(
   db: D1Database,
   id: string,
-  data: {
-    markdown?: string;
-    title?: string;
-    view?: string;
-    theme?: string;
-    access?: string;
-  }
+  data: { markdown?: string; title?: string; view?: string; theme?: string; access?: string }
 ): Promise<void> {
   const sets: string[] = [];
   const values: (string | null)[] = [];

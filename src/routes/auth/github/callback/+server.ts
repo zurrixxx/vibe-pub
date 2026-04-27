@@ -23,10 +23,7 @@ export const GET: RequestHandler = async ({ url, platform }) => {
     }),
   });
 
-  const tokenData = (await tokenRes.json()) as {
-    access_token?: string;
-    error?: string;
-  };
+  const tokenData = (await tokenRes.json()) as { access_token?: string; error?: string };
   if (!tokenData.access_token) {
     throw error(400, `GitHub auth failed: ${tokenData.error ?? 'unknown error'}`);
   }
@@ -39,11 +36,7 @@ export const GET: RequestHandler = async ({ url, platform }) => {
     },
   });
 
-  const emails = (await userRes.json()) as {
-    email: string;
-    primary: boolean;
-    verified: boolean;
-  }[];
+  const emails = (await userRes.json()) as { email: string; primary: boolean; verified: boolean }[];
   const primaryEmail = emails.find((e) => e.primary && e.verified)?.email;
   if (!primaryEmail) throw error(400, 'No verified email found on GitHub account');
 

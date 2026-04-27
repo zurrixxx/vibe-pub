@@ -21,7 +21,7 @@ export interface Page {
   workspace_id: string | null;
   title: string | null;
   markdown: string;
-  view: 'doc' | 'kanban';
+  view: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme: PageTheme;
   access: 'public' | 'unlisted' | 'private';
   expires_at: string | null;
@@ -49,7 +49,7 @@ export interface Comment {
 }
 
 export interface PageFrontmatter {
-  view?: 'doc' | 'kanban';
+  view?: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme?: PageTheme;
   access?: 'public' | 'unlisted' | 'private';
   title?: string;
