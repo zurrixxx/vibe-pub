@@ -15,4 +15,4 @@ database_id = "ff418fec-bf51-46bd-ba65-df86b974f544"
 
 [vars]
 RESEND_FROM = "noreply@vibe.pub"
-BASE_URL = "https://vibe-pub.pages.dev"
+BASE_URL = "https://vibe.pub"

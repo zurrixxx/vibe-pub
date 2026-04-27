@@ -1,18 +1,18 @@
 export type PageTheme =
-  | "default"
-  | "paper"
-  | "terminal"
-  | "midnight"
-  | "rose"
-  | "ocean"
-  | "stripe"
-  | "claude"
-  | "raycast"
-  | "nord"
-  | "monokai"
-  | "dracula"
-  | "solarized"
-  | "github";
+  | 'default'
+  | 'paper'
+  | 'terminal'
+  | 'midnight'
+  | 'rose'
+  | 'ocean'
+  | 'stripe'
+  | 'claude'
+  | 'raycast'
+  | 'nord'
+  | 'monokai'
+  | 'dracula'
+  | 'solarized'
+  | 'github';
 
 export interface Page {
   id: string;
@@ -21,9 +21,9 @@ export interface Page {
   workspace_id: string | null;
   title: string | null;
   markdown: string;
-  view: "doc" | "kanban";
+  view: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme: PageTheme;
-  access: "public" | "unlisted" | "private";
+  access: 'public' | 'unlisted' | 'private';
   expires_at: string | null;
   created: string;
   updated: string;
@@ -49,9 +49,9 @@ export interface Comment {
 }
 
 export interface PageFrontmatter {
-  view?: "doc" | "kanban";
+  view?: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme?: PageTheme;
-  access?: "public" | "unlisted" | "private";
+  access?: 'public' | 'unlisted' | 'private';
   title?: string;
   expires?: string;
 }

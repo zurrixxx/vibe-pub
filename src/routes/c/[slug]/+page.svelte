@@ -1,30 +1,40 @@
 <script lang="ts">
   import { browser } from '$app/environment';
+  import { goto, invalidateAll } from '$app/navigation';
   import DocView from '$lib/templates/doc/DocView.svelte';
   import KanbanView from '$lib/templates/kanban/KanbanView.svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
 
-  let isDoc = $derived(data.activePage.view !== 'kanban');
+  let isDoc = $derived(data.activePage?.view !== 'kanban');
 
   let showDropdown = $state(false);
   let showOutline = $state(false);
-  let activeTitle = $derived(data.pages.find(p => p.active)?.title ?? '');
-  let currentHeadings = $derived(data.allHeadings?.find(p => p.slug === data.activePage.slug)?.headings?.filter(h => h.level <= 3) ?? []);
-
-  // Global header hidden by layout via URL check (/c/ prefix)
+  let activeTitle = $derived(data.pages.find((p) => p.active)?.title ?? '');
+  let currentHeadings = $derived(
+    data.allHeadings
+      ?.find((p) => p.slug === data.activePage?.slug)
+      ?.headings?.filter((h) => h.level <= 3) ?? []
+  );
 
   // TOC
-  interface TocItem { id: string; text: string; level: number; }
+  interface TocItem {
+    id: string;
+    text: string;
+    level: number;
+  }
   let toc = $derived.by((): TocItem[] => {
-    if (!isDoc || !data.activePage.html) return [];
+    if (!isDoc || !data.activePage?.html) return [];
     const items: TocItem[] = [];
     const regex = /<h([2-3])[^>]*>(.*?)<\/h[2-3]>/gi;
     let match;
     while ((match = regex.exec(data.activePage.html)) !== null) {
       const text = match[2].replace(/<[^>]*>/g, '');
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const id = text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
       items.push({ level: parseInt(match[1]), id, text });
     }
     return items;
@@ -34,163 +44,235 @@
 
   function docActions(node: HTMLElement) {
     node.querySelectorAll('h2, h3').forEach((h) => {
-      if (!h.id) h.id = (h.textContent ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      if (!h.id)
+        h.id = (h.textContent ?? '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
     });
     if (!browser) return { destroy() {} };
     const headings = node.querySelectorAll('h2[id], h3[id]');
     const observer = new IntersectionObserver(
-      (entries) => { for (const e of entries) if (e.isIntersecting) activeTocId = e.target.id; },
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) activeTocId = e.target.id;
+      },
       { rootMargin: '-80px 0px -70% 0px' }
     );
     headings.forEach((h) => observer.observe(h));
-    return { destroy() { observer.disconnect(); } };
+    return {
+      destroy() {
+        observer.disconnect();
+      },
+    };
   }
 </script>
 
 <svelte:head>
-  <title>{data.activePage.title ?? data.collection.title} — vibe.pub</title>
+  <title>{data.activePage?.title ?? data.collection.title} — vibe.pub</title>
   <meta property="og:title" content={data.collection.title} />
-  <meta property="og:description" content={data.collection.description ?? 'A collection on vibe.pub'} />
+  <meta
+    property="og:description"
+    content={data.collection.description ?? 'A collection on vibe.pub'}
+  />
   <meta property="og:site_name" content="vibe.pub" />
 </svelte:head>
 
-<!-- Combined header: logo + collection tabs + sign in -->
+<!-- Header: matches global header style -->
 <header class="c-header">
-  <div class="c-header-inner">
-    <!-- Home -->
-    <a href="/" class="c-home" title="vibe.pub">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"/></svg>
-    </a>
-
-    <!-- Collection title + page dropdown -->
-    <div class="c-nav">
-      <span class="c-coll-name">{data.collection.title}</span>
-      <span class="c-nav-slash">/</span>
-      <div class="c-page-wrap">
-        <button class="c-page-btn" onclick={() => showDropdown = !showDropdown}>
-          <span>{activeTitle}</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        {#if showDropdown}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="c-drop-bg" onclick={() => showDropdown = false} onkeydown={() => {}}></div>
-          <div class="c-drop">
-            {#each data.pages as page}
-              <a href="/c/{data.collection.slug}?page={page.slug}" class="c-drop-item" class:active={page.active}
-                data-sveltekit-noscroll onclick={() => showDropdown = false}>{page.title}</a>
-            {/each}
+  <nav>
+    <div class="nav-left">
+      <a href="/" class="wordmark">vibe.<em>pub</em></a>
+      <span class="nav-sep"></span>
+      <div class="c-breadcrumb">
+        <span class="c-coll-name">{data.collection.title}</span>
+        {#if data.pages.length > 0}
+          <span class="c-slash">/</span>
+          <div class="c-page-wrap">
+            <button class="c-page-btn" onclick={() => (showDropdown = !showDropdown)}>
+              <span>{activeTitle}</span>
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"><path d="M6 9l6 6 6-6" /></svg
+              >
+            </button>
+            {#if showDropdown}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div
+                class="c-drop-bg"
+                onclick={() => (showDropdown = false)}
+                onkeydown={() => {}}
+              ></div>
+              <div class="c-drop">
+                {#each data.pages as page}
+                  <button
+                    type="button"
+                    class="c-drop-item"
+                    class:active={page.active}
+                    onclick={() => {
+                      showDropdown = false;
+                      window.location.href = `/c/${data.collection.slug}?page=${page.slug}`;
+                    }}>{page.title}</button
+                  >
+                {/each}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
     </div>
-
-    <!-- Right: sign in -->
-    <div class="c-right">
+    <div class="nav-right">
       {#if data.user}
-        <a href={`/@${data.user.username}`} class="c-link">@{data.user.username}</a>
+        <a href={`/@${data.user.username}`} class="tb-btn">@{data.user.username}</a>
       {:else}
-        <a href="/auth/login" class="c-link">Sign in</a>
+        <a href="/auth/login" class="tb-btn primary">sign in</a>
       {/if}
     </div>
-  </div>
+  </nav>
 </header>
 
-<!-- Outline (current page only) -->
-{#if currentHeadings.length > 0 && data.activePage.view !== 'kanban'}
-  {#if showOutline}
-    <nav class="c-outline">
-      {#each currentHeadings as h}
-        <a href="#{h.id}" class="c-ol-link" class:h3={h.level === 3}>{h.text}</a>
-      {/each}
-    </nav>
-  {/if}
-  <button class="c-ol-toggle" class:active={showOutline} onclick={() => showOutline = !showOutline} title="Outline">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
-  </button>
+{#if data.activePage}
+  <div class="collection-page theme-{data.collection.theme ?? 'default'}">
+    {#if data.activePage.view === 'kanban'}
+      <div class="kanban-layout">
+        <KanbanView
+          markdown={data.activePage.markdown}
+          pageId={data.activePage.id}
+          comments={data.activePage.comments}
+          initialColumns={data.activePage.kanbanData?.columns ?? []}
+          initialLabels={data.activePage.kanbanData?.labels ?? {}}
+        />
+      </div>
+    {:else}
+      <!-- Same layout as single page doc view -->
+      <div class="doc-layout">
+        <main class="doc-main">
+          <article use:docActions>
+            <DocView
+              html={data.activePage.html}
+              title={data.activePage.title}
+              comments={data.activePage.comments}
+              pageId={data.activePage.id}
+            />
+          </article>
+        </main>
+
+        <!-- Comment rail -->
+        <aside class="doc-rail">
+          <div class="rail-head">
+            <span class="rail-h">Threads · {data.activePage.comments?.length ?? 0}</span>
+          </div>
+          {#if !data.activePage.comments?.length}
+            <div class="empty-rail">
+              <div class="empty-rail-h">No <em>comments</em> yet.</div>
+              <div class="empty-rail-c">Click any block to leave a comment.</div>
+            </div>
+          {:else}
+            {#each data.activePage.comments as comment}
+              <div class="rail-thread">
+                <div class="rail-thread-meta">
+                  {comment.resolved ? '✓ resolved' : '● open'} · {comment.display_name ||
+                    'anonymous'}
+                </div>
+                <div class="rail-thread-body">
+                  {comment.body.slice(0, 80)}{comment.body.length > 80 ? '…' : ''}
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </aside>
+      </div>
+
+      <footer class="page-footer">
+        <a href="/" class="footer-wordmark">vibe.<em>pub</em></a>
+        <span class="footer-desc">publish from the command line</span>
+      </footer>
+    {/if}
+  </div>
+{:else}
+  <!-- Empty collection -->
+  <div class="empty-collection">
+    <div class="empty-glyph"><em>v</em></div>
+    <h2 class="empty-title">No pages yet</h2>
+    <p class="empty-sub">Add pages to this collection via CLI or API.</p>
+    <code class="empty-cmd">vibe-pub collection add {data.collection.slug} &lt;page-slug&gt;</code>
+  </div>
 {/if}
 
-<!-- Page content -->
-<div class="collection-page theme-{data.collection.theme ?? 'default'}">
-  {#if data.activePage.view === 'kanban'}
-    <div class="kanban-layout">
-      <KanbanView
-        markdown={data.activePage.markdown}
-        pageId={data.activePage.id}
-        comments={data.activePage.comments}
-        initialColumns={data.activePage.kanbanData?.columns ?? []}
-        initialLabels={data.activePage.kanbanData?.labels ?? {}}
-      />
-    </div>
-  {:else}
-    <div class="doc-layout">
-      <main class="doc-main">
-        <article class="doc-card" use:docActions>
-          <DocView html={data.activePage.html} title={data.activePage.title} comments={data.activePage.comments} pageId={data.activePage.id} />
-        </article>
-        <footer class="page-footer">
-          <span>Published on </span><a href="/">vibe.pub</a><span class="sep"> — </span><a href="/">Create yours</a>
-        </footer>
-      </main>
-    </div>
-  {/if}
-</div>
-
 <style>
-  /* ═══ Combined header ═══ */
+  /* ═══ Header — matches global header ═══ */
   .c-header {
     position: sticky;
     top: 0;
     z-index: 50;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
-    height: 48px;
   }
 
-  .c-header-inner {
+  nav {
+    padding: 0 40px;
+    height: 56px;
     display: flex;
     align-items: center;
-    height: 100%;
-    padding: 0 16px;
-    gap: 0;
+    justify-content: space-between;
   }
 
-  .c-home {
+  .nav-left {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    color: var(--text-tertiary);
+    align-items: baseline;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .wordmark {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
     text-decoration: none;
     flex-shrink: 0;
-    margin-right: 4px;
-    transition: color 150ms, background 150ms;
+    transition: opacity 150ms;
+    line-height: 1;
   }
 
-  .c-home:hover { color: var(--text-primary); background: var(--surface); }
+  .wordmark :global(em) {
+    font-style: italic;
+  }
+  .wordmark:hover {
+    opacity: 0.6;
+  }
 
-  /* Nav: collection / page */
-  .c-nav {
+  .nav-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .c-breadcrumb {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
-    overflow: hidden;
   }
 
   .c-coll-name {
+    font-family: var(--font-sans);
     font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-shrink: 1;
   }
 
-  .c-nav-slash {
-    font-size: 13px;
+  .c-slash {
+    font-family: var(--font-mono);
+    font-size: 12px;
     color: var(--text-tertiary);
   }
 
@@ -203,19 +285,59 @@
     align-items: center;
     gap: 4px;
     font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-primary);
     background: none;
     border: none;
     cursor: pointer;
     padding: 4px 8px;
+    margin: -4px -8px;
     border-radius: 6px;
-    transition: background 150ms, color 150ms;
+    transition: background 150ms;
     white-space: nowrap;
   }
 
-  .c-page-btn:hover { background: var(--surface); color: var(--text-primary); }
+  .c-page-btn:hover {
+    background: var(--surface-hover);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .tb-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 150ms;
+    text-decoration: none;
+  }
+
+  .tb-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+  }
+
+  .tb-btn.primary {
+    background: var(--text-primary);
+    color: var(--bg);
+    border-color: var(--text-primary);
+  }
+
+  .tb-btn.primary:hover {
+    background: var(--accent-hover);
+  }
 
   /* Dropdown */
   .c-drop-bg {
@@ -226,14 +348,13 @@
 
   .c-drop {
     position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
+    top: calc(100% + 10px);
+    left: -8px;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border-radius: var(--radius-input);
+    box-shadow: var(--shadow-elevated);
     padding: 4px;
-    min-width: 200px;
+    min-width: 220px;
     max-height: 320px;
     overflow-y: auto;
     z-index: 100;
@@ -241,128 +362,236 @@
 
   .c-drop-item {
     display: block;
-    padding: 7px 12px;
-    border-radius: 5px;
-    text-decoration: none;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: none;
+    font-family: var(--font-sans);
     font-size: 13px;
     color: var(--text-secondary);
-    transition: background 150ms, color 150ms;
+    cursor: pointer;
+    transition:
+      background 150ms,
+      color 150ms;
   }
 
-  .c-drop-item:hover { background: var(--bg); color: var(--text-primary); }
-  .c-drop-item.active { color: var(--text-primary); font-weight: 500; background: var(--bg); }
-
-  /* Right */
-  .c-right {
-    margin-left: auto;
-    flex-shrink: 0;
-    padding-left: 12px;
+  .c-drop-item:hover {
+    background: var(--bg);
+    color: var(--text-primary);
+  }
+  .c-drop-item.active {
+    color: var(--text-primary);
+    font-weight: 500;
+    background: var(--bg);
   }
 
-  .c-link {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    text-decoration: none;
-    transition: color 150ms;
-  }
-
-  .c-link:hover { color: var(--text-primary); }
-
-  /* ═══ Page content ═══ */
+  /* ═══ Page content — matches single page doc view ═══ */
   .collection-page {
     background: var(--bg);
     color: var(--text-primary);
-    min-height: calc(100vh - 48px);
+    min-height: calc(100vh - 56px);
   }
 
-  .kanban-layout { padding: 24px; }
-
-  /* ═══ Outline ═══ */
-  .c-ol-toggle {
-    position: fixed;
-    left: calc(50% - 390px);
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    z-index: 30;
-    opacity: 0.45;
-    transition: opacity 150ms, color 150ms;
-  }
-
-  .c-ol-toggle:hover { opacity: 0.8; color: var(--text-primary); }
-  .c-ol-toggle.active { opacity: 0.6; color: var(--text-secondary); }
-
-  .c-outline {
-    position: fixed;
-    right: calc(50% + 380px);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 180px;
-    max-height: calc(100vh - 130px);
-    overflow-y: auto;
-    z-index: 29;
-    padding: 4px 0;
-  }
-
-  .c-ol-link {
-    display: block;
-    font-size: 12px;
-    color: var(--text-tertiary);
-    text-decoration: none;
-    padding: 3px 8px;
-    line-height: 1.4;
-    transition: color 150ms;
-  }
-
-  .c-ol-link:hover { color: var(--text-secondary); }
-  .c-ol-link.h3 { padding-left: 18px; font-size: 11px; }
-
-  @media (max-width: 1100px) {
-    .c-ol-toggle, .c-outline { display: none; }
+  .kanban-layout {
+    padding: 24px;
   }
 
   .doc-layout {
-    max-width: 720px;
+    display: grid;
+    grid-template-columns: 1fr minmax(auto, 320px);
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 32px 24px 80px;
+    gap: 40px;
+    padding: 48px 40px 40px;
   }
 
-  .doc-main { min-width: 0; }
-
-  .doc-card {
-    background: var(--surface);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-elevated);
-    padding: 40px 48px;
+  .doc-main {
+    min-width: 0;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
   }
 
-  .page-footer {
-    text-align: center;
-    margin-top: 40px;
-    font-size: 12px;
+  /* ── Comment rail ── */
+  .doc-rail {
+    position: sticky;
+    top: 96px;
+    align-self: start;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+
+  .rail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+
+  .rail-h {
     font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--text-tertiary);
   }
 
-  .page-footer a { color: var(--text-tertiary); text-decoration: none; }
-  .page-footer a:hover { color: var(--text-secondary); }
-  .page-footer a:first-of-type { font-weight: 500; }
-  .sep { opacity: 0.5; }
-
-  @media (max-width: 820px) {
-    .doc-card { padding: 28px 24px; }
+  .empty-rail {
+    padding: 40px 20px;
+    text-align: center;
   }
 
-  @media (max-width: 500px) {
-    .c-header-inner { padding: 0 12px; }
+  .empty-rail-h {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .empty-rail-h :global(em) {
+    font-style: italic;
+  }
+
+  .empty-rail-c {
+    font-family: var(--font-prose);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-tertiary);
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+  .rail-thread {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .rail-thread-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .rail-thread-body {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
+  /* ── Footer — matches single page ── */
+  .page-footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 40px 60px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-wordmark {
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    color: var(--text-tertiary);
+    text-decoration: none;
+  }
+
+  .footer-wordmark :global(em) {
+    font-style: italic;
+  }
+  .footer-wordmark:hover {
+    color: var(--text-primary);
+  }
+
+  .footer-desc {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  /* ═══ Responsive ═══ */
+  @media (max-width: 959px) {
+    .doc-layout {
+      grid-template-columns: 1fr;
+      max-width: 640px;
+      padding: 32px 24px 40px;
+    }
+    .doc-rail {
+      display: none;
+    }
+    .page-footer {
+      padding: 32px 24px 48px;
+    }
+  }
+
+  @media (max-width: 639px) {
+    nav {
+      padding: 0 20px;
+      height: 48px;
+    }
+    .wordmark {
+      font-size: 18px;
+    }
+    .doc-layout {
+      padding: 24px 20px 40px;
+    }
+    .page-footer {
+      padding: 24px 20px 40px;
+    }
+  }
+
+  /* ── Empty collection ── */
+  .empty-collection {
+    padding: 80px 24px;
+    text-align: center;
+  }
+
+  .empty-glyph {
+    font-family: var(--font-display);
+    font-size: 48px;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+  }
+
+  .empty-glyph :global(em) {
+    font-style: italic;
+  }
+
+  .empty-title {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+  }
+
+  .empty-sub {
+    font-family: var(--font-prose);
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 20px;
+  }
+
+  .empty-cmd {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: var(--surface);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
   }
 </style>

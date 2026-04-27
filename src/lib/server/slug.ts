@@ -1,9 +1,9 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes } from 'node:crypto';
 
 export function generateSlug(length = 7): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const bytes = randomBytes(length);
-  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
 export function isValidSlug(slug: string): boolean {

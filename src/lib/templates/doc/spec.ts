@@ -1,26 +1,25 @@
 // src/lib/templates/doc/spec.ts
-import type { TemplateSpec } from "../types";
+import type { TemplateSpec } from '../types';
 
 export const docSpec: TemplateSpec = {
-  name: "doc",
-  label: "Document",
-  description:
-    "Rich markdown document with headings, paragraphs, code, and more",
-  icon: "doc",
+  name: 'doc',
+  label: 'Document',
+  description: 'Rich markdown document with headings, paragraphs, code, and more',
+  icon: 'doc',
 
   comments: {
-    block_type: "heading",
-    id_source: "heading_id",
+    block_type: 'heading',
+    id_source: 'heading_id',
   },
 
   schema: {
     frontmatter: {
-      view: "doc",
-      title: "Page title (optional)",
-      theme: "Theme name (optional)",
+      view: 'doc',
+      title: 'Page title (optional)',
+      theme: 'Theme name (optional)',
     },
     structure:
-      "Standard markdown. Headings create sections; paragraphs, lists, code blocks are content blocks under each heading.",
+      'Standard markdown. Headings create sections; paragraphs, lists, code blocks are content blocks under each heading.',
     example: `---
 view: doc
 title: My Document

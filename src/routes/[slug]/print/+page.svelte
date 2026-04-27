@@ -28,11 +28,28 @@
   <!-- Print toolbar (hidden when printing) -->
   <div class="print-toolbar no-print">
     <a href="/{data.slug}" class="back-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"><path d="M19 12H5m7-7-7 7 7 7" /></svg
+      >
       Back to page
     </a>
     <button class="print-btn" onclick={() => window.print()}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        ><path
+          d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"
+        /><rect x="6" y="14" width="12" height="8" /></svg
+      >
       Print
     </button>
   </div>
@@ -42,7 +59,13 @@
     <header class="print-header">
       <h1 class="print-title">{data.title}</h1>
       {#if data.updated}
-        <time class="print-date">{new Date(data.updated).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+        <time class="print-date"
+          >{new Date(data.updated).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}</time
+        >
       {/if}
     </header>
     <div class="print-body">
@@ -80,7 +103,9 @@
     text-decoration: none;
   }
 
-  .back-link:hover { color: var(--text-primary); }
+  .back-link:hover {
+    color: var(--text-primary);
+  }
 
   .print-btn {
     display: flex;
@@ -96,75 +121,150 @@
     cursor: pointer;
   }
 
-  .print-btn:hover { border-color: var(--border-hover); }
+  .print-btn:hover {
+    border-color: var(--border-hover);
+  }
 
   /* Document */
   .print-doc {
     background: white;
     padding: 48px;
     border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     margin-bottom: 48px;
   }
 
   .print-header {
     margin-bottom: 32px;
     padding-bottom: 20px;
-    border-bottom: 1px solid #e5e5e5;
+    border-bottom: 1px solid var(--border);
   }
 
   .print-title {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: var(--font-display);
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: #111;
+    color: var(--text-primary);
     margin: 0 0 8px;
     line-height: 1.3;
   }
 
   .print-date {
     font-size: 13px;
-    color: #888;
+    color: var(--text-tertiary);
   }
 
   .print-body {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--font-serif);
     font-size: 15px;
     line-height: 1.8;
-    color: #222;
+    color: var(--text-primary);
   }
 
-  .print-body :global(h1) { font-size: 24px; font-weight: 700; margin: 1.8em 0 0.5em; color: #111; }
-  .print-body :global(h2) { font-size: 20px; font-weight: 700; margin: 1.5em 0 0.4em; color: #111; }
-  .print-body :global(h3) { font-size: 17px; font-weight: 600; margin: 1.3em 0 0.3em; color: #111; }
-  .print-body :global(p) { margin: 0 0 1em; }
-  .print-body :global(strong) { color: #111; }
-  .print-body :global(a) { color: #111; text-decoration: underline; }
-  .print-body :global(blockquote) { border-left: 3px solid #ddd; padding-left: 16px; color: #555; font-style: italic; margin: 1em 0; }
-  .print-body :global(ul), .print-body :global(ol) { padding-left: 1.5em; margin: 0 0 1em; }
-  .print-body :global(li + li) { margin-top: 0.3em; }
-  .print-body :global(code) { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; background: #f5f5f5; padding: 2px 5px; border-radius: 3px; }
-  .print-body :global(pre) { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 1em 0; }
-  .print-body :global(pre code) { background: none; padding: 0; }
-  .print-body :global(table) { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 14px; }
-  .print-body :global(th) { text-align: left; font-weight: 600; padding: 8px 12px; border-bottom: 2px solid #ddd; }
-  .print-body :global(td) { padding: 8px 12px; border-bottom: 1px solid #eee; }
-  .print-body :global(img) { max-width: 100%; }
-  .print-body :global(hr) { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+  .print-body :global(h1) {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 1.8em 0 0.5em;
+    color: var(--text-primary);
+  }
+  .print-body :global(h2) {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 1.5em 0 0.4em;
+    color: var(--text-primary);
+  }
+  .print-body :global(h3) {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 1.3em 0 0.3em;
+    color: var(--text-primary);
+  }
+  .print-body :global(p) {
+    margin: 0 0 1em;
+  }
+  .print-body :global(strong) {
+    color: var(--text-primary);
+  }
+  .print-body :global(a) {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+  .print-body :global(blockquote) {
+    border-left: 3px solid var(--border);
+    padding-left: 16px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 1em 0;
+  }
+  .print-body :global(ul),
+  .print-body :global(ol) {
+    padding-left: 1.5em;
+    margin: 0 0 1em;
+  }
+  .print-body :global(li + li) {
+    margin-top: 0.3em;
+  }
+  .print-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: #f5f5f5;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  .print-body :global(pre) {
+    background: #f8f8f8;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 1em 0;
+  }
+  .print-body :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+  .print-body :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 14px;
+  }
+  .print-body :global(th) {
+    text-align: left;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .print-body :global(td) {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .print-body :global(img) {
+    max-width: 100%;
+  }
+  .print-body :global(hr) {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2em 0;
+  }
 
   .print-footer {
     margin-top: 32px;
     padding-top: 16px;
-    border-top: 1px solid #e5e5e5;
+    border-top: 1px solid var(--border);
     font-size: 11px;
-    color: #aaa;
-    font-family: monospace;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
   }
 
   /* ═══ Print styles ═══ */
   @media print {
-    .no-print { display: none !important; }
+    .no-print {
+      display: none !important;
+    }
 
     .print-page {
       max-width: none;
@@ -179,15 +279,39 @@
       margin: 0;
     }
 
-    .print-title { font-size: 24pt; }
-    .print-body { font-size: 11pt; line-height: 1.6; }
-    .print-body :global(h1) { font-size: 18pt; }
-    .print-body :global(h2) { font-size: 15pt; }
-    .print-body :global(h3) { font-size: 13pt; }
-    .print-body :global(pre) { border: 1px solid #ccc; font-size: 9pt; page-break-inside: avoid; }
-    .print-body :global(table) { font-size: 10pt; }
-    .print-body :global(img) { max-width: 80%; page-break-inside: avoid; }
-    .print-body :global(h1), .print-body :global(h2), .print-body :global(h3) { page-break-after: avoid; }
+    .print-title {
+      font-size: 24pt;
+    }
+    .print-body {
+      font-size: 11pt;
+      line-height: 1.6;
+    }
+    .print-body :global(h1) {
+      font-size: 18pt;
+    }
+    .print-body :global(h2) {
+      font-size: 15pt;
+    }
+    .print-body :global(h3) {
+      font-size: 13pt;
+    }
+    .print-body :global(pre) {
+      border: 1px solid #ccc;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+    .print-body :global(table) {
+      font-size: 10pt;
+    }
+    .print-body :global(img) {
+      max-width: 80%;
+      page-break-inside: avoid;
+    }
+    .print-body :global(h1),
+    .print-body :global(h2),
+    .print-body :global(h3) {
+      page-break-after: avoid;
+    }
 
     .print-footer {
       position: fixed;
