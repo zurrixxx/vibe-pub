@@ -6,7 +6,7 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 [[d1_databases]]
 binding = "DB"
 database_name = "vibe-pub"
-database_id = "48965b82-002e-41c6-83ca-fab466131c3a"
+database_id = "ff418fec-bf51-46bd-ba65-df86b974f544"
 
 # R2 disabled until enabled in Cloudflare dashboard
 # [[r2_buckets]]
