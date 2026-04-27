@@ -5,3 +5,6 @@ dist
 build
 package-lock.json
 *.md
+test-results
+playwright-report
+static/assets

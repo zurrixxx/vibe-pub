@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { Comment } from '$lib/types';
-  import { serializeKanban, type KanbanCard, type KanbanColumn, type KanbanLabels } from './serialize';
+  import {
+    serializeKanban,
+    type KanbanCard,
+    type KanbanColumn,
+    type KanbanLabels,
+  } from './serialize';
   import KanbanCardComponent from './KanbanCard.svelte';
   import { marked } from 'marked';
 
@@ -13,12 +18,21 @@
     isOwner?: boolean;
   }
 
-  let { markdown, pageId, comments, initialColumns, initialLabels, isOwner = false }: Props = $props();
+  let {
+    markdown,
+    pageId,
+    comments,
+    initialColumns,
+    initialLabels,
+    isOwner = false,
+  }: Props = $props();
 
-  let columns = $state<KanbanColumn[]>(initialColumns.map((col) => ({
-    title: col.title,
-    cards: col.cards.map((c) => ({ ...c })),
-  })));
+  let columns = $state<KanbanColumn[]>(
+    initialColumns.map((col) => ({
+      title: col.title,
+      cards: col.cards.map((c) => ({ ...c })),
+    }))
+  );
   let labels = $state<KanbanLabels>({ ...initialLabels });
 
   // Extract frontmatter from markdown for serialization (simple regex, no gray-matter)
@@ -32,7 +46,8 @@
         let val: unknown = kv[2].trim();
         if (val === 'true') val = true;
         else if (val === 'false') val = false;
-        else if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+        else if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"'))
+          val = val.slice(1, -1);
         fm[kv[1]] = val;
       }
     }
@@ -96,9 +111,7 @@
     const newColumns = columns.map((col) => ({
       ...col,
       cards: col.cards.map((c) =>
-        c.id === expandedCard!.id
-          ? { ...c, title: editTitle, body: editBody }
-          : c
+        c.id === expandedCard!.id ? { ...c, title: editTitle, body: editBody } : c
       ),
     }));
     const newMarkdown = serializeKanban(fm, newColumns, labels);
@@ -228,7 +241,10 @@
     let movedCard: KanbanCard | null = null;
     for (const col of columns) {
       const found = col.cards.find((c) => c.id === dragCardId);
-      if (found) { movedCard = { ...found }; break; }
+      if (found) {
+        movedCard = { ...found };
+        break;
+      }
     }
     if (!movedCard) return;
 
@@ -278,7 +294,9 @@
   // ─── Per-card comments ────────────────────────────────────────
   // Local reactive copy of comments so we can append without reload
   let localComments = $state<typeof comments>(comments);
-  $effect(() => { localComments = comments; });
+  $effect(() => {
+    localComments = comments;
+  });
 
   function cardComments(cardId: string) {
     return localComments.filter((c) => {
@@ -355,7 +373,9 @@
     }
     attachHandlers();
     return {
-      update() { attachHandlers(); },
+      update() {
+        attachHandlers();
+      },
       destroy() {},
     };
   }
@@ -375,14 +395,15 @@
       return match;
     });
 
-    if (newBody === body) { checklistSaving = false; return; }
+    if (newBody === body) {
+      checklistSaving = false;
+      return;
+    }
 
     const fm = getFrontmatter();
     const newColumns = columns.map((col) => ({
       ...col,
-      cards: col.cards.map((c) =>
-        c.id === expandedCard!.id ? { ...c, body: newBody } : c
-      ),
+      cards: col.cards.map((c) => (c.id === expandedCard!.id ? { ...c, body: newBody } : c)),
     }));
     const newMarkdown = serializeKanban(fm, newColumns, labels);
 
@@ -444,15 +465,22 @@
                 type="text"
                 placeholder="Card title..."
                 bind:value={newCardTitle}
-                onkeydown={(e) => { if (e.key === 'Enter') confirmAddCard(); if (e.key === 'Escape') cancelAddCard(); }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') confirmAddCard();
+                  if (e.key === 'Escape') cancelAddCard();
+                }}
               />
               <div class="add-card-actions">
-                <button class="btn-add" onclick={confirmAddCard} type="button" disabled={saving}>Add</button>
+                <button class="btn-add" onclick={confirmAddCard} type="button" disabled={saving}
+                  >Add</button
+                >
                 <button class="btn-cancel" onclick={cancelAddCard} type="button">Cancel</button>
               </div>
             </div>
           {:else}
-            <button class="add-card-btn" onclick={() => startAddCard(column.title)} type="button">+ Add card</button>
+            <button class="add-card-btn" onclick={() => startAddCard(column.title)} type="button"
+              >+ Add card</button
+            >
           {/if}
         {/if}
       </div>
@@ -469,10 +497,15 @@
             type="text"
             placeholder="Column name..."
             bind:value={newColumnTitle}
-            onkeydown={(e) => { if (e.key === 'Enter') confirmAddColumn(); if (e.key === 'Escape') cancelAddColumn(); }}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') confirmAddColumn();
+              if (e.key === 'Escape') cancelAddColumn();
+            }}
           />
           <div class="add-card-actions">
-            <button class="btn-add" onclick={confirmAddColumn} type="button" disabled={saving}>Add</button>
+            <button class="btn-add" onclick={confirmAddColumn} type="button" disabled={saving}
+              >Add</button
+            >
             <button class="btn-cancel" onclick={cancelAddColumn} type="button">Cancel</button>
           </div>
         </div>
@@ -485,19 +518,32 @@
 
 <!-- Expanded card modal -->
 {#if expandedCard}
-  <div class="modal-overlay" onclick={closeExpanded} onkeydown={(e) => e.key === 'Escape' && closeExpanded()} role="dialog" tabindex="-1">
+  <div
+    class="modal-overlay"
+    onclick={closeExpanded}
+    onkeydown={(e) => e.key === 'Escape' && closeExpanded()}
+    role="dialog"
+    tabindex="-1"
+  >
     <div class="modal-content" onclick={(e) => e.stopPropagation()}>
       <div class="modal-header">
         {#if !editMode && expandedCard.labels.length > 0}
           <div class="modal-labels">
             {#each expandedCard.labels as label}
-              <span class="label-pill" style="background: {labels[label] || '#6b7280'};">{label}</span>
+              <span class="label-pill" style="background: {labels[label] || '#6b7280'};"
+                >{label}</span
+              >
             {/each}
           </div>
         {/if}
 
         {#if editMode}
-          <input class="edit-title-input" type="text" bind:value={editTitle} placeholder="Card title" />
+          <input
+            class="edit-title-input"
+            type="text"
+            bind:value={editTitle}
+            placeholder="Card title"
+          />
         {:else}
           <h2 class="modal-title">{expandedCard.title}</h2>
         {/if}
@@ -506,10 +552,20 @@
           {#if isOwner}
             {#if !editMode}
               <button class="btn-edit" onclick={startEdit} type="button">Edit</button>
-              <button class="btn-delete" onclick={deleteCard} type="button" disabled={saving}>Delete</button>
+              <button class="btn-delete" onclick={deleteCard} type="button" disabled={saving}
+                >Delete</button
+              >
             {:else}
-              <button class="btn-add" onclick={saveEdit} type="button" disabled={saving}>Save</button>
-              <button class="btn-cancel" onclick={() => { editMode = false; }} type="button">Cancel</button>
+              <button class="btn-add" onclick={saveEdit} type="button" disabled={saving}
+                >Save</button
+              >
+              <button
+                class="btn-cancel"
+                onclick={() => {
+                  editMode = false;
+                }}
+                type="button">Cancel</button
+              >
             {/if}
           {/if}
           <button class="modal-close" onclick={closeExpanded} type="button">✕</button>
@@ -557,7 +613,9 @@
               placeholder="Add a comment..."
               bind:value={commentBody}
               rows={2}
-              onkeydown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) postComment(); }}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) postComment();
+              }}
             ></textarea>
             {#if commentError}
               <p class="card-comment-error">{commentError}</p>
@@ -600,7 +658,9 @@
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
     padding: 18px;
-    transition: box-shadow 150ms, outline 150ms;
+    transition:
+      box-shadow 150ms,
+      outline 150ms;
   }
 
   .kanban-column.drop-target {
@@ -644,15 +704,15 @@
   }
 
   /* Drag wrapper — cursor set via draggable attribute */
-  .card-drag-wrapper[draggable="true"] {
+  .card-drag-wrapper[draggable='true'] {
     cursor: grab;
   }
 
-  .card-drag-wrapper[draggable="true"]:active {
+  .card-drag-wrapper[draggable='true']:active {
     cursor: grabbing;
   }
 
-  .card-drag-wrapper[draggable="false"] {
+  .card-drag-wrapper[draggable='false'] {
     cursor: default;
   }
 
@@ -672,7 +732,9 @@
     cursor: pointer;
     text-align: left;
     border-radius: 6px;
-    transition: color 120ms, background 120ms;
+    transition:
+      color 120ms,
+      background 120ms;
   }
 
   .add-card-btn:hover {
@@ -723,7 +785,10 @@
     border-radius: var(--radius-card);
     cursor: pointer;
     text-align: left;
-    transition: color 120ms, border-color 120ms, background 120ms;
+    transition:
+      color 120ms,
+      border-color 120ms,
+      background 120ms;
     align-self: flex-start;
   }
 
@@ -1066,8 +1131,15 @@
   }
 
   @media (max-width: 640px) {
-    .modal-content { padding: 20px; max-height: 85vh; }
-    .modal-title { font-size: 17px; }
-    .kanban-column { width: 240px; }
+    .modal-content {
+      padding: 20px;
+      max-height: 85vh;
+    }
+    .modal-title {
+      font-size: 17px;
+    }
+    .kanban-column {
+      width: 240px;
+    }
   }
 </style>

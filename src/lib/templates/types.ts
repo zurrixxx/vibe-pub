@@ -8,7 +8,7 @@ export interface TemplateSpec {
 
   comments: {
     block_type: string; // 'paragraph' | 'card' | 'slide' | ...
-    id_source: "heading_id" | "index" | "index+hint" | "content_key";
+    id_source: 'heading_id' | 'index' | 'index+hint' | 'content_key';
   };
 
   schema: {
@@ -28,7 +28,7 @@ export interface Block {
 }
 
 export interface CommentAnchor {
-  type: "page" | "block";
+  type: 'page' | 'block';
   block_type?: string; // 'card' | 'slide' | 'paragraph' | ...
   block_id?: string; // Stable ID from {#id} or content key
   block_index?: number; // Positional fallback

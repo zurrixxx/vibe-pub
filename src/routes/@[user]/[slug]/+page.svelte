@@ -51,7 +51,10 @@
   }
 
   function stripHtml(s: string): string {
-    return s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return s
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   let description = $derived.by(() => {
@@ -105,25 +108,37 @@
     {/if}
 
     {#if editing}
-      <div style="background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-elevated); padding: 16px;">
-        <textarea
-          class="edit-textarea"
-          bind:value={editMarkdown}
-          rows={20}
-        ></textarea>
+      <div
+        style="background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-elevated); padding: 16px;"
+      >
+        <textarea class="edit-textarea" bind:value={editMarkdown} rows={20}></textarea>
       </div>
     {:else}
-    <div style="background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-elevated); padding: 40px 48px; {page.view === 'kanban' ? 'overflow-x: auto;' : ''}">
-      {#if page.view === 'kanban'}
-        <KanbanView markdown={page.markdown} pageId={page.id} {comments} initialColumns={data.kanbanData?.columns ?? []} initialLabels={data.kanbanData?.labels ?? {}} isOwner={isOwner} />
-      {:else}
-        <DocView {html} title={page.title} {comments} pageId={page.id} />
-      {/if}
-    </div>
+      <div
+        style="background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-elevated); padding: 40px 48px; {page.view ===
+        'kanban'
+          ? 'overflow-x: auto;'
+          : ''}"
+      >
+        {#if page.view === 'kanban'}
+          <KanbanView
+            markdown={page.markdown}
+            pageId={page.id}
+            {comments}
+            initialColumns={data.kanbanData?.columns ?? []}
+            initialLabels={data.kanbanData?.labels ?? {}}
+            {isOwner}
+          />
+        {:else}
+          <DocView {html} title={page.title} {comments} pageId={page.id} />
+        {/if}
+      </div>
     {/if}
 
     {#if page.view !== 'kanban'}
-      <div style="margin-top: 32px; background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 28px 32px;">
+      <div
+        style="margin-top: 32px; background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 28px 32px;"
+      >
         <Comments {comments} pageId={page.id} />
       </div>
     {/if}

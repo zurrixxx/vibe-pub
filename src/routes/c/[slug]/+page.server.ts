@@ -1,8 +1,8 @@
-import { error } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
-import { getDb, getCommentsByPage } from "$lib/server/db";
-import { renderMarkdown, parseFrontmatter } from "$lib/server/markdown";
-import { parseKanbanBlocks } from "$lib/templates/kanban/parser";
+import { error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+import { getDb, getCommentsByPage } from '$lib/server/db';
+import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
+import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 
 interface CollectionRow {
   id: string;
@@ -25,19 +25,19 @@ interface CollectionPageRow {
 }
 
 export const load: PageServerLoad = async ({ params, url, platform }) => {
-  if (!platform) throw error(500, "No platform");
+  if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
   // Get collection
   const collection = await db
-    .prepare("SELECT * FROM collections WHERE slug = ?")
+    .prepare('SELECT * FROM collections WHERE slug = ?')
     .bind(params.slug)
     .first<CollectionRow>();
 
-  if (!collection) throw error(404, "Collection not found");
+  if (!collection) throw error(404, 'Collection not found');
 
-  if (collection.access === "private") {
-    throw error(403, "This collection is private");
+  if (collection.access === 'private') {
+    throw error(403, 'This collection is private');
   }
 
   // Get pages in order
@@ -49,23 +49,23 @@ export const load: PageServerLoad = async ({ params, url, platform }) => {
       JOIN pages p ON cp.page_id = p.id
       WHERE cp.collection_id = ?
       ORDER BY cp.sort_order ASC
-    `,
+    `
     )
     .bind(collection.id)
     .all<CollectionPageRow>();
 
   const pages = pagesResult.results;
 
-  if (pages.length === 0) throw error(404, "Collection is empty");
+  if (pages.length === 0) throw error(404, 'Collection is empty');
 
   // Determine active page (from ?page= query param, or first page)
-  const activeSlug = url.searchParams.get("page") ?? pages[0].slug;
+  const activeSlug = url.searchParams.get('page') ?? pages[0].slug;
   const activePage = pages.find((p) => p.slug === activeSlug) ?? pages[0];
 
   // Render active page content
   const { content, data: fm } = parseFrontmatter(activePage.markdown);
-  const isKanban = activePage.view === "kanban";
-  const html = isKanban ? "" : await renderMarkdown(content);
+  const isKanban = activePage.view === 'kanban';
+  const html = isKanban ? '' : await renderMarkdown(content);
   const comments = await getCommentsByPage(db, activePage.page_id);
 
   // Parse kanban data server-side if needed
@@ -92,8 +92,8 @@ export const load: PageServerLoad = async ({ params, url, platform }) => {
         text,
         id: text
           .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)/g, ""),
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, ''),
       });
     }
     return { slug: p.slug, title: p.label ?? p.title ?? p.slug, headings };

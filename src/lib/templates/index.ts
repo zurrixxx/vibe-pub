@@ -1,20 +1,20 @@
 // src/lib/templates/index.ts
-import type { TemplateSpec, Block } from "./types";
-import { docSpec } from "./doc/spec";
-import { kanbanSpec } from "./kanban/spec";
-import { parseDocBlocks } from "./doc/parser";
-import { parseKanbanBlocks } from "./kanban/parser";
+import type { TemplateSpec, Block } from './types';
+import { docSpec } from './doc/spec';
+import { kanbanSpec } from './kanban/spec';
+import { parseDocBlocks } from './doc/parser';
+import { parseKanbanBlocks } from './kanban/parser';
 
 export type { TemplateSpec, Block };
 
 const templates = new Map<string, TemplateSpec>([
-  ["doc", docSpec],
-  ["kanban", kanbanSpec],
+  ['doc', docSpec],
+  ['kanban', kanbanSpec],
 ]);
 
 const parsers = new Map<string, (markdown: string) => Block[]>([
-  ["doc", parseDocBlocks],
-  ["kanban", (md: string) => parseKanbanBlocks(md).blocks],
+  ['doc', parseDocBlocks],
+  ['kanban', (md: string) => parseKanbanBlocks(md).blocks],
 ]);
 
 export function getTemplate(name: string): TemplateSpec | undefined {

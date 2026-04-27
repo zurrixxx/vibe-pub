@@ -4,7 +4,9 @@
   function copyCmd() {
     navigator.clipboard.writeText('npx vibe-pub publish notes.md');
     installCopied = true;
-    setTimeout(() => { installCopied = false; }, 2000);
+    setTimeout(() => {
+      installCopied = false;
+    }, 2000);
   }
 </script>
 
@@ -13,21 +15,28 @@
 </svelte:head>
 
 <div class="page">
-
   <!-- ═══ HERO ═══ -->
   <section class="hero">
     <h1>
-      Turn markdown<br>
-      into <em>shareable<br>
-      pages.</em>
+      Turn markdown<br />
+      into
+      <em
+        >shareable<br />
+        pages.</em
+      >
     </h1>
     <div class="hero-aside">
       <p>
-        One command. Auto-detects docs,
-        kanban boards, changelogs.
-        Built for AI agents and developers.
+        One command. Auto-detects docs, kanban boards, changelogs. Built for AI agents and
+        developers.
       </p>
-      <div class="hero-cmd" onclick={copyCmd} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && copyCmd()}>
+      <div
+        class="hero-cmd"
+        onclick={copyCmd}
+        role="button"
+        tabindex="0"
+        onkeydown={(e) => e.key === 'Enter' && copyCmd()}
+      >
         <code>$ npx vibe-pub publish</code>
         <span class="hero-cmd-copy">{installCopied ? 'Copied' : 'Copy'}</span>
       </div>
@@ -57,7 +66,10 @@
               </div>
               <div class="t-doc">
                 <div class="t-h1">Welcome to vibe.pub</div>
-                <div class="t-body">The publishing layer for AI agents. Your AI generates content — vibe.pub makes it beautiful.</div>
+                <div class="t-body">
+                  The publishing layer for AI agents. Your AI generates content — vibe.pub makes it
+                  beautiful.
+                </div>
                 <div class="t-h2">How It Works</div>
                 <div class="t-body">1. <strong>Generate</strong> — your AI creates content</div>
                 <div class="t-body">2. <strong>Publish</strong> — one command</div>
@@ -166,22 +178,64 @@
     <div class="section-label">Integrations</div>
     <div class="int-grid">
       <div class="int-item">
-        <svg class="int-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-4 7l-1 2H10l-1-2c-2-1.5-4-4-4-7a7 7 0 0 1 7-7z"/><path d="M10 18h4"/><path d="M10 21h4"/></svg>
+        <svg
+          class="int-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><path
+            d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-4 7l-1 2H10l-1-2c-2-1.5-4-4-4-7a7 7 0 0 1 7-7z"
+          /><path d="M10 18h4" /><path d="M10 21h4" /></svg
+        >
         <div class="int-name">Claude Code</div>
         <div class="int-desc">MCP or CLI via Bash tool</div>
       </div>
       <div class="int-item">
-        <svg class="int-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <svg
+          class="int-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg
+        >
         <div class="int-name">Cursor / Cline</div>
         <div class="int-desc">MCP integration</div>
       </div>
       <div class="int-item">
-        <svg class="int-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8M5.6 18.4l2.8-2.8m7.2-7.2 2.8-2.8"/></svg>
+        <svg
+          class="int-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><circle cx="12" cy="12" r="3" /><path
+            d="M12 1v4m0 14v4m-9-9h4m14 0h4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8M5.6 18.4l2.8-2.8m7.2-7.2 2.8-2.8"
+          /></svg
+        >
         <div class="int-name">GitHub Actions</div>
         <div class="int-desc">Auto-publish on push</div>
       </div>
       <div class="int-item">
-        <svg class="int-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h4m-4 4h10m-10 4h7"/></svg>
+        <svg
+          class="int-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><rect x="3" y="3" width="18" height="18" rx="3" /><path
+            d="M7 8h4m-4 4h10m-10 4h7"
+          /></svg
+        >
         <div class="int-name">Any terminal</div>
         <div class="int-desc">npx — zero install</div>
       </div>
@@ -224,12 +278,14 @@
     font-size: 72px;
     font-weight: 400;
     letter-spacing: -0.045em;
-    line-height: 1.0;
+    line-height: 1;
     color: var(--text-primary);
     margin: 0;
   }
 
-  .hero h1 em { font-style: italic; }
+  .hero h1 em {
+    font-style: italic;
+  }
 
   .hero-aside {
     padding-bottom: 8px;
@@ -254,7 +310,9 @@
     transition: background 150ms;
   }
 
-  .hero-cmd:hover { background: #191920; }
+  .hero-cmd:hover {
+    background: #191920;
+  }
 
   .hero-cmd code {
     font-family: var(--font-mono);
@@ -269,7 +327,9 @@
     transition: color 150ms;
   }
 
-  .hero-cmd:hover .hero-cmd-copy { color: #94a3b8; }
+  .hero-cmd:hover .hero-cmd-copy {
+    color: #94a3b8;
+  }
 
   .hero-nav {
     display: flex;
@@ -283,7 +343,9 @@
     transition: color 150ms;
   }
 
-  .hero-nav a:hover { color: var(--text-primary); }
+  .hero-nav a:hover {
+    color: var(--text-primary);
+  }
 
   /* ═══ VIEWS ═══ */
   .views {
@@ -305,12 +367,14 @@
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: transform 150ms, box-shadow 150ms;
+    transition:
+      transform 150ms,
+      box-shadow 150ms;
   }
 
   .view-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   }
 
   /* View preview — scaled thumbnail */
@@ -370,7 +434,7 @@
     background: var(--surface);
     border-radius: 6px;
     padding: 14px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   .t-h1 {
@@ -397,7 +461,9 @@
     margin-bottom: 2px;
   }
 
-  .t-body strong { color: var(--text-primary); }
+  .t-body strong {
+    color: var(--text-primary);
+  }
 
   .t-code {
     font-family: var(--font-mono);
@@ -611,7 +677,9 @@
     text-decoration: none;
     border-bottom: 1px solid var(--border);
     padding-bottom: 1px;
-    transition: color 150ms, border-color 150ms;
+    transition:
+      color 150ms,
+      border-color 150ms;
   }
 
   .paste-link:hover {
@@ -623,29 +691,68 @@
   .ft {
     border-top: 1px solid var(--border);
     padding: 28px 0;
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  .ft span:first-child { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; color: var(--text-tertiary); letter-spacing: -0.02em; }
-  .ft-right { font-size: 13px; color: var(--text-tertiary); font-style: italic; }
+  .ft span:first-child {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 15px;
+    color: var(--text-tertiary);
+    letter-spacing: -0.02em;
+  }
+  .ft-right {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
 
   /* ═══ RESPONSIVE ═══ */
   @media (max-width: 800px) {
-    .page { padding: 0 28px; }
-    .hero { grid-template-columns: 1fr; gap: 32px; padding: 80px 0 56px; }
-    .hero h1 { font-size: 48px; }
-    .ex-link { grid-template-columns: 32px 1fr 20px; }
-    .ex-desc { display: none; }
-    .int-grid { grid-template-columns: repeat(2, 1fr); }
-    .views-grid { grid-template-columns: 1fr; }
-    .coming-row { flex-wrap: wrap; }
-    .editor-section { padding: 48px 0 64px; }
+    .page {
+      padding: 0 28px;
+    }
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      padding: 80px 0 56px;
+    }
+    .hero h1 {
+      font-size: 48px;
+    }
+    .ex-link {
+      grid-template-columns: 32px 1fr 20px;
+    }
+    .ex-desc {
+      display: none;
+    }
+    .int-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .views-grid {
+      grid-template-columns: 1fr;
+    }
+    .coming-row {
+      flex-wrap: wrap;
+    }
+    .editor-section {
+      padding: 48px 0 64px;
+    }
   }
 
   @media (max-width: 500px) {
-    .page { padding: 0 20px; }
-    .hero { padding: 56px 0 40px; }
-    .hero h1 { font-size: 38px; }
-    .hero-nav { gap: 16px; }
+    .page {
+      padding: 0 20px;
+    }
+    .hero {
+      padding: 56px 0 40px;
+    }
+    .hero h1 {
+      font-size: 38px;
+    }
+    .hero-nav {
+      gap: 16px;
+    }
   }
 </style>

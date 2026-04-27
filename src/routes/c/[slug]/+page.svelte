@@ -10,13 +10,21 @@
 
   let showDropdown = $state(false);
   let showOutline = $state(false);
-  let activeTitle = $derived(data.pages.find(p => p.active)?.title ?? '');
-  let currentHeadings = $derived(data.allHeadings?.find(p => p.slug === data.activePage.slug)?.headings?.filter(h => h.level <= 3) ?? []);
+  let activeTitle = $derived(data.pages.find((p) => p.active)?.title ?? '');
+  let currentHeadings = $derived(
+    data.allHeadings
+      ?.find((p) => p.slug === data.activePage.slug)
+      ?.headings?.filter((h) => h.level <= 3) ?? []
+  );
 
   // Global header hidden by layout via URL check (/c/ prefix)
 
   // TOC
-  interface TocItem { id: string; text: string; level: number; }
+  interface TocItem {
+    id: string;
+    text: string;
+    level: number;
+  }
   let toc = $derived.by((): TocItem[] => {
     if (!isDoc || !data.activePage.html) return [];
     const items: TocItem[] = [];
@@ -24,7 +32,10 @@
     let match;
     while ((match = regex.exec(data.activePage.html)) !== null) {
       const text = match[2].replace(/<[^>]*>/g, '');
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const id = text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
       items.push({ level: parseInt(match[1]), id, text });
     }
     return items;
@@ -34,23 +45,36 @@
 
   function docActions(node: HTMLElement) {
     node.querySelectorAll('h2, h3').forEach((h) => {
-      if (!h.id) h.id = (h.textContent ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      if (!h.id)
+        h.id = (h.textContent ?? '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
     });
     if (!browser) return { destroy() {} };
     const headings = node.querySelectorAll('h2[id], h3[id]');
     const observer = new IntersectionObserver(
-      (entries) => { for (const e of entries) if (e.isIntersecting) activeTocId = e.target.id; },
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) activeTocId = e.target.id;
+      },
       { rootMargin: '-80px 0px -70% 0px' }
     );
     headings.forEach((h) => observer.observe(h));
-    return { destroy() { observer.disconnect(); } };
+    return {
+      destroy() {
+        observer.disconnect();
+      },
+    };
   }
 </script>
 
 <svelte:head>
   <title>{data.activePage.title ?? data.collection.title} — vibe.pub</title>
   <meta property="og:title" content={data.collection.title} />
-  <meta property="og:description" content={data.collection.description ?? 'A collection on vibe.pub'} />
+  <meta
+    property="og:description"
+    content={data.collection.description ?? 'A collection on vibe.pub'}
+  />
   <meta property="og:site_name" content="vibe.pub" />
 </svelte:head>
 
@@ -59,7 +83,15 @@
   <div class="c-header-inner">
     <!-- Home -->
     <a href="/" class="c-home" title="vibe.pub">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"/></svg>
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        ><path d="M3 12l9-9 9 9" /><path d="M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10" /></svg
+      >
     </a>
 
     <!-- Collection title + page dropdown -->
@@ -67,17 +99,29 @@
       <span class="c-coll-name">{data.collection.title}</span>
       <span class="c-nav-slash">/</span>
       <div class="c-page-wrap">
-        <button class="c-page-btn" onclick={() => showDropdown = !showDropdown}>
+        <button class="c-page-btn" onclick={() => (showDropdown = !showDropdown)}>
           <span>{activeTitle}</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"><path d="M6 9l6 6 6-6" /></svg
+          >
         </button>
         {#if showDropdown}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="c-drop-bg" onclick={() => showDropdown = false} onkeydown={() => {}}></div>
+          <div class="c-drop-bg" onclick={() => (showDropdown = false)} onkeydown={() => {}}></div>
           <div class="c-drop">
             {#each data.pages as page}
-              <a href="/c/{data.collection.slug}?page={page.slug}" class="c-drop-item" class:active={page.active}
-                data-sveltekit-noscroll onclick={() => showDropdown = false}>{page.title}</a>
+              <a
+                href="/c/{data.collection.slug}?page={page.slug}"
+                class="c-drop-item"
+                class:active={page.active}
+                data-sveltekit-noscroll
+                onclick={() => (showDropdown = false)}>{page.title}</a
+              >
             {/each}
           </div>
         {/if}
@@ -104,8 +148,20 @@
       {/each}
     </nav>
   {/if}
-  <button class="c-ol-toggle" class:active={showOutline} onclick={() => showOutline = !showOutline} title="Outline">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+  <button
+    class="c-ol-toggle"
+    class:active={showOutline}
+    onclick={() => (showOutline = !showOutline)}
+    title="Outline"
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13" /></svg
+    >
   </button>
 {/if}
 
@@ -125,10 +181,17 @@
     <div class="doc-layout">
       <main class="doc-main">
         <article class="doc-card" use:docActions>
-          <DocView html={data.activePage.html} title={data.activePage.title} comments={data.activePage.comments} pageId={data.activePage.id} />
+          <DocView
+            html={data.activePage.html}
+            title={data.activePage.title}
+            comments={data.activePage.comments}
+            pageId={data.activePage.id}
+          />
         </article>
         <footer class="page-footer">
-          <span>Published on </span><a href="/">vibe.pub</a><span class="sep"> — </span><a href="/">Create yours</a>
+          <span>Published on </span><a href="/">vibe.pub</a><span class="sep"> — </span><a href="/"
+            >Create yours</a
+          >
         </footer>
       </main>
     </div>
@@ -165,10 +228,15 @@
     text-decoration: none;
     flex-shrink: 0;
     margin-right: 4px;
-    transition: color 150ms, background 150ms;
+    transition:
+      color 150ms,
+      background 150ms;
   }
 
-  .c-home:hover { color: var(--text-primary); background: var(--surface); }
+  .c-home:hover {
+    color: var(--text-primary);
+    background: var(--surface);
+  }
 
   /* Nav: collection / page */
   .c-nav {
@@ -211,11 +279,16 @@
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 6px;
-    transition: background 150ms, color 150ms;
+    transition:
+      background 150ms,
+      color 150ms;
     white-space: nowrap;
   }
 
-  .c-page-btn:hover { background: var(--surface); color: var(--text-primary); }
+  .c-page-btn:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
 
   /* Dropdown */
   .c-drop-bg {
@@ -231,7 +304,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     padding: 4px;
     min-width: 200px;
     max-height: 320px;
@@ -246,11 +319,20 @@
     text-decoration: none;
     font-size: 13px;
     color: var(--text-secondary);
-    transition: background 150ms, color 150ms;
+    transition:
+      background 150ms,
+      color 150ms;
   }
 
-  .c-drop-item:hover { background: var(--bg); color: var(--text-primary); }
-  .c-drop-item.active { color: var(--text-primary); font-weight: 500; background: var(--bg); }
+  .c-drop-item:hover {
+    background: var(--bg);
+    color: var(--text-primary);
+  }
+  .c-drop-item.active {
+    color: var(--text-primary);
+    font-weight: 500;
+    background: var(--bg);
+  }
 
   /* Right */
   .c-right {
@@ -266,7 +348,9 @@
     transition: color 150ms;
   }
 
-  .c-link:hover { color: var(--text-primary); }
+  .c-link:hover {
+    color: var(--text-primary);
+  }
 
   /* ═══ Page content ═══ */
   .collection-page {
@@ -275,7 +359,9 @@
     min-height: calc(100vh - 48px);
   }
 
-  .kanban-layout { padding: 24px; }
+  .kanban-layout {
+    padding: 24px;
+  }
 
   /* ═══ Outline ═══ */
   .c-ol-toggle {
@@ -295,11 +381,19 @@
     cursor: pointer;
     z-index: 30;
     opacity: 0.45;
-    transition: opacity 150ms, color 150ms;
+    transition:
+      opacity 150ms,
+      color 150ms;
   }
 
-  .c-ol-toggle:hover { opacity: 0.8; color: var(--text-primary); }
-  .c-ol-toggle.active { opacity: 0.6; color: var(--text-secondary); }
+  .c-ol-toggle:hover {
+    opacity: 0.8;
+    color: var(--text-primary);
+  }
+  .c-ol-toggle.active {
+    opacity: 0.6;
+    color: var(--text-secondary);
+  }
 
   .c-outline {
     position: fixed;
@@ -323,11 +417,19 @@
     transition: color 150ms;
   }
 
-  .c-ol-link:hover { color: var(--text-secondary); }
-  .c-ol-link.h3 { padding-left: 18px; font-size: 11px; }
+  .c-ol-link:hover {
+    color: var(--text-secondary);
+  }
+  .c-ol-link.h3 {
+    padding-left: 18px;
+    font-size: 11px;
+  }
 
   @media (max-width: 1100px) {
-    .c-ol-toggle, .c-outline { display: none; }
+    .c-ol-toggle,
+    .c-outline {
+      display: none;
+    }
   }
 
   .doc-layout {
@@ -336,7 +438,9 @@
     padding: 32px 24px 80px;
   }
 
-  .doc-main { min-width: 0; }
+  .doc-main {
+    min-width: 0;
+  }
 
   .doc-card {
     background: var(--surface);
@@ -353,16 +457,29 @@
     color: var(--text-tertiary);
   }
 
-  .page-footer a { color: var(--text-tertiary); text-decoration: none; }
-  .page-footer a:hover { color: var(--text-secondary); }
-  .page-footer a:first-of-type { font-weight: 500; }
-  .sep { opacity: 0.5; }
+  .page-footer a {
+    color: var(--text-tertiary);
+    text-decoration: none;
+  }
+  .page-footer a:hover {
+    color: var(--text-secondary);
+  }
+  .page-footer a:first-of-type {
+    font-weight: 500;
+  }
+  .sep {
+    opacity: 0.5;
+  }
 
   @media (max-width: 820px) {
-    .doc-card { padding: 28px 24px; }
+    .doc-card {
+      padding: 28px 24px;
+    }
   }
 
   @media (max-width: 500px) {
-    .c-header-inner { padding: 0 12px; }
+    .c-header-inner {
+      padding: 0 12px;
+    }
   }
 </style>

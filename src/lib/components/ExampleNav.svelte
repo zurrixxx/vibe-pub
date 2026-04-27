@@ -70,7 +70,9 @@
     padding: 6px 16px;
     border-radius: 8px;
     text-decoration: none;
-    transition: background 150ms, color 150ms;
+    transition:
+      background 150ms,
+      color 150ms;
   }
 
   .nav-tab:not(.active) {
@@ -99,7 +101,12 @@
   }
 
   @media (max-width: 600px) {
-    .nav-inner { padding: 0 16px; gap: 12px; }
-    .tab-desc { display: none; }
+    .nav-inner {
+      padding: 0 16px;
+      gap: 12px;
+    }
+    .tab-desc {
+      display: none;
+    }
   }
 </style>

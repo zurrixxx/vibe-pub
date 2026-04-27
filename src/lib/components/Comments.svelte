@@ -17,8 +17,8 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         body: newComment,
-        display_name: displayName || undefined
-      })
+        display_name: displayName || undefined,
+      }),
     });
 
     if (res.ok) {
@@ -91,15 +91,16 @@
       placeholder="Add a comment..."
       rows={3}
       class="compose-input comment-textarea"
-      onkeydown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitComment(); }}}
+      onkeydown={(e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          submitComment();
+        }
+      }}
     ></textarea>
     <div class="compose-footer">
       <span class="compose-hint">⌘↵ to post</span>
-      <button
-        onclick={submitComment}
-        disabled={!newComment.trim() || submitting}
-        class="post-btn"
-      >
+      <button onclick={submitComment} disabled={!newComment.trim() || submitting} class="post-btn">
         {submitting ? 'Posting…' : 'Post'}
       </button>
     </div>
@@ -205,7 +206,9 @@
     border-radius: var(--radius-input);
     outline: none;
     color: var(--text-primary);
-    transition: border-color 150ms, box-shadow 150ms;
+    transition:
+      border-color 150ms,
+      box-shadow 150ms;
     box-sizing: border-box;
   }
 
@@ -249,7 +252,9 @@
     border: none;
     border-radius: var(--radius-button);
     cursor: pointer;
-    transition: background-color 150ms, opacity 150ms;
+    transition:
+      background-color 150ms,
+      opacity 150ms;
   }
 
   .post-btn:hover:not(:disabled) {

@@ -6,8 +6,8 @@
  *
  * Conservative — only returns 'kanban' when the pattern is unambiguous.
  */
-export function detectView(markdown: string): "doc" | "kanban" {
-  const lines = markdown.split("\n");
+export function detectView(markdown: string): 'doc' | 'kanban' {
+  const lines = markdown.split('\n');
 
   let headingWithCheckboxes = 0;
   let i = 0;
@@ -19,7 +19,7 @@ export function detectView(markdown: string): "doc" | "kanban" {
     if (/^#{2,}\s+\S/.test(line)) {
       // Look ahead: skip blank lines, then check for checkbox items
       let j = i + 1;
-      while (j < lines.length && lines[j].trim() === "") {
+      while (j < lines.length && lines[j].trim() === '') {
         j++;
       }
 
@@ -32,5 +32,5 @@ export function detectView(markdown: string): "doc" | "kanban" {
     i++;
   }
 
-  return headingWithCheckboxes >= 2 ? "kanban" : "doc";
+  return headingWithCheckboxes >= 2 ? 'kanban' : 'doc';
 }

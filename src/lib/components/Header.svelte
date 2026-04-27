@@ -64,7 +64,9 @@
     transition: opacity 150ms;
   }
 
-  .logo-link:hover { opacity: 0.6; }
+  .logo-link:hover {
+    opacity: 0.6;
+  }
 
   .nav-sep {
     width: 1px;
@@ -99,7 +101,9 @@
     transition: color 150ms;
   }
 
-  .nav-link:hover { color: var(--text-primary); }
+  .nav-link:hover {
+    color: var(--text-primary);
+  }
 
   .logout-btn {
     font-size: 12px;
@@ -111,5 +115,7 @@
     transition: color 150ms;
   }
 
-  .logout-btn:hover { color: var(--text-primary); }
+  .logout-btn:hover {
+    color: var(--text-primary);
+  }
 </style>

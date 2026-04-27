@@ -1,13 +1,13 @@
-import { defineConfig } from "vitest/config";
-import { resolve } from "path";
+import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
 
 export default defineConfig({
   resolve: {
     alias: {
-      $lib: resolve(__dirname, "src/lib"),
+      $lib: resolve(__dirname, 'src/lib'),
     },
   },
   test: {
-    include: ["tests/**/*.test.ts"],
+    include: ['tests/**/*.test.ts'],
   },
 });

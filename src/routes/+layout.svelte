@@ -15,7 +15,10 @@
   let isCollectionPage = $derived($page.url.pathname.startsWith('/c/'));
 </script>
 
-<div class="min-h-screen" style="background: var(--bg); color: var(--text-primary); position: relative;">
+<div
+  class="min-h-screen"
+  style="background: var(--bg); color: var(--text-primary); position: relative;"
+>
   <div style="position: relative; z-index: 1;">
     {#if !$hideGlobalHeader && !isCollectionPage}
       <Header user={data.user} {pageTitle} />

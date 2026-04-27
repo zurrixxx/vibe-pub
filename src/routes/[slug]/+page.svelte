@@ -51,7 +51,10 @@
   }
 
   function stripHtml(s: string): string {
-    return s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return s
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // Extract TOC from HTML headings (for doc sidebar)
@@ -84,7 +87,10 @@
     let match;
     while ((match = regex.exec(html)) !== null) {
       const text = match[2].replace(/<[^>]*>/g, '');
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const id = text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
       items.push({ level: parseInt(match[1]), id, text });
     }
     return items;
@@ -129,7 +135,11 @@
     );
 
     headings.forEach((h) => observer.observe(h));
-    return { destroy() { observer.disconnect(); } };
+    return {
+      destroy() {
+        observer.disconnect();
+      },
+    };
   }
 
   // Add IDs to headings if they don't have them
@@ -137,7 +147,10 @@
     const headings = node.querySelectorAll('h2, h3');
     headings.forEach((h) => {
       if (!h.id) {
-        h.id = (h.textContent ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        h.id = (h.textContent ?? '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
       }
     });
   }
@@ -206,7 +219,6 @@
         <a href="/">Create yours</a>
       </footer>
     </div>
-
   {:else}
     <!-- ═══ DOC LAYOUT ═══ -->
     <div class="doc-layout">
@@ -214,8 +226,20 @@
         <!-- Doc actions (outline + print) -->
         <div class="doc-actions">
           {#if tocFromText.length > 0}
-            <button class="outline-toggle" class:active={showToc} onclick={() => showToc = !showToc} title="Outline">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+            <button
+              class="outline-toggle"
+              class:active={showToc}
+              onclick={() => (showToc = !showToc)}
+              title="Outline"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13" /></svg
+              >
             </button>
           {/if}
         </div>
@@ -225,13 +249,25 @@
           <div class="outline-panel">
             <div class="outline-header">
               <span>Outline</span>
-              <button class="outline-close" onclick={() => showToc = false}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <button class="outline-close" onclick={() => (showToc = false)}>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
+                >
               </button>
             </div>
             <nav class="outline-nav">
               {#each tocFromText as item}
-                <a href="#{item.id}" class="outline-link" class:outline-h3={item.level === 3} class:outline-active={activeTocId === item.id}>{item.text}</a>
+                <a
+                  href="#{item.id}"
+                  class="outline-link"
+                  class:outline-h3={item.level === 3}
+                  class:outline-active={activeTocId === item.id}>{item.text}</a
+                >
               {/each}
             </nav>
           </div>
@@ -355,10 +391,15 @@
     border-radius: 6px;
     color: var(--text-tertiary);
     opacity: 0.45;
-    transition: opacity 150ms, color 150ms;
+    transition:
+      opacity 150ms,
+      color 150ms;
   }
 
-  .print-link:hover { opacity: 0.8; color: var(--text-primary); }
+  .print-link:hover {
+    opacity: 0.8;
+    color: var(--text-primary);
+  }
 
   /* ── Outline ── */
   .outline-toggle {
@@ -373,11 +414,19 @@
     color: var(--text-tertiary);
     cursor: pointer;
     opacity: 0.45;
-    transition: opacity 150ms, color 150ms;
+    transition:
+      opacity 150ms,
+      color 150ms;
   }
 
-  .outline-toggle:hover { opacity: 0.8; color: var(--text-primary); }
-  .outline-toggle.active { opacity: 0.6; color: var(--text-secondary); }
+  .outline-toggle:hover {
+    opacity: 0.8;
+    color: var(--text-primary);
+  }
+  .outline-toggle.active {
+    opacity: 0.6;
+    color: var(--text-secondary);
+  }
 
   .outline-panel {
     position: fixed;
@@ -391,9 +440,15 @@
     padding: 4px 0;
   }
 
-  .outline-header { display: none; }
-  .outline-close { display: none; }
-  .outline-nav { padding: 0; }
+  .outline-header {
+    display: none;
+  }
+  .outline-close {
+    display: none;
+  }
+  .outline-nav {
+    padding: 0;
+  }
 
   .outline-link {
     display: block;
@@ -405,16 +460,31 @@
     transition: color 150ms;
   }
 
-  .outline-link:hover { color: var(--text-secondary); }
-  .outline-link.outline-active { color: var(--text-primary); }
-  .outline-link.outline-h3 { padding-left: 18px; font-size: 11px; }
+  .outline-link:hover {
+    color: var(--text-secondary);
+  }
+  .outline-link.outline-active {
+    color: var(--text-primary);
+  }
+  .outline-link.outline-h3 {
+    padding-left: 18px;
+    font-size: 11px;
+  }
 
   /* ═══ Responsive ═══ */
   @media (max-width: 820px) {
-    .doc-layout { padding: 16px 16px 80px; }
-    .doc-card { padding: 28px 24px; }
-    .doc-actions { display: none; }
-    .outline-panel { display: none; }
+    .doc-layout {
+      padding: 16px 16px 80px;
+    }
+    .doc-card {
+      padding: 28px 24px;
+    }
+    .doc-actions {
+      display: none;
+    }
+    .outline-panel {
+      display: none;
+    }
   }
 
   /* ═══ Shared: toolbar, edit, footer ═══ */

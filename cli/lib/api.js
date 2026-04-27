@@ -1,9 +1,9 @@
-import { getBaseUrl, getToken } from "./config.js";
+import { getBaseUrl, getToken } from './config.js';
 
 function headers(extra = {}) {
   const token = getToken();
-  const h = { "Content-Type": "application/json", ...extra };
-  if (token) h["Cookie"] = `vibe_session=${token}`;
+  const h = { 'Content-Type': 'application/json', ...extra };
+  if (token) h['Cookie'] = `vibe_session=${token}`;
   return h;
 }
 
@@ -15,7 +15,7 @@ export async function publish(markdown, options = {}) {
   if (options.slug) body.slug = options.slug;
 
   const res = await fetch(`${base}/api/pub`, {
-    method: "POST",
+    method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),
   });
@@ -42,7 +42,7 @@ export async function list() {
 export async function update(id, markdown) {
   const base = getBaseUrl();
   const res = await fetch(`${base}/api/pub/${id}`, {
-    method: "PUT",
+    method: 'PUT',
     headers: headers(),
     body: JSON.stringify({ markdown }),
   });
@@ -56,7 +56,7 @@ export async function update(id, markdown) {
 export async function remove(id) {
   const base = getBaseUrl();
   const res = await fetch(`${base}/api/pub/${id}`, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: headers(),
   });
   if (!res.ok) {

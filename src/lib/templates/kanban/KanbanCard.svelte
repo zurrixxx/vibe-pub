@@ -23,12 +23,7 @@
   }
 </script>
 
-<button
-  class="kanban-card"
-  onclick={onexpand}
-  type="button"
-  data-card-id={id}
->
+<button class="kanban-card" onclick={onexpand} type="button" data-card-id={id}>
   {#if labels.length > 0}
     <div class="card-labels">
       {#each labels as label}
@@ -55,7 +50,10 @@
     background: var(--surface-hover);
     border-radius: 12px;
     border: 1px solid var(--border);
-    transition: border-color 150ms, box-shadow 150ms, transform 150ms;
+    transition:
+      border-color 150ms,
+      box-shadow 150ms,
+      transform 150ms;
     cursor: pointer;
     display: flex;
     flex-direction: column;
