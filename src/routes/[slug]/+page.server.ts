@@ -33,14 +33,16 @@ export const load: PageServerLoad = async ({ params, platform }) => {
     // Strip frontmatter before rendering
     const { content, data: fm } = parseFrontmatter(page.markdown);
     // Kanban, changelog, timeline, and slides views don't need HTML rendering — skip expensive markdown pipeline
-    const html =
+    const skipHtml =
       page.view === 'kanban' ||
       page.view === 'changelog' ||
       page.view === 'timeline' ||
       page.view === 'slides' ||
-      page.view === 'dashboard'
-        ? ''
-        : await renderMarkdown(content);
+      page.view === 'dashboard';
+    const html = skipHtml ? '' : await renderMarkdown(content);
+    // SEO/LLM body: always rendered. Used in <noscript> so non-JS clients (bots,
+    // LLM fetchers) see the real content even on view types that render via JS.
+    const seoHtml = skipHtml ? await renderMarkdown(content) : html;
 
     // Parse blocks and view-specific data
     const templateName = page.view || 'doc';
@@ -130,6 +132,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
     return {
       page,
       html,
+      seoHtml,
       blocks,
       comments,
       frontmatter: fm,

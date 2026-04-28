@@ -14,7 +14,7 @@
   }
   let { data }: Props = $props();
 
-  let { page, html, blocks, comments, frontmatter } = $derived(data);
+  let { page, html, seoHtml, blocks, comments, frontmatter } = $derived(data);
 
   // Edit state
   let editing = $state(false);
@@ -278,7 +278,29 @@
   <meta name="twitter:title" content={pageTitle} />
   <meta name="twitter:description" content={description} />
   <meta name="twitter:image" content={`${$pageStore.url.origin}/og/${page.slug}`} />
+  <link
+    rel="alternate"
+    type="text/markdown"
+    href={`${$pageStore.url.origin}/${page.slug}.md`}
+    title="Markdown source"
+  />
 </svelte:head>
+
+<!--
+  SEO / LLM fallback: server-rendered article body in <noscript>. Bots and
+  LLM fetchers (which don't execute JS) parse this as the page's real content.
+  JS-enabled visitors never see it; the view-specific UI below is what they get.
+-->
+<noscript>
+  <article>
+    <h1>{pageTitle}</h1>
+    {@html seoHtml}
+    <hr />
+    <p>
+      Source markdown: <a href={`/${page.slug}.md`}>/{page.slug}.md</a>
+    </p>
+  </article>
+</noscript>
 
 <div
   class="page-wrapper theme-{page.theme ?? 'default'}"
