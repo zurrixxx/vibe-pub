@@ -27,8 +27,9 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
     if (!page) throw error(404, 'Page not found');
 
     if (page.access === 'private') {
-      const isOwner = !!page.user_id && locals.user?.id === page.user_id;
-      if (!isOwner) throw error(403, 'This page is private');
+      if (!page.user_id || locals.user?.id !== page.user_id) {
+        throw error(403, 'This page is private');
+      }
     }
 
     // Strip frontmatter before rendering
@@ -130,6 +131,9 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
       if (u) pageUser = { username: u.username };
     }
 
+    const isOwner = !!page.user_id && locals.user?.id === page.user_id;
+    const canClaim = !page.user_id && !!locals.user;
+
     return {
       page,
       html,
@@ -143,6 +147,8 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
       timelineData,
       slidesData,
       dashboardData,
+      isOwner,
+      canClaim,
     };
   } catch (e: unknown) {
     if (isHttpError(e)) throw e;

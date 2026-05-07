@@ -21,7 +21,7 @@
   }
   let { data }: Props = $props();
 
-  let { page, html, seoHtml, blocks, comments, frontmatter } = $derived(data);
+  let { page, html, seoHtml, blocks, comments, frontmatter, isOwner, canClaim } = $derived(data);
 
   // Edit state
   let editing = $state(false);
@@ -29,10 +29,6 @@
   let saving = $state(false);
   let saveError = $state('');
 
-  // Owner: only the authenticated creator can edit. Anonymous pages are read-only (login to claim).
-  let isOwner = $derived(!!page.user_id && page.user_id === data.user?.id);
-  // Logged-in user viewing an anonymous (unclaimed) page
-  let canClaim = $derived(!page.user_id && !!data.user);
   let claiming = $state(false);
 
   async function claimPage() {
