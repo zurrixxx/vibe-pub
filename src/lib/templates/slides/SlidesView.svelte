@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import type { Slide } from './parser';
   import type { Comment } from '$lib/types';
 
@@ -117,6 +118,17 @@
   $effect(() => {
     current; // track
     activeBlockId = null;
+  });
+
+  $effect(() => {
+    if (!browser || !activeBlockId) return;
+    function onPointerDown(e: PointerEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest?.('.comment-card') || t.closest?.('.slide-comment-btn')) return;
+      activeBlockId = null;
+    }
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
   });
 </script>
 

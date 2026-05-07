@@ -1,5 +1,16 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+  import { get } from 'svelte/store';
+  import { browser } from '$app/environment';
   import type { Comment } from '$lib/types';
+  import {
+    closeDocCommentsPanel,
+    docCommentsPanelBlockId,
+    docCommentsPanelOpen,
+  } from '$lib/stores';
+
+  /** Matches Reader_Doc.html thread / comment icon */
+  const COMMENT_THREAD_SVG = `<svg class="bcb-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
 
   interface Props {
     html: string;
@@ -7,15 +18,9 @@
     comments?: Comment[];
     pageId?: string;
   }
-  let { html, title = null, comments = [], pageId = '' }: Props = $props();
+  let { html, title = null, comments = $bindable([]), pageId = '' }: Props = $props();
 
   let showTitle = $derived(title && !html.trimStart().startsWith('<h1'));
-
-  // Block comment state
-  let activeBlockId = $state<string | null>(null);
-  let commentName = $state('');
-  let commentBody = $state('');
-  let commentPosting = $state(false);
 
   function blockComments(blockId: string): Comment[] {
     return comments.filter((c) => {
@@ -33,67 +38,53 @@
     return blockComments(blockId).length;
   }
 
-  async function postComment() {
-    if (!commentBody.trim() || !pageId || !activeBlockId) return;
-    commentPosting = true;
-    try {
-      const anchor = { type: 'block', block_id: activeBlockId };
-      const res = await fetch(`/api/comment/${pageId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          body: commentBody.trim(),
-          display_name: commentName.trim() || undefined,
-          anchor,
-          anchor_hint: activeBlockId,
-        }),
-      });
-      if (res.ok) {
-        const saved = await res.json().catch(() => null);
-        comments = [
-          ...comments,
-          {
-            id: saved?.id ?? crypto.randomUUID(),
-            page_id: pageId,
-            user_id: null,
-            display_name: commentName.trim() || null,
-            anchor: JSON.stringify(anchor),
-            anchor_hint: activeBlockId,
-            body: commentBody.trim(),
-            resolved: 0,
-            created: new Date().toISOString(),
-          },
-        ];
-        commentBody = '';
-        // Update the button count for this block
-        const btn = document.querySelector(`.bcb[data-for-block="${activeBlockId}"]`);
-        if (btn) {
-          const cnt = commentCount(activeBlockId);
-          btn.textContent = String(cnt);
-          btn.classList.add('has-comments');
-        }
-      }
-    } catch {}
-    commentPosting = false;
+  function applyBcbState(btn: HTMLElement, blockId: string) {
+    const cnt = commentCount(blockId);
+    const wrap = btn.closest('.block-el');
+    if (cnt > 0) {
+      btn.classList.add('has-comments');
+      wrap?.classList.add('block-el-commented');
+      const n = btn.querySelector('.bcb-cnt');
+      if (n) n.textContent = String(cnt);
+      else btn.innerHTML = `${COMMENT_THREAD_SVG}<span class="bcb-cnt">${cnt}</span>`;
+    } else {
+      btn.classList.remove('has-comments');
+      wrap?.classList.remove('block-el-commented');
+      btn.replaceChildren();
+    }
   }
 
-  function timeAgo(dateStr: string): string {
-    const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-    if (s < 60) return 'just now';
-    if (s < 3600) return `${Math.floor(s / 60)}m`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h`;
-    return `${Math.floor(s / 86400)}d`;
-  }
-
-  // Track active block highlight
-  $effect(() => {
+  function syncBlockHighlight() {
     if (typeof document === 'undefined') return;
     document
       .querySelectorAll('.block-el.block-active')
       .forEach((el) => el.classList.remove('block-active'));
-    if (activeBlockId) {
-      document.getElementById(activeBlockId)?.classList.add('block-active');
-    }
+    const open = get(docCommentsPanelOpen);
+    const id = get(docCommentsPanelBlockId);
+    if (open && id) document.getElementById(id)?.classList.add('block-active');
+  }
+
+  $effect(() => {
+    if (!browser) return;
+    const u1 = docCommentsPanelBlockId.subscribe(syncBlockHighlight);
+    const u2 = docCommentsPanelOpen.subscribe(syncBlockHighlight);
+    syncBlockHighlight();
+    return () => {
+      u1();
+      u2();
+    };
+  });
+
+  // Keep gutter buttons in sync when `comments` updates (e.g. after post)
+  $effect(() => {
+    comments;
+    if (!browser) return;
+    void tick().then(() => {
+      document.querySelectorAll<HTMLElement>('.bcb[data-for-block]').forEach((btn) => {
+        const id = btn.getAttribute('data-for-block');
+        if (id) applyBcbState(btn, id);
+      });
+    });
   });
 
   function enhanceDoc(node: HTMLElement) {
@@ -134,16 +125,21 @@
         el.setAttribute('data-block-id', blockId);
 
         const cbtn = document.createElement('button');
+        cbtn.type = 'button';
         cbtn.className = 'bcb';
         cbtn.setAttribute('data-for-block', blockId);
-        const cnt = commentCount(blockId);
-        if (cnt > 0) {
-          cbtn.textContent = String(cnt);
-          cbtn.classList.add('has-comments');
-        }
+        cbtn.title = 'Comments on this block';
+        applyBcbState(cbtn, blockId);
         cbtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          activeBlockId = activeBlockId === blockId ? null : blockId;
+          const cur = get(docCommentsPanelBlockId);
+          const open = get(docCommentsPanelOpen);
+          if (open && cur === blockId) {
+            closeDocCommentsPanel();
+            return;
+          }
+          docCommentsPanelBlockId.set(blockId);
+          docCommentsPanelOpen.set(true);
         });
         el.appendChild(cbtn);
         blockIdx++;
@@ -161,133 +157,153 @@
     {/if}
     {@html html}
   </article>
-
-  <!-- Inline comment card (Google Docs style) -->
-  {#if activeBlockId}
-    <div
-      class="comment-card"
-      style="top: {(() => {
-        const el = typeof document !== 'undefined' ? document.getElementById(activeBlockId) : null;
-        return el ? `${el.offsetTop}px` : '100px';
-      })()}"
-    >
-      {#each blockComments(activeBlockId) as c}
-        <div class="cc-item">
-          <span class="cc-author">{c.display_name ?? 'Anonymous'}</span>
-          <span class="cc-time">{timeAgo(c.created)}</span>
-          <p class="cc-body">{c.body}</p>
-        </div>
-      {/each}
-      <div class="cc-form">
-        <textarea
-          class="cc-textarea"
-          placeholder="Add a comment..."
-          rows={2}
-          bind:value={commentBody}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) postComment();
-          }}
-        ></textarea>
-        <div class="cc-actions">
-          <button class="cc-cancel" onclick={() => (activeBlockId = null)}>Cancel</button>
-          <button
-            class="cc-post"
-            onclick={postComment}
-            disabled={commentPosting || !commentBody.trim()}
-          >
-            {commentPosting ? '...' : 'Comment'}
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
   .doc-wrap {
     position: relative;
+    overflow-x: visible;
   }
 
-  /* ── Block comment button (right margin, L3 design: 28px circle, serif italic glyph) ── */
+  /* ── Block + gutter comment control (Reader_Doc.html: pill + icon + count, left rail when commented) ── */
+  article.doc-view {
+    overflow-x: visible;
+  }
+
   article.doc-view :global(.block-el) {
     position: relative;
     border-radius: 6px;
-    transition: background 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.2s,
+      padding 0.15s,
+      margin 0.15s;
   }
 
   article.doc-view :global(.block-el:hover) {
     background: rgba(0, 0, 0, 0.015);
   }
 
+  :global(.dark) article.doc-view :global(.block-el:hover) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  article.doc-view :global(.block-el.block-el-commented) {
+    padding-left: 14px;
+    margin-left: -14px;
+    border-left: 2px solid color-mix(in srgb, var(--text-primary) 30%, transparent);
+    border-radius: 0 6px 6px 0;
+  }
+
+  article.doc-view :global(.block-el.block-el-commented.block-active) {
+    border-left-color: var(--text-primary);
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  }
+
+  :global(.dark) article.doc-view :global(.block-el.block-el-commented.block-active) {
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  }
+
+  article.doc-view :global(.block-el.block-active:not(.block-el-commented)) {
+    background: rgba(26, 25, 23, 0.04);
+    border-left: 2px solid var(--text-primary);
+    padding-left: 14px;
+    margin-left: -14px;
+    border-radius: 0 6px 6px 0;
+  }
+
+  :global(.dark) article.doc-view :global(.block-el.block-active:not(.block-el-commented)) {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
   article.doc-view :global(.bcb) {
     position: absolute;
-    right: -52px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--surface);
-    box-shadow: var(--shadow-card);
-    border: none;
+    left: calc(100% + 12px);
+    top: 2px;
+    transform: none;
+    z-index: 2;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 5px;
+    line-height: 1;
+    opacity: 0;
+    transition:
+      opacity 120ms ease,
+      color 0.15s,
+      border-color 0.15s,
+      background 0.15s;
+    /* no-comments: icon-only, transparent until hover / active block */
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-tertiary);
     font-family: var(--font-serif);
     font-style: italic;
     font-size: 15px;
-    color: var(--text-tertiary);
-    opacity: 0;
-    transition: opacity 0.15s;
-    padding: 0;
   }
 
-  /* Show "+" glyph by default, count when has comments */
-  article.doc-view :global(.bcb::before) {
+  article.doc-view :global(.bcb:not(.has-comments)::before) {
     content: '+';
   }
 
-  article.doc-view :global(.bcb.has-comments::before) {
-    content: none;
-  }
-
   article.doc-view :global(.bcb.has-comments) {
-    opacity: 0.45;
-    font-weight: 600;
-    color: var(--accent);
-    font-family: var(--font-mono);
+    width: auto;
+    min-width: auto;
+    height: 28px;
+    padding: 0 10px 0 8px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
     font-style: normal;
-    font-size: 10px;
-  }
-
-  article.doc-view :global(.block-el:hover > .bcb) {
+    font-size: 11px;
+    font-weight: 500;
     opacity: 1;
   }
 
-  article.doc-view :global(.bcb:hover) {
-    opacity: 1 !important;
+  article.doc-view :global(.bcb.has-comments .bcb-svg) {
+    flex-shrink: 0;
+    display: block;
+  }
+
+  article.doc-view :global(.bcb.has-comments .bcb-cnt) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.55;
+  }
+
+  article.doc-view :global(.block-el:hover > .bcb),
+  article.doc-view :global(.block-el.block-active > .bcb),
+  article.doc-view :global(.bcb.has-comments) {
+    opacity: 1;
+  }
+
+  article.doc-view :global(.block-el:hover > .bcb:not(.has-comments)) {
+    background: var(--surface);
+    border-color: var(--border);
     color: var(--text-primary);
-    box-shadow: 0 0 0 1.5px var(--text-primary);
   }
 
-  /* Active block highlight (L3: subtle background, no left-bar shift to avoid covering list numbers) */
-  article.doc-view :global(.block-el.block-active) {
-    background: rgba(26, 25, 23, 0.04);
-    border-left: 3px solid var(--text-primary);
-    padding-left: 12px;
+  article.doc-view :global(.bcb.has-comments:hover) {
+    color: var(--text-primary);
+    border-color: var(--text-primary);
+    background: var(--bg);
   }
 
-  /* Comment dot indicator on blocks with comments but not selected */
-  article.doc-view :global(.block-el.has-block-comments:not(.block-active))::after {
-    content: '';
-    position: absolute;
-    right: -28px;
-    top: 10px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--text-primary);
+  article.doc-view :global(.block-el.block-active > .bcb.has-comments) {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
   }
 
   /* Ensure pre/table don't clip the comment button */
@@ -301,139 +317,40 @@
     overflow-x: auto;
   }
 
-  /* ── Inline comment card (L3 design: surface bg, shadow-card, serif quote) ── */
-  .comment-card {
-    position: absolute;
-    left: calc(100% + 32px);
-    width: 280px;
-    z-index: 20;
-  }
-
-  /* When inside a two-column grid layout, keep card from overlapping the rail */
-  @media (max-width: 1199px) {
-    .comment-card {
-      left: auto;
-      right: -20px;
-    }
-  }
-
-  .cc-item {
-    background: var(--surface);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    box-shadow: var(--shadow-card);
-  }
-
-  .cc-item:last-of-type {
-    margin-bottom: 8px;
-  }
-
-  .cc-author {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  .cc-time {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    opacity: 0.5;
-    margin-left: 6px;
-  }
-  .cc-body {
-    font-family: var(--font-prose);
-    font-size: 13px;
-    line-height: 1.55;
-    color: var(--text-secondary);
-    margin: 8px 0 0;
-    padding-top: 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-  }
-
-  .cc-form {
-    background: var(--surface);
-    border-radius: 10px;
-    padding: 10px 12px;
-    box-shadow: var(--shadow-card);
-    margin-top: 8px;
-  }
-
-  .cc-textarea {
-    width: 100%;
-    border: none;
-    outline: none;
-    resize: none;
-    font-family: var(--font-prose);
-    font-size: 13px;
-    line-height: 1.55;
-    color: var(--text-primary);
-    background: transparent;
-    min-height: 20px;
-    box-sizing: border-box;
-    padding: 0;
-  }
-  .cc-textarea::placeholder {
-    color: var(--text-tertiary);
-    font-style: italic;
-  }
-
-  .cc-actions {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-  }
-  .cc-cancel {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-tertiary);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 8px;
-  }
-  .cc-cancel:hover {
-    color: var(--text-primary);
-  }
-  .cc-post {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    font-weight: 600;
-    padding: 5px 12px;
-    border-radius: 999px;
-    border: none;
-    cursor: pointer;
-    background: var(--text-primary);
-    color: var(--bg);
-  }
-  .cc-post:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 639px) {
-    .comment-card {
-      width: calc(100vw - 48px);
-      max-width: 300px;
-    }
+  @media (max-width: 900px) {
     article.doc-view :global(.bcb) {
-      right: -8px;
-      opacity: 0.3 !important;
+      left: auto;
+      right: 0;
+      top: -30px;
     }
-    article.doc-view :global(.bcb.has-comments) {
-      opacity: 0.5 !important;
+
+    article.doc-view :global(.block-el.block-el-commented) {
+      padding-left: 0;
+      margin-left: 0;
+      border-left: none;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin: 0 -10px 22px -10px;
+    }
+
+    :global(.dark) article.doc-view :global(.block-el.block-el-commented) {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    article.doc-view :global(.block-el.block-active:not(.block-el-commented)) {
+      margin-left: 0;
+      padding-left: 10px;
+    }
+
+    article.doc-view :global(.block-el.block-el-commented.block-active) {
+      border-left: none;
+      padding-left: 10px;
     }
   }
 
   @media print {
     article.doc-view :global(.bcb) {
-      display: none !important;
-    }
-    .comment-card {
       display: none !important;
     }
   }

@@ -7,6 +7,7 @@ import {
   deletePage,
   getCommentsByPage,
   updateCommentAnchor,
+  appendPageVersionSnapshot,
 } from '$lib/server/db';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { reconcileComments } from '$lib/templates/reconcile';
@@ -58,6 +59,12 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   // Re-parse frontmatter if markdown is being updated
   let oldBlocks: import('$lib/templates/types').Block[] = [];
   let newBlocks: import('$lib/templates/types').Block[] = [];
+  const hasAnyUpdate =
+    markdown !== undefined ||
+    viewOverride !== undefined ||
+    accessOverride !== undefined ||
+    titleOverride !== undefined ||
+    themeOverride !== undefined;
 
   if (markdown) {
     const { data: fm } = parseFrontmatter(markdown);
@@ -74,38 +81,6 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     } else {
       oldBlocks = parseDocBlocks(oldMarkdown);
       newBlocks = parseDocBlocks(markdown);
-    }
-
-    // Snapshot current content as a version before updating
-    try {
-      const maxRow = await db
-        .prepare('SELECT MAX(version) as max_v FROM page_versions WHERE page_id = ?')
-        .bind(params.id)
-        .first<{ max_v: number | null }>();
-      const nextVersion = (maxRow?.max_v ?? 0) + 1;
-
-      const versionId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-      await db
-        .prepare(
-          `INSERT INTO page_versions (id, page_id, version, markdown, title)
-           VALUES (?, ?, ?, ?, ?)`
-        )
-        .bind(versionId, params.id, nextVersion, page.markdown, page.title ?? null)
-        .run();
-
-      // Prune versions older than 20
-      await db
-        .prepare(
-          `DELETE FROM page_versions
-           WHERE page_id = ? AND version <= (
-             SELECT MAX(version) - 20 FROM page_versions WHERE page_id = ?
-           )`
-        )
-        .bind(params.id, params.id)
-        .run();
-    } catch (e) {
-      console.error('Version snapshot failed:', e);
-      // Don't block the update if snapshot fails
     }
   }
 
@@ -129,6 +104,19 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   }
 
   const updated = await getPageById(db, params.id);
+
+  // Snapshot updated content as the next version after each update.
+  if (hasAnyUpdate && updated) {
+    try {
+      await appendPageVersionSnapshot(db, params.id, {
+        markdown: updated.markdown,
+        title: updated.title ?? null,
+      });
+    } catch (e) {
+      console.error('Version snapshot failed:', e);
+    }
+  }
+
   return json(updated);
 };
 

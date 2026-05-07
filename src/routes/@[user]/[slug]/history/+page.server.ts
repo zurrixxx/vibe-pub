@@ -15,5 +15,5 @@ export const load: PageServerLoad = async ({ params, platform, url }) => {
     .first<{ user_id: string | null }>();
   if (!row || row.user_id !== user.id) throw error(404, 'Page not found');
 
-  throw redirect(308, `/${params.slug}${url.search}`);
+  throw redirect(308, `/${params.slug}/history${url.search}`);
 };

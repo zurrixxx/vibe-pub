@@ -17,7 +17,7 @@ async function getPageBySlugPublic(db: D1Database, slug: string) {
     .first<import('$lib/types').Page>();
 }
 
-export const load: PageServerLoad = async ({ params, platform }) => {
+export const load: PageServerLoad = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
 
   try {
@@ -27,7 +27,8 @@ export const load: PageServerLoad = async ({ params, platform }) => {
     if (!page) throw error(404, 'Page not found');
 
     if (page.access === 'private') {
-      throw error(403, 'This page is private');
+      const isOwner = !!page.user_id && locals.user?.id === page.user_id;
+      if (!isOwner) throw error(403, 'This page is private');
     }
 
     // Strip frontmatter before rendering

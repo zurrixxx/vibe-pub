@@ -110,6 +110,40 @@ export async function updatePage(
     .run();
 }
 
+const PAGE_VERSION_RETENTION = 20;
+
+/** Append a row to `page_versions` and prune rows older than the retention window. */
+export async function appendPageVersionSnapshot(
+  db: D1Database,
+  pageId: string,
+  snapshot: { markdown: string; title: string | null }
+): Promise<void> {
+  const maxRow = await db
+    .prepare('SELECT MAX(version) as max_v FROM page_versions WHERE page_id = ?')
+    .bind(pageId)
+    .first<{ max_v: number | null }>();
+  const nextVersion = (maxRow?.max_v ?? 0) + 1;
+
+  const versionId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  await db
+    .prepare(
+      `INSERT INTO page_versions (id, page_id, version, markdown, title)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .bind(versionId, pageId, nextVersion, snapshot.markdown, snapshot.title)
+    .run();
+
+  await db
+    .prepare(
+      `DELETE FROM page_versions
+       WHERE page_id = ? AND version <= (
+         SELECT MAX(version) - ? FROM page_versions WHERE page_id = ?
+       )`
+    )
+    .bind(pageId, PAGE_VERSION_RETENTION, pageId)
+    .run();
+}
+
 export async function deletePage(db: D1Database, id: string): Promise<void> {
   await db.prepare('DELETE FROM pages WHERE id = ?').bind(id).run();
 }
@@ -172,6 +206,22 @@ export async function updateCommentAnchor(
   const anchorStr =
     anchor == null ? null : typeof anchor === 'string' ? anchor : JSON.stringify(anchor);
   await db.prepare('UPDATE comments SET anchor = ? WHERE id = ?').bind(anchorStr, commentId).run();
+}
+
+export async function resolveAllCommentsForPage(db: D1Database, pageId: string): Promise<void> {
+  await db.prepare('UPDATE comments SET resolved = 1 WHERE page_id = ?').bind(pageId).run();
+}
+
+export async function resolveCommentsForPageByIds(
+  db: D1Database,
+  pageId: string,
+  commentIds: string[]
+): Promise<void> {
+  const placeholders = commentIds.map(() => '?').join(', ');
+  await db
+    .prepare(`UPDATE comments SET resolved = 1 WHERE page_id = ? AND id IN (${placeholders})`)
+    .bind(pageId, ...commentIds)
+    .run();
 }
 
 export async function getUserByEmail(db: D1Database, email: string): Promise<User | null> {

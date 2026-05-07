@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page as pageStore } from '$app/stores';
+  import { afterNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
   import DocView from '$lib/templates/doc/DocView.svelte';
   import KanbanView from '$lib/templates/kanban/KanbanView.svelte';
@@ -8,6 +9,12 @@
   import SlidesView from '$lib/templates/slides/SlidesView.svelte';
   import DashboardView from '$lib/templates/dashboard/DashboardView.svelte';
   import type { PageData } from './$types';
+  import type { Comment } from '$lib/types';
+  import {
+    docCommentsPanelBlockId,
+    docCommentsPanelOpen,
+    closeDocCommentsPanel,
+  } from '$lib/stores';
 
   interface Props {
     data: PageData;
@@ -133,8 +140,137 @@
 
   let activeTocId = $state('');
 
-  // Outline panel
+  // Outline: Reader — fixed left rail when ≥1280px; below that, overlay via toggle only.
   let showToc = $state(false);
+
+  $effect(() => {
+    if (!browser) return;
+    tocFromText.length;
+    const mq = window.matchMedia('(min-width: 1280px)');
+    const apply = () => {
+      if (mq.matches && tocFromText.length > 0) showToc = true;
+      else if (!mq.matches) showToc = false;
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  });
+
+  let commentsPanelOpen = $state(false);
+  $effect(() => docCommentsPanelOpen.subscribe((v) => (commentsPanelOpen = v)));
+
+  let panelBlockId = $state<string | null>(null);
+  $effect(() => docCommentsPanelBlockId.subscribe((v) => (panelBlockId = v)));
+
+  /** Local copy so posting from the panel updates DocView gutter counts without reload */
+  let localComments = $state<Comment[]>([]);
+  $effect(() => {
+    localComments = [...(data.comments ?? [])];
+  });
+
+  let panelNewBody = $state('');
+  let panelPosting = $state(false);
+
+  $effect(() => {
+    if (!commentsPanelOpen) panelNewBody = '';
+  });
+
+  let panelCommentsFiltered = $derived.by((): Comment[] => {
+    const bid = panelBlockId;
+    if (!bid) return localComments;
+    return localComments.filter((c) => commentAnchoredToBlock(c, bid));
+  });
+
+  function commentAnchoredToBlock(c: Comment, blockId: string): boolean {
+    if (!c.anchor) return false;
+    try {
+      const a = typeof c.anchor === 'string' ? JSON.parse(c.anchor) : c.anchor;
+      return a?.type === 'block' && a?.block_id === blockId;
+    } catch {
+      return false;
+    }
+  }
+
+  async function postPanelBlockComment() {
+    if (!panelBlockId || !panelNewBody.trim()) return;
+    panelPosting = true;
+    try {
+      const anchor = { type: 'block', block_id: panelBlockId };
+      const res = await fetch(`/api/comment/${page.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          body: panelNewBody.trim(),
+          anchor,
+          anchor_hint: panelBlockId,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json().catch(() => null);
+        if (saved && typeof saved.id === 'string') {
+          const anchorNorm =
+            saved.anchor == null
+              ? null
+              : typeof saved.anchor === 'string'
+                ? saved.anchor
+                : JSON.stringify(saved.anchor);
+          const row: Comment = {
+            id: saved.id,
+            page_id: saved.page_id ?? page.id,
+            user_id: saved.user_id ?? null,
+            display_name: saved.display_name ?? null,
+            anchor: anchorNorm,
+            anchor_hint: saved.anchor_hint ?? panelBlockId,
+            body: saved.body ?? panelNewBody.trim(),
+            resolved: typeof saved.resolved === 'number' ? saved.resolved : 0,
+            created: typeof saved.created === 'string' ? saved.created : new Date().toISOString(),
+          };
+          localComments = [...localComments, row];
+        }
+        panelNewBody = '';
+      }
+    } catch {
+      /* ignore */
+    }
+    panelPosting = false;
+  }
+
+  afterNavigate(() => {
+    closeDocCommentsPanel();
+  });
+
+  $effect(() => {
+    if (editing) closeDocCommentsPanel();
+  });
+
+  $effect(() => {
+    if (!browser || !commentsPanelOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') closeDocCommentsPanel();
+    }
+    /** Close when clicking outside the panel (same gesture must finish — use click, not pointerdown). */
+    function onDocClick(e: MouseEvent) {
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      if (t.closest('#comments-panel')) return;
+      if (t.closest('[aria-controls="comments-panel"]')) return;
+      if (t.closest('.bcb')) return;
+      closeDocCommentsPanel();
+    }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('click', onDocClick);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onDocClick);
+    };
+  });
+
+  /** Reader_Doc body.thread-focused: dim prose blocks; heading blocks + active block stay full contrast */
+  $effect(() => {
+    if (!browser) return;
+    document.body.classList.toggle('comments-panel-open', commentsPanelOpen);
+    return () => document.body.classList.remove('comments-panel-open');
+  });
 
   // Compute reading time from markdown
   let readTime = $derived.by(() => {
@@ -165,6 +301,28 @@
       'dec',
     ];
     return `${months[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  /** Comments panel — Reader-style card (design: black avatar / @handle / ago / serif body) */
+  function commentAvatarLetter(displayName: string | null): string {
+    const raw = (displayName ?? 'A').trim() || 'A';
+    const ch = raw.match(/[a-zA-Z0-9\u4e00-\u9fff]/)?.[0] ?? raw[0] ?? 'A';
+    return /[a-z]/.test(ch) ? ch.toUpperCase() : ch;
+  }
+
+  function commentHandle(displayName: string | null): string {
+    let n = (displayName ?? 'anonymous').trim();
+    if (!n) n = 'anonymous';
+    if (n.startsWith('@')) return n;
+    return `@${n.replace(/\s+/g, '').toLowerCase()}`;
+  }
+
+  function commentTimeAgo(dateStr: string): string {
+    const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
   }
 
   // Extract lede (first paragraph) from html for doc view header
@@ -296,11 +454,7 @@
 -->
 {#if page.view !== 'doc'}
   <main class="seo-main" id="main-content">
-    <article
-      class="seo-body prose"
-      itemscope
-      itemtype="https://schema.org/Article"
-    >
+    <article class="seo-body prose" itemscope itemtype="https://schema.org/Article">
       <h1 itemprop="headline">{pageTitle}</h1>
       {#if description}
         <p itemprop="description"><em>{description}</em></p>
@@ -558,8 +712,13 @@
         {#if showToc && tocFromText.length > 0}
           <div class="outline-panel">
             <div class="outline-header">
-              <span>Outline</span>
-              <button class="outline-close" onclick={() => (showToc = false)}>
+              <span class="outline-label">Outline</span>
+              <button
+                type="button"
+                class="outline-close"
+                onclick={() => (showToc = false)}
+                aria-label="Close outline"
+              >
                 <svg
                   width="12"
                   height="12"
@@ -610,15 +769,10 @@
             <textarea class="edit-textarea" bind:value={editMarkdown} rows={20}></textarea>
           </div>
         {:else}
-          <!-- Article header: kicker, title, byline, lede -->
+          <!-- Article header: URL meta (no view/access badges — Reader handoff) -->
           <header class="doc-header">
-            <div class="doc-kicker">
-              <span>{(page.view ?? 'doc').toUpperCase()}</span>
-              <span
-                >{new Date(page.created)
-                  .toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                  .toUpperCase()}</span
-              >
+            <div class="doc-meta-url" aria-label="Page URL">
+              {$pageStore.url.hostname}{$pageStore.url.pathname}
             </div>
             <h1 class="doc-hero-title">{pageTitle}</h1>
             <div class="doc-byline">
@@ -636,7 +790,7 @@
           </header>
 
           <article class="doc-article" use:docActions>
-            <DocView {html} title={null} {comments} pageId={page.id} />
+            <DocView bind:comments={localComments} {html} title={null} pageId={page.id} />
           </article>
         {/if}
 
@@ -645,33 +799,108 @@
           <span class="footer-desc">publish from the command line</span>
         </footer>
       </main>
+    </div>
 
-      <!-- Comment rail -->
-      <aside class="doc-rail">
-        <div class="rail-head">
-          <span class="rail-h">Threads · {comments.length}</span>
+    {#if !editing}
+      <aside
+        class="comments-panel"
+        class:open={commentsPanelOpen}
+        id="comments-panel"
+        aria-hidden={!commentsPanelOpen}
+      >
+        <div class="rail-head comments-panel-head">
+          <span class="rail-h">
+            {#if panelBlockId}
+              thread · {panelCommentsFiltered.length}{panelCommentsFiltered.length === 1
+                ? ' reply'
+                : ' replies'}
+            {:else}
+              comments · {localComments.length}
+            {/if}
+          </span>
+          <button
+            type="button"
+            class="comments-panel-close"
+            aria-label="Close comments"
+            onclick={() => closeDocCommentsPanel()}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg
+            >
+          </button>
         </div>
-        {#if comments.length === 0}
-          <div class="empty-rail">
-            <div class="empty-rail-h">No <em>comments</em> yet.</div>
-            <div class="empty-rail-c">
-              Click any block to leave a comment. The agent will read it.
+        <div class="comments-panel-scroll">
+          {#if panelBlockId && panelCommentsFiltered.length === 0}
+            <div class="empty-rail empty-rail--block">
+              <div class="empty-rail-h">No comments on this block yet.</div>
+              <div class="empty-rail-c">Write one below — the agent will read it.</div>
+            </div>
+          {:else if !panelBlockId && localComments.length === 0}
+            <div class="empty-rail">
+              <div class="empty-rail-h">No <em>comments</em> yet.</div>
+              <div class="empty-rail-c">
+                Click any block to leave a comment. The agent will read it.
+              </div>
+            </div>
+          {:else}
+            <div class="cp-list">
+              {#each panelCommentsFiltered as comment (comment.id)}
+                <article class="cp-comment">
+                  <div class="cp-comment-card">
+                    <div class="cp-top">
+                      <div class="cp-avatar" aria-hidden="true">
+                        {commentAvatarLetter(comment.display_name)}
+                      </div>
+                      <header class="cp-comment-head">
+                        <div class="cp-head-names">
+                          <span class="cp-author">{commentHandle(comment.display_name)}</span>
+                          {#if comment.resolved !== 0}
+                            <span class="cp-status">Resolved</span>
+                          {/if}
+                        </div>
+                        <span class="cp-time">{commentTimeAgo(comment.created)}</span>
+                      </header>
+                    </div>
+                    <p class="cp-body">{comment.body}</p>
+                  </div>
+                </article>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        {#if panelBlockId}
+          <div class="cp-compose">
+            <div class="cp-compose-row">
+              <input
+                type="text"
+                class="cp-compose-input"
+                placeholder="Reply, or leave a new note…"
+                bind:value={panelNewBody}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    postPanelBlockComment();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                class="cp-compose-send"
+                onclick={postPanelBlockComment}
+                disabled={panelPosting || !panelNewBody.trim()}
+              >
+                {panelPosting ? '...' : 'Send'}
+              </button>
             </div>
           </div>
-        {:else}
-          {#each comments as comment}
-            <div class="rail-thread">
-              <div class="rail-thread-meta">
-                {comment.resolved ? '✓ resolved' : '● open'} · {comment.display_name || 'anonymous'}
-              </div>
-              <div class="rail-thread-body">
-                {comment.body.slice(0, 80)}{comment.body.length > 80 ? '...' : ''}
-              </div>
-            </div>
-          {/each}
         {/if}
       </aside>
-    </div>
+    {/if}
   {/if}
 </div>
 
@@ -775,23 +1004,42 @@
     margin: 80px auto 40px;
   }
 
-  /* ═══ DOC LAYOUT ═══ */
+  /* ═══ DOC LAYOUT (Reader: ~1080 shell, 680px prose, fixed left TOC) ═══ */
   .doc-layout {
     display: grid;
-    grid-template-columns: 1fr minmax(auto, 320px);
-    max-width: 1200px;
+    grid-template-columns: 1fr;
+    max-width: 1280px;
     margin: 0 auto;
-    gap: 40px;
-    padding: 48px 40px 120px;
+    gap: 40px 48px;
+    padding: 64px 32px 120px;
     position: relative;
+    align-items: start;
   }
 
-  /* ── Doc main column ── */
+  /*
+   * Fixed `.outline-panel` is anchored to the viewport (left: 24px, width: 220px),
+   * while `.doc-main` is only centered in the grid — on many widths the prose
+   * column starts left of the TOC and visually intrudes. Reserve that strip + gap.
+   */
+  @media (min-width: 1280px) {
+    .doc-layout:has(.outline-panel) {
+      padding: 64px 32px 120px calc(24px + 220px + 32px + 24px);
+    }
+
+    /* Outline 已在左侧占位；正文不要再在「剩余宽度」里居中，否则会整体偏右、与大纲间距过大（对齐设计稿）。 */
+    .doc-layout:has(.outline-panel) .doc-main {
+      margin-left: 0;
+      margin-right: auto;
+    }
+  }
+
+  /* ── Doc main column (Reader .article measure) ── */
   .doc-main {
     min-width: 0;
     width: 100%;
-    max-width: 640px;
+    max-width: 680px;
     margin: 0 auto;
+    position: relative;
   }
 
   /* ── Article header ── */
@@ -799,28 +1047,13 @@
     margin-bottom: 48px;
   }
 
-  .doc-kicker {
+  .doc-meta-url {
     font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
-    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary);
     margin-bottom: 20px;
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .doc-kicker span {
-    display: inline-block;
-  }
-
-  .doc-kicker span + span::before {
-    content: '\00b7';
-    margin-right: 8px;
+    text-align: center;
+    word-break: break-all;
   }
 
   .doc-hero-title {
@@ -874,6 +1107,40 @@
   /* ── Doc article (no card, direct on bg) ── */
   .doc-article {
     position: relative;
+  }
+
+  /*
+   * Reader_Doc — thread focus: dim each top-level block except heading-only blocks and the active one.
+   * Headings stay crisp; body copy / lists / code / etc. recede when the comment panel is open.
+   */
+  :global(body.comments-panel-open) .doc-article :global(.doc-view > .block-el:not(.block-active)) {
+    opacity: 0.32;
+    transition:
+      opacity 0.25s ease,
+      filter 0.25s ease;
+  }
+
+  :global(body.comments-panel-open) .doc-article :global(.doc-view > .block-el.block-active) {
+    opacity: 1;
+  }
+
+  :global(body.comments-panel-open)
+    .doc-article
+    :global(.doc-view > .block-el:not(.block-active):is(:has(> h1), :has(> h2), :has(> h3))) {
+    opacity: 1;
+  }
+
+  /* .dark lives on .page-wrapper, not body — chain must include it or this never matches */
+  :global(body.comments-panel-open .page-wrapper.dark)
+    .doc-article
+    :global(.doc-view > .block-el:not(.block-active)) {
+    opacity: 0.38;
+  }
+
+  :global(body.comments-panel-open .page-wrapper.dark)
+    .doc-article
+    :global(.doc-view > .block-el:not(.block-active):is(:has(> h1), :has(> h2), :has(> h3))) {
+    opacity: 1;
   }
 
   /* Prose overrides for doc view to match L3 design */
@@ -944,96 +1211,239 @@
     border-radius: 4px;
   }
 
-  /* ── Doc actions ── */
+  /* ── Outline toggle (Reader meta-outline-btn — narrow only; wide uses fixed TOC) ── */
   .doc-actions {
     position: fixed;
-    left: max(16px, calc(50% - 580px));
-    top: 50%;
-    transform: translateY(-50%);
+    left: 12px;
+    bottom: 24px;
+    top: auto;
+    transform: none;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    z-index: 30;
+    z-index: 39;
   }
 
-  /* ── Outline ── */
   .outline-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     border: none;
+    border-radius: 4px;
     background: transparent;
     color: var(--text-tertiary);
     cursor: pointer;
-    opacity: 0.45;
+    opacity: 0.3;
     transition:
-      opacity 150ms,
-      color 150ms;
+      opacity 140ms ease,
+      background 140ms ease,
+      color 140ms ease;
+  }
+
+  .outline-toggle svg {
+    width: 15px;
+    height: 15px;
   }
 
   .outline-toggle:hover {
-    opacity: 0.8;
+    opacity: 1;
     color: var(--text-primary);
-  }
-  .outline-toggle.active {
-    opacity: 0.6;
-    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.04);
   }
 
+  :global(.dark) .outline-toggle:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .outline-toggle.active {
+    opacity: 1;
+    color: var(--text-primary);
+  }
+
+  /* ── Outline rail (Reader #toc) ── */
   .outline-panel {
     position: fixed;
-    right: calc(50% + 580px);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 180px;
-    max-height: calc(100vh - 140px);
+    left: 24px;
+    top: 88px;
+    width: 220px;
+    max-height: calc(100vh - 120px);
     overflow-y: auto;
-    z-index: 29;
-    padding: 4px 0;
-    text-align: right;
+    overflow-x: hidden;
+    z-index: 42;
+    padding: 12px 8px 14px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    text-align: left;
+    font-family: var(--font-sans);
+    isolation: isolate;
+    scrollbar-width: thin;
+  }
+
+  .outline-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--bg) 50%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: -1;
+    opacity: 0.7;
   }
 
   .outline-header {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px 8px;
   }
-  .outline-close {
-    display: none;
+
+  .outline-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    opacity: 0.7;
   }
+
   .outline-nav {
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   .outline-link {
     display: block;
-    font-size: 12px;
-    color: var(--text-tertiary);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
     text-decoration: none;
-    padding: 3px 8px;
-    line-height: 1.4;
-    transition: color 150ms;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.12s;
+    text-wrap: pretty;
   }
 
   .outline-link:hover {
-    color: var(--text-secondary);
-  }
-  .outline-link.outline-active {
     color: var(--text-primary);
-  }
-  .outline-link.outline-h3 {
-    padding-left: 18px;
-    font-size: 11px;
+    background: rgba(0, 0, 0, 0.035);
   }
 
-  /* ── Comment rail ── */
-  .doc-rail {
+  :global(.dark) .outline-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .outline-link.outline-active {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+  }
+
+  :global(.dark) .outline-link.outline-active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .outline-link.outline-h3 {
+    padding-left: 22px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .outline-link.outline-h3.outline-active {
+    color: var(--text-primary);
+  }
+
+  /* Reader_Doc.html — .thread-panel (no full-page backdrop — doc stays full contrast) */
+  .comments-panel {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    bottom: 0;
+    width: min(380px, 100vw);
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.04);
+    transform: translateX(100%);
+    transition: transform 240ms cubic-bezier(0.2, 0, 0.2, 1);
+    overflow: hidden;
+    padding: 0;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  :global(.dark) .comments-panel {
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .comments-panel.open {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .comments-panel-head.rail-head {
+    align-items: center;
+  }
+
+  /* Reader — .thread-head */
+  .comments-panel-head {
     position: sticky;
-    top: 96px;
-    align-self: start;
-    max-height: calc(100vh - 140px);
+    top: 0;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 20px 24px 14px;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .comments-panel-head.rail-head {
+    margin-bottom: 0;
+  }
+
+  /* Reader — .thread-body */
+  .comments-panel-scroll {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 24px 20px;
+  }
+
+  /* Reader — .icon-btn */
+  .comments-panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition:
+      color 0.12s ease,
+      background 0.12s ease;
+  }
+
+  .comments-panel-close:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  :global(.dark) .comments-panel-close:hover {
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .rail-head {
@@ -1045,11 +1455,12 @@
     margin-bottom: 18px;
   }
 
+  /* Reader — .kicker (thread head meta) */
   .rail-h {
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-tertiary);
   }
@@ -1080,38 +1491,216 @@
     margin: 0 auto;
   }
 
-  .rail-thread {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
+  .empty-rail--block {
+    padding: 28px 16px;
   }
 
-  .rail-thread-meta {
-    font-family: var(--font-mono);
-    font-size: 10px;
+  /* Reader_Doc.html — .thread-reply */
+  .cp-compose {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding: 14px 24px 20px;
+    background: var(--bg);
+  }
+
+  .cp-compose-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cp-compose-input {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border-radius: var(--radius-input, 12px);
+    border: 1px solid var(--border);
+    outline: none;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    background: var(--bg);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .cp-compose-input:focus {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+  }
+
+  :global(.dark) .cp-compose-input:focus {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  }
+
+  .cp-compose-input::placeholder {
     color: var(--text-tertiary);
+    font-style: normal;
+  }
+
+  .cp-compose-send {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: var(--text-primary);
+    color: var(--bg);
+    transition: filter 0.15s ease;
+  }
+
+  .cp-compose-send:hover:not(:disabled) {
+    filter: brightness(0.92);
+  }
+
+  :global(.dark) .cp-compose-send:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  .cp-compose-send:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* Reader_Doc.html — .msg list */
+  .cp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .cp-comment {
+    margin: 0;
+  }
+
+  .cp-comment-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    --cp-meta-size: 12px;
+    --cp-time-size: 10px;
+    --cp-body-size: 14px;
+    --cp-avatar-size: 20px;
+    font-size: var(--cp-meta-size);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Reader — .msg-head row + .msg-av gap */
+  .cp-top {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  :global(.dark) .cp-comment-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Reader — .msg-av */
+  .cp-avatar {
+    flex-shrink: 0;
+    width: var(--cp-avatar-size);
+    height: var(--cp-avatar-size);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1;
+    color: var(--bg);
+    background: var(--text-primary);
+    border: none;
+  }
+
+  :global(.dark) .cp-avatar {
+    background: #f5f5f4;
+    color: #1a1a18;
+  }
+
+  .cp-comment-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-size: inherit;
+    line-height: 1.35;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cp-head-names {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    min-width: 0;
+  }
+
+  /* Reader — .msg-name */
+  .cp-author {
+    font-size: var(--cp-meta-size);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .cp-status {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    color: var(--text-tertiary);
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
   }
 
-  .rail-thread-body {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-size: 13px;
-    line-height: 1.4;
-    color: var(--text-secondary);
+  /* Reader — .msg-time */
+  .cp-time {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--cp-time-size);
+    font-weight: 400;
+    color: var(--text-tertiary);
+  }
+
+  /* Reader — .msg-body */
+  .cp-body {
+    font-family: var(--font-prose);
+    font-size: var(--cp-body-size);
+    line-height: 1.55;
+    color: var(--text-primary);
+    margin: 6px 0 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    text-wrap: pretty;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   /* ═══ Responsive ═══ */
   @media (max-width: 959px) {
     .doc-layout {
       grid-template-columns: 1fr;
-      max-width: 640px;
-      padding: 24px 20px 80px;
-    }
-    .doc-rail {
-      display: none;
+      max-width: 680px;
+      padding: 48px 24px 80px;
     }
   }
 
@@ -1138,12 +1727,6 @@
       flex-wrap: wrap;
       justify-content: center;
     }
-    .doc-actions {
-      display: none;
-    }
-    .outline-panel {
-      display: none;
-    }
   }
 
   @media (min-width: 640px) and (max-width: 959px) {
@@ -1155,12 +1738,62 @@
     }
   }
 
-  @media (max-width: 1279px) {
+  @media (min-width: 1280px) {
     .doc-actions {
       display: none;
     }
-    .outline-panel {
+
+    .outline-toggle {
       display: none;
+    }
+
+    .outline-close {
+      display: none !important;
+    }
+
+    .outline-header {
+      border-bottom: none;
+      padding-bottom: 10px;
+      margin-bottom: 2px;
+    }
+  }
+
+  @media (max-width: 1279px) {
+    .outline-header {
+      margin-bottom: 6px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .outline-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .outline-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text-primary);
+    }
+
+    :global(.dark) .outline-close:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Overlay TOC: same glass as wide, slightly inset */
+    .outline-panel {
+      left: 12px;
+      top: 72px;
+      width: min(220px, calc(100vw - 24px));
+      padding: 12px 8px 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     }
   }
 
@@ -1226,10 +1859,6 @@
 
   .toolbar-retry:hover {
     background: rgba(239, 68, 68, 0.06);
-  }
-
-  .toolbar-cancel {
-    /* uses base .toolbar-btn styles */
   }
 
   .edit-card {
@@ -1338,7 +1967,7 @@
       background: none;
     }
 
-    .doc-kicker {
+    .doc-meta-url {
       color: #666;
     }
     .doc-hero-title {
@@ -1353,7 +1982,7 @@
 
     .doc-actions,
     .outline-panel,
-    .doc-rail,
+    .comments-panel,
     .kanban-toolbar,
     .page-toolbar,
     .page-footer,

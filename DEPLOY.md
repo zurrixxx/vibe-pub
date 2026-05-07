@@ -26,7 +26,10 @@ database_id = "<paste-id-here>"
 ### 2. Run Migration
 
 ```bash
-npx wrangler d1 execute vibe-pub --remote --file=migrations/0001_init.sql
+for f in migrations/*.sql; do
+  echo "Applying $f"
+  npx wrangler d1 execute vibe-pub --remote --file="$f"
+done
 ```
 
 ### 3. Create R2 Bucket
@@ -74,5 +77,8 @@ npm run dev -- --port 5180
 D1 runs locally via wrangler's local mode. To seed local DB:
 
 ```bash
-npx wrangler d1 execute vibe-pub --local --file=migrations/0001_init.sql
+for f in migrations/*.sql; do
+  echo "Applying $f"
+  npx wrangler d1 execute vibe-pub --local --file="$f"
+done
 ```

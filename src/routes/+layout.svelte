@@ -10,7 +10,6 @@
   }
   let { data, children }: Props = $props();
 
-  let pageTitle = $derived(($page.data as any)?.page?.title ?? null);
   // Hide header on collection pages (they render their own)
   let isCollectionPage = $derived($page.url.pathname.startsWith('/c/'));
 </script>
@@ -21,7 +20,7 @@
 >
   <div style="position: relative; z-index: 1;">
     {#if !$hideGlobalHeader && !isCollectionPage}
-      <Header user={data.user} {pageTitle} />
+      <Header user={data.user} />
     {/if}
     {@render children()}
   </div>

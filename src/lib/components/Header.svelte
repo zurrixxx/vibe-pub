@@ -1,163 +1,856 @@
 <script lang="ts">
+  import { page } from '$app/stores';
+  import { browser } from '$app/environment';
+  import { docCommentsPanelOpen, openDocCommentsPanelAllThreads } from '$lib/stores';
+
   interface Props {
     user?: { id: string; email: string; username: string } | null;
-    pageTitle?: string | null;
   }
-  let { user = null, pageTitle = null }: Props = $props();
+  let { user = null }: Props = $props();
+
+  type PageData = {
+    page?: { slug: string; user_id: string | null; view?: string | null };
+    comments?: unknown[];
+  };
+
+  let pathname = $derived($page.url.pathname);
+  let pdata = $derived($page.data as PageData | undefined);
+  let pg = $derived(pdata?.page);
+  let commentCount = $derived(Array.isArray(pdata?.comments) ? pdata!.comments!.length : 0);
+
+  let isArticlePage = $derived(
+    !/^\/(new|auth)(\/|$)/i.test(pathname) &&
+      /^\/[^/@][^/]*$/.test(pathname) &&
+      !pathname.endsWith('.md')
+  );
+
+  let crumb = $derived(
+    `${$page.url.hostname}${$page.url.pathname === '/' ? '' : $page.url.pathname}`
+  );
+
+  let historyHref = $derived(`${pathname}/history`);
+
+  let isDocArticle = $derived(isArticlePage && (pg?.view ?? 'doc') === 'doc');
+  let shareUrl = $derived(browser ? `${$page.url.origin}${$page.url.pathname}` : '');
+
+  let moreOpen = $state(false);
+  let userOpen = $state(false);
+  let shareOpen = $state(false);
+  let copyState = $state<'idle' | 'copied'>('idle');
+  let docCommentsOpen = $state(false);
+
+  $effect(() => docCommentsPanelOpen.subscribe((v) => (docCommentsOpen = v)));
+
+  function openDocCommentsPanel(e: MouseEvent) {
+    e.preventDefault();
+    openDocCommentsPanelAllThreads();
+  }
+
+  function closeMenus() {
+    moreOpen = false;
+    userOpen = false;
+  }
+
+  function toggleMore(e: MouseEvent) {
+    e.stopPropagation();
+    const next = !moreOpen;
+    closeMenus();
+    moreOpen = next;
+  }
+
+  function toggleUser(e: MouseEvent) {
+    e.stopPropagation();
+    const next = !userOpen;
+    closeMenus();
+    userOpen = next;
+  }
+
+  function openShare(e: MouseEvent) {
+    e.stopPropagation();
+    closeMenus();
+    shareOpen = true;
+    copyState = 'idle';
+  }
+
+  function closeShare() {
+    shareOpen = false;
+  }
+
+  async function copyShareUrl() {
+    if (!shareUrl || !browser) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      copyState = 'copied';
+      setTimeout(() => {
+        copyState = 'idle';
+      }, 1800);
+    } catch {
+      copyState = 'idle';
+    }
+  }
+
+  $effect(() => {
+    if (!browser || (!moreOpen && !userOpen && !shareOpen)) return;
+    function onDocClick(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (moreOpen && !t.closest?.('.more-wrap')) moreOpen = false;
+      if (userOpen && !t.closest?.('.user-wrap')) userOpen = false;
+      if (shareOpen && t.closest?.('.share-backdrop')) closeShare();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        closeMenus();
+        closeShare();
+      }
+    }
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  });
 </script>
 
 <header class="site-header">
-  <nav>
-    <div class="nav-left">
-      <a href={user ? `/@${user.username}` : '/'} class="wordmark">vibe.<em>pub</em></a>
-      {#if pageTitle}
-        <span class="nav-sep"></span>
-        <span class="page-title">{pageTitle}</span>
+  <nav class="topbar" aria-label="Site">
+    <div class="top-left">
+      <a href={user ? `/@${user.username}` : '/'} class="brand">vibe.<em>pub</em></a>
+      {#if pathname !== '/'}
+        <div class="crumb-meta">
+          <span class="slug">{crumb}</span>
+        </div>
       {/if}
     </div>
-    <div class="nav-right">
+
+    <div class="top-r">
+      {#if isArticlePage && pg}
+        {#if isDocArticle}
+          <button
+            type="button"
+            class="top-btn"
+            class:active={docCommentsOpen}
+            onclick={openDocCommentsPanel}
+            aria-expanded={docCommentsOpen}
+            aria-controls="comments-panel"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+              ><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg
+            >
+            comments
+            {#if commentCount > 0}<span class="count">{commentCount}</span>{/if}
+          </button>
+        {/if}
+
+        <div class="more-wrap">
+          <button
+            type="button"
+            class="top-btn icon-only"
+            class:active={moreOpen}
+            onclick={toggleMore}
+            aria-expanded={moreOpen}
+            aria-haspopup="true"
+            title="More"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle
+                cx="19"
+                cy="12"
+                r="1.4"
+              />
+            </svg>
+          </button>
+          <div class="more-menu" class:open={moreOpen}>
+            <a href={historyHref} class="mm-item" onclick={() => (moreOpen = false)}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                ><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /><path
+                  d="M12 7v5l3 2"
+                /></svg
+              >
+              History
+            </a>
+            <div class="divider"></div>
+            <a
+              href="/{pg.slug}.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mm-item"
+              onclick={() => (moreOpen = false)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                ><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg
+              >
+              View source
+            </a>
+            <a
+              href="/{pg.slug}.md"
+              download="{pg.slug}.md"
+              class="mm-item"
+              onclick={() => (moreOpen = false)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline
+                  points="14 2 14 8 20 8"
+                /></svg
+              >
+              Export as markdown
+            </a>
+          </div>
+        </div>
+
+        <button type="button" class="top-btn primary" onclick={openShare}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle
+              cx="18"
+              cy="19"
+              r="3"
+            />
+            <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+          </svg>
+          Share
+        </button>
+      {/if}
+
       {#if user}
-        <a href="/new" class="tb-btn primary">publish</a>
-        <a href={`/@${user.username}`} class="avatar">{user.username[0].toUpperCase()}</a>
+        <div class="user-wrap">
+          <button
+            type="button"
+            class="user-btn"
+            onclick={toggleUser}
+            aria-expanded={userOpen}
+            aria-haspopup="true"
+            title="@{user.username}"
+          >
+            <span class="avatar-dot">{user.username[0]?.toUpperCase() ?? '?'}</span>
+          </button>
+          <div class="user-menu" class:open={userOpen}>
+            <div class="um-head">
+              <div class="um-name">{user.username}</div>
+              <div class="um-handle">@{user.username}</div>
+            </div>
+            <a href={`/@${user.username}`} class="um-item" onclick={() => (userOpen = false)}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+                ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle
+                  cx="12"
+                  cy="7"
+                  r="4"
+                /></svg
+              >
+              Your profile
+            </a>
+            <a href="/new" class="um-item" onclick={() => (userOpen = false)}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg
+              >
+              Publish
+            </a>
+            <div class="um-sep"></div>
+            <form method="POST" action="/auth/logout" class="um-form">
+              <button type="submit" class="um-item um-signout">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline
+                    points="16 17 21 12 16 7"
+                  /><line x1="21" y1="12" x2="9" y2="12" /></svg
+                >
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
       {:else}
-        <a href="/new" class="tb-btn">publish</a>
-        <a href="/auth/login" class="tb-btn primary">sign in</a>
+        <a href="/auth/login" class="top-btn">Sign in</a>
+        <a href="/new" class="top-btn" class:primary={!isArticlePage || !pg}>Publish</a>
       {/if}
     </div>
   </nav>
 </header>
+
+<!-- Share sheet -->
+{#if shareOpen}
+  <div class="share-backdrop open" onclick={closeShare} role="presentation"></div>
+  <div class="share-modal open" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+    <div class="share-head">
+      <div>
+        <h3 id="share-modal-title">Share this <em>page</em></h3>
+        <p>Readers do not need an account — the link just works.</p>
+      </div>
+      <button type="button" class="icon-btn" onclick={closeShare} aria-label="Close">✕</button>
+    </div>
+    <div class="copy-row">
+      <div class="copy-url">{shareUrl}</div>
+      <button
+        type="button"
+        class="copy-btn"
+        class:copied={copyState === 'copied'}
+        onclick={copyShareUrl}
+      >
+        {copyState === 'copied' ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+    <p class="share-foot">Published · no login required to read</p>
+  </div>
+{/if}
 
 <style>
   .site-header {
     position: sticky;
     top: 0;
     z-index: 40;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
   }
 
-  nav {
-    padding: 0 40px;
-    height: 56px;
+  .topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    height: 56px;
+    padding: 0 32px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
-  .nav-left {
+  .top-left {
     display: flex;
-    align-items: baseline;
-    gap: 14px;
+    align-items: center;
+    gap: 18px;
     min-width: 0;
   }
 
-  .wordmark {
+  .brand {
     font-family: var(--font-display);
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 400;
     letter-spacing: -0.02em;
     color: var(--text-primary);
     text-decoration: none;
     flex-shrink: 0;
-    transition: opacity var(--ease-fast);
     line-height: 1;
   }
 
-  .wordmark :global(em) {
+  .brand :global(em) {
     font-style: italic;
   }
 
-  .wordmark:hover {
-    opacity: 0.6;
+  .brand:hover {
+    opacity: 0.85;
   }
 
-  .nav-sep {
-    width: 1px;
-    height: 18px;
-    background: var(--border);
-    flex-shrink: 0;
-    align-self: center;
+  .crumb-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
-  .page-title {
-    font-size: 13px;
-    font-family: var(--font-sans);
+  .crumb-meta .slug {
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: min(52vw, 420px);
   }
 
-  .nav-right {
+  .top-r {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
   }
 
-  .tb-btn {
-    font-family: var(--font-mono);
-    font-size: 12px;
+  .top-btn {
+    font-family: var(--font-sans);
+    font-size: 13px;
     font-weight: 500;
-    padding: 7px 14px;
-    border-radius: 9999px;
-    border: 1px solid var(--border);
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 150ms;
+    transition: all 0.15s;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    line-height: 1;
   }
 
-  .tb-btn:hover {
+  .top-btn:hover {
     color: var(--text-primary);
-    border-color: var(--border-hover);
-    background: var(--surface-hover);
+    background: rgba(0, 0, 0, 0.04);
   }
 
-  .tb-btn.primary {
+  :global(.dark) .top-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .top-btn.active {
     background: var(--text-primary);
     color: var(--bg);
-    border-color: var(--text-primary);
   }
 
-  .tb-btn.primary:hover {
-    background: var(--accent-hover);
+  .top-btn .count {
+    opacity: 0.55;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .top-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .top-btn.icon-only {
+    padding: 7px;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+  }
+
+  .top-btn.icon-only svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .top-btn.primary {
+    background: var(--text-primary);
     color: var(--bg);
+    padding: 7px 14px;
+    border-color: transparent;
   }
 
-  .avatar {
+  .top-btn.primary:hover {
+    filter: brightness(0.92);
+  }
+
+  :global(.dark) .top-btn.primary:hover {
+    filter: brightness(1.1);
+  }
+
+  .more-wrap,
+  .user-wrap {
+    position: relative;
+  }
+
+  .more-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.08),
+      0 2px 6px rgba(0, 0, 0, 0.04);
+    padding: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+      opacity 140ms ease,
+      transform 140ms ease;
+    z-index: 50;
+  }
+
+  .more-menu.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .more-menu .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 6px;
+  }
+
+  .mm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 7px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-primary);
+    text-align: left;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+
+  .mm-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  :global(.dark) .mm-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .mm-item svg {
+    width: 15px;
+    height: 15px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .user-btn {
     width: 30px;
     height: 30px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #c77a5b, #8b4a35);
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    transition: all 0.15s;
+    overflow: hidden;
+  }
+
+  .user-btn:hover {
+    border-color: var(--text-tertiary);
+  }
+
+  .avatar-dot {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-sans);
-    font-size: 12px;
+    background: linear-gradient(135deg, #c96442 0%, #92400e 100%);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 11px;
     font-weight: 600;
-    color: white;
+  }
+
+  .user-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.08),
+      0 2px 6px rgba(0, 0, 0, 0.04);
+    padding: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+      opacity 140ms ease,
+      transform 140ms ease;
+    z-index: 50;
+  }
+
+  .user-menu.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .um-head {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .um-name {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .um-handle {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  .um-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 7px;
+    background: transparent;
+    border: 0;
     cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-primary);
+    text-align: left;
     text-decoration: none;
-    border: 2px solid var(--bg);
+    box-sizing: border-box;
+  }
+
+  .um-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  :global(.dark) .um-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .um-item svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .um-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 6px;
+  }
+
+  .um-form {
+    margin: 0;
+    padding: 0;
+  }
+
+  .um-signout {
+    width: 100%;
+  }
+
+  /* Share modal */
+  .share-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+    z-index: 60;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .share-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .share-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -48%);
+    width: 440px;
+    max-width: calc(100vw - 40px);
+    background: var(--bg);
+    border-radius: 16px;
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+    padding: 28px;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+    z-index: 61;
+  }
+
+  .share-modal.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  .share-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    gap: 12px;
+  }
+
+  .share-head h3 {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+    color: var(--text-primary);
+  }
+
+  .share-head h3 :global(em) {
+    font-style: italic;
+  }
+
+  .share-head p {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+
+  .icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+  }
+
+  :global(.dark) .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .copy-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 4px 4px 14px;
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .copy-url {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .copy-btn {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: none;
+    background: var(--text-primary);
+    color: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .copy-btn.copied {
+    background: var(--success);
+  }
+
+  .share-foot {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin: 0;
   }
 
   @media (max-width: 640px) {
-    nav {
-      padding: 0 20px;
-      height: 48px;
+    .topbar {
+      padding: 0 16px;
+      height: 52px;
     }
 
-    .wordmark {
+    .brand {
       font-size: 18px;
     }
 
-    .page-title {
-      max-width: 140px;
+    .crumb-meta .slug {
+      max-width: 36vw;
+    }
+
+    .top-btn {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .top-btn:not(.icon-only):not(.primary) {
+      padding: 7px;
+      font-size: 0;
+      gap: 0;
+    }
+    .top-btn:not(.icon-only):not(.primary) .count {
+      font-size: 11px;
     }
   }
 </style>

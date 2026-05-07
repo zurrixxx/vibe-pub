@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import type { ChangelogRelease } from './parser';
   import type { Comment } from '$lib/types';
 
@@ -91,6 +92,17 @@
   function getCategoryStyle(name: string): { bg: string; text: string } {
     return categoryColors[name] || { bg: 'var(--surface-hover)', text: 'var(--text-secondary)' };
   }
+
+  $effect(() => {
+    if (!browser || !activeBlockId) return;
+    function onPointerDown(e: PointerEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest?.('.comment-card') || t.closest?.('.block-comment-btn')) return;
+      activeBlockId = null;
+    }
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  });
 </script>
 
 <div class="changelog">

@@ -38,10 +38,13 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
   const anchor = body.anchor ?? null;
   const anchor_hint: string | undefined = body.anchor_hint;
 
+  const trimmedName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
+  const display_name = trimmedName ? trimmedName : locals.user ? locals.user.username : 'Anonymous';
+
   const comment = await createComment(db, {
     page_id: params.pageId,
     user_id: locals.user?.id,
-    display_name: body.display_name || (locals.user ? undefined : 'Anonymous'),
+    display_name,
     body: body.body,
     anchor,
     anchor_hint,

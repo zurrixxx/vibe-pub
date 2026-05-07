@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import type { DashboardSection } from './parser';
   import type { Comment } from '$lib/types';
 
@@ -92,6 +93,17 @@
     if (s < 86400) return `${Math.floor(s / 3600)}h`;
     return `${Math.floor(s / 86400)}d`;
   }
+
+  $effect(() => {
+    if (!browser || !activeBlockId) return;
+    function onPointerDown(e: PointerEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest?.('.comment-card') || t.closest?.('.block-comment-btn')) return;
+      activeBlockId = null;
+    }
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  });
 </script>
 
 <div class="dashboard">
