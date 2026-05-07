@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDb, getUserByUsername } from '$lib/server/db';
+import { getDb, getPageUserIdBySlug, getUserByUsername } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ params, platform, url }) => {
   if (!platform) throw error(500, 'No platform');
@@ -9,10 +9,7 @@ export const load: PageServerLoad = async ({ params, platform, url }) => {
   const user = await getUserByUsername(db, params.user);
   if (!user) throw error(404, 'User not found');
 
-  const row = await db
-    .prepare('SELECT user_id FROM pages WHERE slug = ?')
-    .bind(params.slug)
-    .first<{ user_id: string | null }>();
+  const row = await getPageUserIdBySlug(db, params.slug);
   if (!row || row.user_id !== user.id) throw error(404, 'Page not found');
 
   throw redirect(308, `/${params.slug}${url.search}`);

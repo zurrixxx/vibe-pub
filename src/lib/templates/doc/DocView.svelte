@@ -437,10 +437,9 @@
     border-radius: 4px;
   }
 
+  /* Layout for all code blocks; Shiki uses github-dark (see renderMarkdown). */
   article.doc-view :global(pre) {
     position: relative;
-    background: var(--text-primary);
-    color: var(--bg);
     padding: 18px 22px;
     border-radius: 10px;
     font-family: var(--font-mono);
@@ -451,18 +450,6 @@
     -webkit-overflow-scrolling: touch;
     border: none;
     box-shadow: none;
-  }
-  article.doc-view :global(pre.shiki) {
-    background: var(--shiki-light-bg, var(--text-primary)) !important;
-  }
-  :global(.dark) article.doc-view :global(pre.shiki) {
-    background: var(--shiki-dark-bg, var(--text-primary)) !important;
-  }
-  article.doc-view :global(pre.shiki span) {
-    color: var(--shiki-light) !important;
-  }
-  :global(.dark) article.doc-view :global(pre.shiki span) {
-    color: var(--shiki-dark) !important;
   }
   article.doc-view :global(pre:not(.shiki)) {
     background: var(--text-primary);

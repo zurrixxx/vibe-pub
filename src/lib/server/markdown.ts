@@ -15,7 +15,7 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null;
 function getHighlighter() {
   if (!highlighterPromise) {
     highlighterPromise = createHighlighter({
-      themes: ['github-dark', 'github-light'],
+      themes: ['github-dark'],
       langs: [
         'javascript',
         'typescript',
@@ -64,14 +64,13 @@ export async function renderMarkdown(md: string): Promise<string> {
     .use(rehypeSlug)
     .use(rehypeStringify);
 
-  // Pre-process code blocks with Shiki (or fallback)
   const highlighted = md.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
     const language = lang || 'text';
     if (highlighter) {
       try {
         return highlighter.codeToHtml(code.trimEnd(), {
           lang: language,
-          themes: { light: 'github-light', dark: 'github-dark' },
+          theme: 'github-dark',
         });
       } catch {
         // fall through to plain rendering

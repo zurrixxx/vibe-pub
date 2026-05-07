@@ -45,6 +45,17 @@ export async function getPageById(db: D1Database, id: string): Promise<Page | nu
   return db.prepare('SELECT * FROM pages WHERE id = ?').bind(id).first<Page>();
 }
 
+/** For a slug, returns the page row’s `user_id` (may be null if unclaimed), or null if no page. */
+export async function getPageUserIdBySlug(
+  db: D1Database,
+  slug: string
+): Promise<{ user_id: string | null } | null> {
+  return db
+    .prepare('SELECT user_id FROM pages WHERE slug = ?')
+    .bind(slug)
+    .first<{ user_id: string | null }>();
+}
+
 export async function getPageBySlug(
   db: D1Database,
   slug: string,

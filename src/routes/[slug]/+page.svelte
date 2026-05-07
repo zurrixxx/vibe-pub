@@ -1172,8 +1172,6 @@
   }
 
   .doc-article :global(.doc-view pre) {
-    background: var(--text-primary);
-    color: var(--bg);
     padding: 18px 22px;
     border-radius: 10px;
     font-family: var(--font-mono);
@@ -1183,6 +1181,11 @@
     overflow-x: auto;
     border: none;
     box-shadow: none;
+  }
+
+  .doc-article :global(.doc-view pre:not(.shiki)) {
+    background: var(--text-primary);
+    color: var(--bg);
   }
 
   .doc-article :global(.doc-view pre code) {
