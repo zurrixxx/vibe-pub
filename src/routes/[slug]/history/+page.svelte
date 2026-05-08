@@ -35,9 +35,7 @@
   );
   /** Index 0 is the live tip; nothing to restore when that row is selected. */
   let isLatestSelected = $derived(
-    !!selected &&
-      !!data.versionDetails[0] &&
-      selected.version === data.versionDetails[0].version
+    !!selected && !!data.versionDetails[0] && selected.version === data.versionDetails[0].version
   );
   let renderedHtml = $derived(selected ? marked.parse(selected.markdown) : '');
 
@@ -257,7 +255,12 @@
               The latest version
             </button>
           {:else}
-            <button type="button" class="primary-btn" onclick={restoreSelected} disabled={restoring}>
+            <button
+              type="button"
+              class="primary-btn"
+              onclick={restoreSelected}
+              disabled={restoring}
+            >
               {restoring ? 'Restoring...' : 'Restore this version'}
             </button>
           {/if}

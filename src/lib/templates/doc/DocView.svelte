@@ -222,6 +222,7 @@
   article.doc-view :global(.block-el) {
     position: relative;
     border-radius: 6px;
+    scroll-margin-top: 5.5rem;
     transition:
       background 0.15s,
       border-color 0.2s,

@@ -19,6 +19,7 @@
     closeReaderHistoryPanel,
     readerHistoryPanelOpen,
   } from '$lib/stores';
+  import { listDocViewBlockIdsInOrder } from '$lib/doc-view-block-ids';
 
   interface Props {
     data: PublishedPageData;
@@ -317,11 +318,54 @@
     if (!commentsPanelOpen) panelNewBody = '';
   });
 
+  /** Top-level doc block ids in reading order (for global comments rail sorting) */
+  let docBlockIdsInOrder = $derived.by(() =>
+    listDocViewBlockIdsInOrder(effectiveDocHtml ?? '', slugifyHeadingText)
+  );
+
+  function parseBlockAnchorId(c: Comment): string | null {
+    if (!c.anchor) return null;
+    try {
+      const a = typeof c.anchor === 'string' ? JSON.parse(c.anchor) : c.anchor;
+      if (a?.type === 'block' && typeof a?.block_id === 'string') return a.block_id;
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
   let panelCommentsFiltered = $derived.by((): Comment[] => {
     const bid = panelBlockId;
     if (!bid) {
-      // Header “all threads”: only unresolved (open) comments
-      return localComments.filter((c) => c.resolved === 0);
+      // Header “all threads”: open comments only; one row per block (chronologically first on that block)
+      const open = localComments.filter((c) => c.resolved === 0);
+      const byTime = [...open].sort(
+        (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()
+      );
+      const seenBlock = new Set<string>();
+      const picked: Comment[] = [];
+      for (const c of byTime) {
+        const b = parseBlockAnchorId(c);
+        if (b) {
+          if (seenBlock.has(b)) continue;
+          seenBlock.add(b);
+        }
+        picked.push(c);
+      }
+      const order = docBlockIdsInOrder;
+      const missingRank = Number.MAX_SAFE_INTEGER;
+      const blockRank = (id: string | null) => {
+        if (!id || order.length === 0) return missingRank;
+        const i = order.indexOf(id);
+        return i >= 0 ? i : missingRank;
+      };
+      picked.sort((a, b) => {
+        const ra = blockRank(parseBlockAnchorId(a));
+        const rb = blockRank(parseBlockAnchorId(b));
+        if (ra !== rb) return ra - rb;
+        return new Date(b.created).getTime() - new Date(a.created).getTime();
+      });
+      return picked;
     }
     return localComments.filter((c) => commentAnchoredToBlock(c, bid));
   });
@@ -340,13 +384,24 @@
   });
 
   function commentAnchoredToBlock(c: Comment, blockId: string): boolean {
-    if (!c.anchor) return false;
-    try {
-      const a = typeof c.anchor === 'string' ? JSON.parse(c.anchor) : c.anchor;
-      return a?.type === 'block' && a?.block_id === blockId;
-    } catch {
-      return false;
-    }
+    return parseBlockAnchorId(c) === blockId;
+  }
+
+  /** Global “open” list: jump to block in article and switch panel to that block’s thread */
+  async function openThreadFromGlobalComment(comment: Comment) {
+    if (panelBlockId !== null) return;
+    const bid = parseBlockAnchorId(comment);
+    if (!bid || !browser) return;
+    docCommentsPanelBlockId.set(bid);
+    await tick();
+    const el = document.getElementById(bid);
+    if (!(el instanceof HTMLElement)) return;
+    // Sticky header ~56px + air; panel layout can shift after tick — measure on next frame
+    const headerOffsetPx = 130;
+    requestAnimationFrame(() => {
+      const y = el.getBoundingClientRect().top + window.scrollY - headerOffsetPx;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    });
   }
 
   async function postPanelBlockComment() {
@@ -1162,10 +1217,22 @@
           {:else}
             <div class="cp-list">
               {#each panelCommentsFiltered as comment (comment.id)}
+                {@const navBid = !panelBlockId ? parseBlockAnchorId(comment) : null}
                 <article class="cp-comment">
-                  <div
+                  <!-- svelte-ignore a11y_no_static_element_interactions: `this` is button when navigable (native role) -->
+                  <svelte:element
+                    this={navBid ? 'button' : 'div'}
+                    type={navBid ? 'button' : undefined}
                     class="cp-comment-card"
                     class:cp-comment-card--agent={isAgentComment(comment)}
+                    class:cp-comment-card--navigable={!!navBid}
+                    aria-label={navBid ? '在正文中定位并打开该段落讨论' : undefined}
+                    onclick={navBid
+                      ? (e: MouseEvent) => {
+                          e.stopPropagation();
+                          void openThreadFromGlobalComment(comment);
+                        }
+                      : undefined}
                   >
                     <div class="cp-top">
                       <div
@@ -1190,7 +1257,7 @@
                       </header>
                     </div>
                     <p class="cp-body">{comment.body}</p>
-                  </div>
+                  </svelte:element>
                 </article>
               {/each}
               {#if panelBlockId && panelBlockThreadAllResolved}
@@ -2371,6 +2438,38 @@
     border-radius: 10px;
     padding: 12px 14px;
     box-shadow: var(--shadow-card);
+  }
+
+  button.cp-comment-card {
+    font: inherit;
+    text-align: left;
+    width: 100%;
+    margin: 0;
+    border: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .cp-comment-card.cp-comment-card--navigable {
+    cursor: pointer;
+    outline: none;
+    transition:
+      background 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .cp-comment-card.cp-comment-card--navigable:hover {
+    background: color-mix(in srgb, var(--text-primary) 5%, var(--surface));
+  }
+
+  .cp-comment-card.cp-comment-card--navigable:focus-visible {
+    box-shadow:
+      var(--shadow-card),
+      0 0 0 2px color-mix(in srgb, var(--text-primary) 35%, transparent);
+  }
+
+  :global(.dark) .cp-comment-card.cp-comment-card--navigable:hover {
+    background: color-mix(in srgb, var(--text-primary) 10%, var(--surface));
   }
 
   /* Reader — .msg-head row + .msg-av gap */
