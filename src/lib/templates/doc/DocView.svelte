@@ -158,7 +158,7 @@
         cbtn.type = 'button';
         cbtn.className = 'bcb';
         cbtn.setAttribute('data-for-block', blockId);
-        cbtn.title = 'Comments on this block';
+        cbtn.title = 'Comment on this block';
         applyBcbState(cbtn, blockId);
         cbtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -341,8 +341,9 @@
     background: transparent;
     box-shadow: none;
     color: var(--text-tertiary);
-    font-family: var(--font-serif);
-    font-style: italic;
+    font-family: var(--font-sans);
+    font-style: normal;
+    font-weight: 500;
     font-size: 15px;
   }
 
@@ -386,10 +387,12 @@
     opacity: 1;
   }
 
-  article.doc-view :global(.block-el:hover > .bcb:not(.has-comments)) {
+  /* No-comments: plain + on block hover (Reader_Doc .block:not(.commented) button); white pill only on button:hover */
+  article.doc-view :global(.bcb:not(.has-comments):hover) {
     background: var(--surface);
     border-color: var(--border);
     color: var(--text-primary);
+    box-shadow: var(--shadow-card);
   }
 
   article.doc-view :global(.bcb.has-comments:hover) {
