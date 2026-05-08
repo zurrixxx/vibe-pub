@@ -95,13 +95,17 @@ export async function startMcp() {
   // --- get_comments ---
   server.tool(
     'get_comments',
-    'Get all comments for a page identified by slug.',
+    'List comments for a page by slug. By default only unresolved (open) comments; set include_resolved to include resolved threads.',
     {
       slug: z.string().describe('Page slug'),
+      include_resolved: z
+        .boolean()
+        .optional()
+        .describe('If true, return every comment including resolved'),
     },
-    async ({ slug }) => {
+    async ({ slug, include_resolved }) => {
       const page = await resolveSlug(slug);
-      const comments = await api.getComments(page.id);
+      const comments = await api.getComments(page.id, { all: include_resolved === true });
       return { content: [{ type: 'text', text: JSON.stringify(comments) }] };
     }
   );

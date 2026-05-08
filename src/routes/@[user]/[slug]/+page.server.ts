@@ -1,16 +1,158 @@
-import { error, redirect } from '@sveltejs/kit';
+// Workspace URL /@user/slug — same payload as /[slug] for that user's page (no redirect).
+import { error, isHttpError } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDb, getPageUserIdBySlug, getUserByUsername } from '$lib/server/db';
+import { getDb, getCommentsByPage, getUserByUsername } from '$lib/server/db';
+import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
+import { parseBlocks } from '$lib/templates';
+import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
+import { parseChangelogBlocks } from '$lib/templates/changelog/parser';
+import { parseTimelineBlocks } from '$lib/templates/timeline/parser';
+import { parseSlidesBlocks } from '$lib/templates/slides/parser';
+import { parseDashboardBlocks } from '$lib/templates/dashboard/parser';
 
-export const load: PageServerLoad = async ({ params, platform, url }) => {
+async function getPageBySlugAndOwner(
+  db: ReturnType<typeof getDb>,
+  slug: string,
+  ownerUserId: string
+) {
+  return db
+    .prepare('SELECT * FROM pages WHERE slug = ? AND user_id = ?')
+    .bind(slug, ownerUserId)
+    .first<import('$lib/types').Page>();
+}
+
+export const load: PageServerLoad = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
-  const db = getDb(platform);
 
-  const user = await getUserByUsername(db, params.user);
-  if (!user) throw error(404, 'User not found');
+  try {
+    const db = getDb(platform);
 
-  const row = await getPageUserIdBySlug(db, params.slug);
-  if (!row || row.user_id !== user.id) throw error(404, 'Page not found');
+    const profileUser = await getUserByUsername(db, params.user);
+    if (!profileUser) throw error(404, 'User not found');
 
-  throw redirect(308, `/${params.slug}${url.search}`);
+    const page = await getPageBySlugAndOwner(db, params.slug, profileUser.id);
+    if (!page) throw error(404, 'Page not found');
+
+    if (page.access === 'private') {
+      if (!page.user_id || locals.user?.id !== page.user_id) {
+        throw error(403, 'This page is private');
+      }
+    }
+
+    const { content, data: fm } = parseFrontmatter(page.markdown);
+    const skipHtml =
+      page.view === 'kanban' ||
+      page.view === 'changelog' ||
+      page.view === 'timeline' ||
+      page.view === 'slides' ||
+      page.view === 'dashboard';
+    const html = skipHtml ? '' : await renderMarkdown(content);
+    const seoHtml = skipHtml ? await renderMarkdown(content) : html;
+
+    const templateName = page.view || 'doc';
+    let blocks: import('$lib/templates/types').Block[] = [];
+    let kanbanData = null;
+    let changelogData = null;
+    let timelineData = null;
+    let slidesData = null;
+    let dashboardData = null;
+
+    if (templateName === 'kanban') {
+      try {
+        const parsed = parseKanbanBlocks(page.markdown);
+        blocks = parsed.blocks;
+        kanbanData = {
+          columns: parsed.columns,
+          labels: parsed.labels,
+        };
+      } catch (e) {
+        console.error('Kanban parse error:', e);
+        kanbanData = { columns: [], labels: {} };
+      }
+    } else if (templateName === 'changelog') {
+      try {
+        const parsed = parseChangelogBlocks(page.markdown);
+        blocks = parsed.blocks;
+        changelogData = {
+          releases: parsed.releases,
+        };
+      } catch (e) {
+        console.error('Changelog parse error:', e);
+        changelogData = { releases: [] };
+      }
+    } else if (templateName === 'timeline') {
+      try {
+        const parsed = parseTimelineBlocks(page.markdown);
+        blocks = parsed.blocks;
+        timelineData = {
+          sections: parsed.sections,
+        };
+      } catch (e) {
+        console.error('Timeline parse error:', e);
+        timelineData = { sections: [] };
+      }
+    } else if (templateName === 'slides') {
+      try {
+        const parsed = parseSlidesBlocks(page.markdown);
+        blocks = parsed.blocks;
+        slidesData = {
+          slides: parsed.slides,
+        };
+      } catch (e) {
+        console.error('Slides parse error:', e);
+        slidesData = { slides: [] };
+      }
+    } else if (templateName === 'dashboard') {
+      try {
+        const parsed = parseDashboardBlocks(page.markdown);
+        blocks = parsed.blocks;
+        dashboardData = {
+          sections: parsed.sections,
+        };
+      } catch (e) {
+        console.error('Dashboard parse error:', e);
+        dashboardData = { sections: [] };
+      }
+    } else {
+      try {
+        blocks = parseBlocks(templateName, page.markdown);
+      } catch (e) {
+        console.error('Block parse error:', e);
+      }
+    }
+
+    const comments = await getCommentsByPage(db, page.id);
+
+    let pageUser: { username: string } | null = null;
+    if (page.user_id) {
+      const u = await db
+        .prepare('SELECT username FROM users WHERE id = ?')
+        .bind(page.user_id)
+        .first<{ username: string }>();
+      if (u) pageUser = { username: u.username };
+    }
+
+    const isOwner = !!page.user_id && locals.user?.id === page.user_id;
+
+    return {
+      page,
+      html,
+      seoHtml,
+      blocks,
+      comments,
+      frontmatter: fm,
+      pageUser,
+      kanbanData,
+      changelogData,
+      timelineData,
+      slidesData,
+      dashboardData,
+      isOwner,
+      canClaim: false,
+    };
+  } catch (e: unknown) {
+    if (isHttpError(e)) throw e;
+    console.error('Page load error:', e);
+    throw error(500, `Failed to load page: ${e instanceof Error ? e.message : String(e)}`);
+  }
 };

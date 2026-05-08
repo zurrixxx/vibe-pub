@@ -73,7 +73,7 @@ Commands:
   list, ls                   List your pages (requires auth)
   update <slug> [file]       Update a page (file or stdin)
   delete, rm <slug>          Delete a page
-  comments <slug>            Get comments for a page
+  comments <slug> [-a]       List open comments (-a / --all: include resolved)
   comment <slug> "body"      Add a comment
   resolve <slug> [options]   Resolve comments
   versions <slug>            List version history
@@ -224,11 +224,18 @@ async function main() {
   // --- comments ---
   if (cmd === 'comments') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub comments <slug>');
+    if (!slug) err('Usage: vibe-pub comments <slug> [-a|--all]');
+
+    const flagArgs = cleanArgs.slice(2);
+    let includeAll = false;
+    for (const a of flagArgs) {
+      if (a === '-a' || a === '--all') includeAll = true;
+      else err(`Unknown argument: ${a}. Usage: vibe-pub comments <slug> [-a|--all]`);
+    }
 
     const page = await resolveSlug(slug);
     try {
-      const comments = await api.getComments(page.id);
+      const comments = await api.getComments(page.id, { all: includeAll });
       out(comments, format);
     } catch (e) {
       err(e.message, e.status);

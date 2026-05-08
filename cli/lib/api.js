@@ -63,8 +63,9 @@ export async function remove(id) {
   return request('DELETE', `/api/pub/${encodeURIComponent(id)}`);
 }
 
-export async function getComments(pageId) {
-  return request('GET', `/api/comment/${encodeURIComponent(pageId)}`);
+export async function getComments(pageId, options = {}) {
+  const q = options.all === true ? '?all=1' : '';
+  return request('GET', `/api/comment/${encodeURIComponent(pageId)}${q}`);
 }
 
 export async function addComment(pageId, body, options = {}) {

@@ -20,6 +20,15 @@
   }
   let { html, title = null, comments = $bindable([]), pageId = '' }: Props = $props();
 
+  type EnhanceParams = { html: string; pageId: string };
+
+  let docEnhanceOpts = $derived.by(
+    (): EnhanceParams => ({
+      html,
+      pageId,
+    })
+  );
+
   let showTitle = $derived(title && !html.trimStart().startsWith('<h1'));
 
   function blockComments(blockId: string): Comment[] {
@@ -27,7 +36,7 @@
       if (!c.anchor) return false;
       try {
         const a = typeof c.anchor === 'string' ? JSON.parse(c.anchor) : c.anchor;
-        return a.block_id === blockId;
+        return a?.type === 'block' && a?.block_id === blockId;
       } catch {
         return false;
       }
@@ -39,18 +48,24 @@
   }
 
   function applyBcbState(btn: HTMLElement, blockId: string) {
-    const cnt = commentCount(blockId);
+    const thread = blockComments(blockId);
+    const cnt = thread.length;
     const wrap = btn.closest('.block-el');
+    const allResolved = cnt > 0 && thread.every((c) => c.resolved !== 0);
     if (cnt > 0) {
       btn.classList.add('has-comments');
       wrap?.classList.add('block-el-commented');
+      wrap?.classList.toggle('block-el-resolved', allResolved);
+      btn.classList.toggle('bcb-all-resolved', allResolved);
       const n = btn.querySelector('.bcb-cnt');
       if (n) n.textContent = String(cnt);
       else btn.innerHTML = `${COMMENT_THREAD_SVG}<span class="bcb-cnt">${cnt}</span>`;
+      btn.title = allResolved ? 'All comments resolved on this block' : 'Comments on this block';
     } else {
-      btn.classList.remove('has-comments');
-      wrap?.classList.remove('block-el-commented');
+      btn.classList.remove('has-comments', 'bcb-all-resolved');
+      wrap?.classList.remove('block-el-commented', 'block-el-resolved');
       btn.replaceChildren();
+      btn.title = 'Comments on this block';
     }
   }
 
@@ -87,8 +102,24 @@
     });
   });
 
-  function enhanceDoc(node: HTMLElement) {
-    // Code block enhancements
+  function sameEnhanceParams(a: EnhanceParams, b: EnhanceParams) {
+    return a.html === b.html && a.pageId === b.pageId;
+  }
+
+  function stripDocEnhancements(node: HTMLElement) {
+    node.querySelectorAll('.bcb').forEach((b) => b.remove());
+    node.querySelectorAll('pre').forEach((pre) => {
+      pre.querySelector('.code-lang')?.remove();
+      pre.querySelector('.code-copy')?.remove();
+    });
+    node.querySelectorAll('.block-el').forEach((el) => {
+      el.classList.remove('block-el', 'block-el-commented', 'block-el-resolved', 'block-active');
+    });
+  }
+
+  function applyDocEnhancements(node: HTMLElement, o: EnhanceParams) {
+    stripDocEnhancements(node);
+
     node.querySelectorAll('pre').forEach((pre) => {
       pre.style.position = 'relative';
       const code = pre.querySelector('code');
@@ -114,8 +145,7 @@
       pre.appendChild(btn);
     });
 
-    // Block comment buttons
-    if (pageId) {
+    if (o.pageId) {
       let blockIdx = 0;
       Array.from(node.children).forEach((child) => {
         const el = child as HTMLElement;
@@ -145,13 +175,32 @@
         blockIdx++;
       });
     }
+  }
 
-    return { destroy() {} };
+  function enhanceDoc(node: HTMLElement, opts: EnhanceParams) {
+    let last: EnhanceParams | null = null;
+
+    function apply(o: EnhanceParams) {
+      applyDocEnhancements(node, o);
+      last = { html: o.html, pageId: o.pageId };
+    }
+
+    apply(opts);
+
+    return {
+      update(o: EnhanceParams) {
+        if (last && sameEnhanceParams(o, last)) return;
+        apply(o);
+      },
+      destroy() {
+        stripDocEnhancements(node);
+      },
+    };
   }
 </script>
 
 <div class="doc-wrap">
-  <article class="doc-view prose dark:prose-invert max-w-[680px]" use:enhanceDoc>
+  <article class="doc-view prose dark:prose-invert max-w-[680px]" use:enhanceDoc={docEnhanceOpts}>
     {#if showTitle}
       <h1 class="doc-title">{title}</h1>
     {/if}
@@ -202,6 +251,54 @@
 
   :global(.dark) article.doc-view :global(.block-el.block-el-commented.block-active) {
     background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  }
+
+  /* Reader_Doc.html — .block.commented.resolved + green gutter button */
+  article.doc-view :global(.block-el.block-el-commented.block-el-resolved) {
+    border-left-color: rgba(34, 197, 94, 0.4);
+  }
+
+  article.doc-view :global(.block-el.block-el-commented.block-el-resolved.block-active) {
+    border-left-color: rgba(34, 197, 94, 0.65);
+  }
+
+  article.doc-view :global(.bcb.has-comments.bcb-all-resolved) {
+    color: #15803d;
+    border-color: rgba(34, 197, 94, 0.35);
+  }
+
+  article.doc-view :global(.bcb.has-comments.bcb-all-resolved .bcb-cnt) {
+    opacity: 0.88;
+    color: inherit;
+  }
+
+  article.doc-view :global(.bcb.has-comments.bcb-all-resolved:hover) {
+    color: #166534;
+    border-color: rgba(22, 101, 52, 0.45);
+    background: color-mix(in srgb, #15803d 6%, var(--bg));
+  }
+
+  :global(.dark) article.doc-view :global(.bcb.has-comments.bcb-all-resolved) {
+    color: #86efac;
+    border-color: rgba(134, 239, 172, 0.35);
+  }
+
+  :global(.dark) article.doc-view :global(.bcb.has-comments.bcb-all-resolved:hover) {
+    color: #bbf7d0;
+    border-color: rgba(187, 247, 208, 0.45);
+    background: color-mix(in srgb, #86efac 8%, transparent);
+  }
+
+  article.doc-view :global(.block-el.block-active > .bcb.has-comments.bcb-all-resolved) {
+    border-color: rgba(34, 197, 94, 0.55);
+    color: #15803d;
+  }
+
+  :global(.dark)
+    article.doc-view
+    :global(.block-el.block-active > .bcb.has-comments.bcb-all-resolved) {
+    color: #86efac;
+    border-color: rgba(134, 239, 172, 0.5);
   }
 
   article.doc-view :global(.block-el.block-active:not(.block-el-commented)) {
@@ -422,11 +519,24 @@
 
   article.doc-view :global(blockquote) {
     margin: 24px 0;
-    padding: 8px 0 8px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65em;
+    padding: 14px 16px 14px 24px;
     border-left: 2px solid var(--text-primary);
     font-style: italic;
     color: var(--text-secondary);
     font-family: var(--font-serif);
+    quotes: none;
+  }
+
+  article.doc-view :global(blockquote::before),
+  article.doc-view :global(blockquote::after) {
+    content: none;
+  }
+
+  article.doc-view :global(blockquote > *) {
+    margin: 0;
   }
 
   article.doc-view :global(:not(pre) > code) {

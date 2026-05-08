@@ -1,16 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDb } from '$lib/server/db';
-import type { Page } from '$lib/types';
+import { getDb, getPageBySlugGlobal } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
-  const page = await db
-    .prepare('SELECT * FROM pages WHERE slug = ?')
-    .bind(params.slug)
-    .first<Page>();
+  const page = await getPageBySlugGlobal(db, params.slug);
   if (!page) throw error(404, 'Page not found');
 
   // Version history is only visible to the page owner (claimed pages only).

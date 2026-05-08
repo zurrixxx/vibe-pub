@@ -1,3 +1,11 @@
 <script lang="ts">
-  // Canonical page is /[slug]; +page.server.ts always redirects there.
+  import PublishedPage from '$lib/components/PublishedPage.svelte';
+  import type { PageData } from './$types';
+
+  interface Props {
+    data: PageData;
+  }
+  let { data }: Props = $props();
 </script>
+
+<PublishedPage {data} />

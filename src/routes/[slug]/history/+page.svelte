@@ -2,6 +2,7 @@
   import { marked } from 'marked';
   import { onDestroy } from 'svelte';
   import { hideGlobalHeader } from '$lib/stores';
+  import { deltaStat } from '$lib/version-delta';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -31,6 +32,12 @@
           (v: (typeof data.versionDetails)[number]) => v.version === selected.version - 1
         ) ?? null)
       : null
+  );
+  /** Index 0 is the live tip; nothing to restore when that row is selected. */
+  let isLatestSelected = $derived(
+    !!selected &&
+      !!data.versionDetails[0] &&
+      selected.version === data.versionDetails[0].version
   );
   let renderedHtml = $derived(selected ? marked.parse(selected.markdown) : '');
 
@@ -93,24 +100,6 @@
     }
     return sections;
   });
-  function deltaStat(
-    prevMarkdown: string | null,
-    curMarkdown: string
-  ): { add: number; rem: number } {
-    if (!prevMarkdown) return { add: curMarkdown.split('\n').filter(Boolean).length, rem: 0 };
-    const oldLines = prevMarkdown.split('\n');
-    const newLines = curMarkdown.split('\n');
-    const max = Math.max(oldLines.length, newLines.length);
-    let add = 0;
-    let rem = 0;
-    for (let i = 0; i < max; i++) {
-      if (oldLines[i] === newLines[i]) continue;
-      if (oldLines[i] !== undefined) rem++;
-      if (newLines[i] !== undefined) add++;
-    }
-    return { add, rem };
-  }
-
   function diffLines(
     oldText: string,
     newText: string
@@ -263,9 +252,15 @@
             <button class:on={mode === 'diff'} onclick={() => (mode = 'diff')}>Diff</button>
           </div>
           <button class="ghost-btn" onclick={downloadSelected}>Download .md</button>
-          <button class="primary-btn" onclick={restoreSelected} disabled={restoring}>
-            {restoring ? 'Restoring...' : 'Restore this version'}
-          </button>
+          {#if isLatestSelected}
+            <button type="button" class="latest-version-hint" disabled aria-disabled="true">
+              The latest version
+            </button>
+          {:else}
+            <button type="button" class="primary-btn" onclick={restoreSelected} disabled={restoring}>
+              {restoring ? 'Restoring...' : 'Restore this version'}
+            </button>
+          {/if}
         </div>
       </div>
       {#if mode === 'rendered'}
@@ -335,9 +330,17 @@
     display: grid;
     grid-template-columns: 320px 1fr;
     min-height: calc(100vh - 56px);
+    align-items: start;
   }
   .vrail {
+    position: sticky;
+    top: 56px;
+    align-self: start;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-right: 1px solid var(--border);
+    background: var(--bg);
   }
   .vrail-h {
     padding: 22px 24px 14px;
@@ -537,6 +540,18 @@
   }
   .primary-btn:disabled {
     opacity: 0.6;
+  }
+  .latest-version-hint {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-tertiary);
+    border-radius: 999px;
+    padding: 7px 14px;
+    min-width: 120px;
+    cursor: default;
+    opacity: 1;
   }
   .viewmode {
     display: flex;
