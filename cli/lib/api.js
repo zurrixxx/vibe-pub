@@ -40,6 +40,8 @@ export async function publish(markdown, options = {}) {
   if (options.view) body.view = options.view;
   if (options.access) body.access = options.access;
   if (options.theme) body.theme = options.theme;
+  // Default true for CLI/MCP so /@user "Agent-published" filter matches; opt out with agentPublished: false
+  if (options.agentPublished !== false) body.agent_published = true;
   return request('POST', '/api/pub', body);
 }
 

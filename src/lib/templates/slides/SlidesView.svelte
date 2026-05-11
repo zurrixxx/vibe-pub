@@ -97,6 +97,7 @@
             anchor_hint: activeBlockId,
             body: commentBody.trim(),
             resolved: 0,
+            agent_published: 0,
             created: new Date().toISOString(),
           },
         ];

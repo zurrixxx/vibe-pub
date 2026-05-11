@@ -17,6 +17,8 @@ declare global {
         GITHUB_CLIENT_SECRET: string;
         GOOGLE_CLIENT_ID: string;
         GOOGLE_CLIENT_SECRET: string;
+        /** Optional: Google AI Studio key for doc block “suggestion for revise”*/
+        GEMINI_API_KEY?: string;
       };
     }
   }

@@ -43,6 +43,7 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
     anchor?: CommentAnchor | string | null;
     anchor_hint?: string;
     display_name?: string;
+    agent_published?: boolean;
   };
   if (!body.body?.trim()) throw error(400, 'Comment body is required');
 
@@ -51,7 +52,25 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
   const anchor_hint: string | undefined = body.anchor_hint;
 
   const trimmedName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
-  const display_name = trimmedName ? trimmedName : locals.user ? locals.user.username : 'Anonymous';
+  const wantsAgentDisplay = (n: string) => {
+    const x = n.toLowerCase();
+    return x === 'agent' || x === 'vibe agent';
+  };
+  const isPageOwner = !!(locals.user?.id && page.user_id && locals.user.id === page.user_id);
+
+  let display_name: string;
+  if (trimmedName) {
+    if (wantsAgentDisplay(trimmedName)) {
+      display_name = isPageOwner ? trimmedName : (locals.user?.username ?? 'Anonymous');
+    } else {
+      display_name = trimmedName;
+    }
+  } else {
+    display_name = locals.user ? locals.user.username : 'Anonymous';
+  }
+
+  /** True when JSON sets `agent_published: true` (CLI/MCP, or owner “Suggestion for revise” comment). */
+  const agent_published = body.agent_published === true;
 
   const comment = await createComment(db, {
     page_id: params.pageId,
@@ -60,6 +79,7 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
     body: body.body,
     anchor,
     anchor_hint,
+    agent_published,
   });
 
   // Return with parsed anchor

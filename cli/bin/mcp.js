@@ -29,9 +29,21 @@ export async function startMcp() {
         .optional()
         .describe('Access level (default: unlisted)'),
       theme: z.string().optional().describe('Page theme'),
+      agent_published: z
+        .boolean()
+        .optional()
+        .describe(
+          'If false, page is not tagged as agent-published (/@username filter). Defaults to true for MCP.'
+        ),
     },
-    async ({ markdown, slug, view, access, theme }) => {
-      const result = await api.publish(markdown, { slug, view, access, theme });
+    async ({ markdown, slug, view, access, theme, agent_published }) => {
+      const result = await api.publish(markdown, {
+        slug,
+        view,
+        access,
+        theme,
+        agentPublished: agent_published !== false,
+      });
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     }
   );
@@ -95,7 +107,7 @@ export async function startMcp() {
   // --- get_comments ---
   server.tool(
     'get_comments',
-    'List comments for a page by slug. By default only unresolved (open) comments; set include_resolved to include resolved threads.',
+    'List comments for a page by slug. Existing comments expose anchor.block_id for reuse when anchoring new replies. By default only unresolved (open) comments; set include_resolved to include resolved threads.',
     {
       slug: z.string().describe('Page id, or `slug-id` URL fragment'),
       include_resolved: z

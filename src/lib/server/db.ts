@@ -24,16 +24,19 @@ export async function createPage(
     theme?: string;
     access: string;
     expires_at?: string;
+    /** When true, page is tagged for profile "Agent-published" filter */
+    agent_published?: boolean;
   }
 ): Promise<Page> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < PAGE_ID_RETRIES; attempt++) {
     const id = generatePageId();
     try {
+      const agentPublished = data.agent_published === true ? 1 : 0;
       await db
         .prepare(
-          `INSERT INTO pages (id, slug, user_id, workspace_id, title, markdown, view, theme, access, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO pages (id, slug, user_id, workspace_id, title, markdown, view, theme, access, expires_at, agent_published)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           id,
@@ -45,7 +48,8 @@ export async function createPage(
           data.view,
           data.theme ?? 'default',
           data.access,
-          data.expires_at ?? null
+          data.expires_at ?? null,
+          agentPublished
         )
         .run();
       return getPageById(db, id) as Promise<Page>;
@@ -216,6 +220,7 @@ export async function createComment(
     body: string;
     anchor?: unknown;
     anchor_hint?: string;
+    agent_published?: boolean;
   }
 ): Promise<Comment> {
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -226,10 +231,11 @@ export async function createComment(
       : typeof data.anchor === 'string'
         ? data.anchor
         : JSON.stringify(data.anchor);
+  const agentPublished = data.agent_published === true ? 1 : 0;
   await db
     .prepare(
-      `INSERT INTO comments (id, page_id, user_id, display_name, body, anchor, anchor_hint)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO comments (id, page_id, user_id, display_name, body, anchor, anchor_hint, agent_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -238,7 +244,8 @@ export async function createComment(
       data.display_name ?? null,
       data.body,
       anchorStr,
-      data.anchor_hint ?? null
+      data.anchor_hint ?? null,
+      agentPublished
     )
     .run();
 

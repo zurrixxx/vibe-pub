@@ -22,6 +22,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     | undefined;
   let themeOverride: string | undefined;
   let accessOverride: 'public' | 'unlisted' | 'private' | undefined;
+  /** Only `true` when JSON body explicitly sets `agent_published: true` (CLI/MCP). */
+  let agentPublished = false;
 
   if (contentType.includes('application/json')) {
     const body = (await request.json()) as {
@@ -30,12 +32,15 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       view?: typeof viewOverride;
       theme?: string;
       access?: typeof accessOverride;
+      /** When true, page counts as "agent-published" on /@user profile filter */
+      agent_published?: boolean;
     };
     markdown = body.markdown ?? '';
     slugOverride = body.slug;
     viewOverride = body.view;
     themeOverride = body.theme;
     accessOverride = body.access;
+    agentPublished = body.agent_published === true;
   } else {
     // Plain text body treated as raw markdown
     markdown = await request.text();
@@ -64,6 +69,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     const h1Match = content.match(/^#\s+(.+)/m);
     if (h1Match) title = h1Match[1].trim();
   }
+
   const userId = locals.user?.id;
 
   const page = await createPage(db, {
@@ -75,6 +81,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     theme,
     access,
     expires_at: fm.expires ?? undefined,
+    agent_published: agentPublished,
   });
 
   // Initial snapshot at publish time
@@ -108,6 +115,7 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
       title: p.title,
       view: p.view,
       access: p.access,
+      agent_published: p.agent_published === 1,
       created: p.created,
       updated: p.updated,
       url: `${baseUrl}${buildCanonicalPath(p)}`,

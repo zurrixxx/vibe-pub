@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import * as api from '../lib/api.js';
 import { saveConfig, getToken, getBaseUrl } from '../lib/config.js';
 import { KANBAN_FORMAT_DOC } from '../lib/format-kanban.js';
+import { DOC_FORMAT_DOC } from '../lib/format-doc.js';
 import { out, err } from '../lib/output.js';
 
 const args = process.argv.slice(2);
@@ -69,8 +70,8 @@ function help() {
 Usage: vibe-pub <command> [options]
 
 Commands:
-  publish [file] [options]   Publish markdown (file or stdin)
-  format [name]              Print markdown format reference (e.g. kanban)
+  publish [file] [options]   Publish markdown (file or stdin); counts as agent-published unless --no-agent-published
+  format kanban|doc          Get markdown format reference for agents before publishing
   get <slug>                 Get page details
   list, ls                   List your pages (requires auth)
   update <slug> [file]       Update a page (file or stdin)
@@ -96,7 +97,8 @@ Global flags:
   --mcp                      Start MCP server
 
 Format reference:
-  vibe-pub format kanban     Full Kanban board markdown syntax for agents
+  vibe-pub format kanban     Kanban board markdown syntax for agents
+  vibe-pub format doc        Doc layout: title, hero lede (first paragraph), sections
 
 Publish options:
   --slug <slug>              Custom URL slug
@@ -143,17 +145,14 @@ async function main() {
     process.exit(0);
   }
 
-  // --- format (markdown template reference for humans / AI) ---
+  // --- format (markdown reference for humans / AI) ---
   if (cmd === 'format') {
     const name = cleanArgs[1];
     if (!name) {
       if (format === 'human') {
-        out(
-          'Available format references:\n  kanban    Kanban board markdown\n\nRun: vibe-pub format kanban',
-          'human'
-        );
+        out('Format references:\n\n  vibe-pub format kanban\n  vibe-pub format doc', 'human');
       } else {
-        out({ formats: ['kanban'], usage: 'vibe-pub format <name>' }, format);
+        out({ formats: ['kanban', 'doc'], usage: 'vibe-pub format <kanban|doc>' }, format);
       }
       return;
     }
@@ -165,7 +164,15 @@ async function main() {
       }
       return;
     }
-    err(`Unknown format: ${name}. Available: kanban`);
+    if (name === 'doc') {
+      if (format === 'human') {
+        out(DOC_FORMAT_DOC, 'human');
+      } else {
+        out({ format: 'doc', documentation: DOC_FORMAT_DOC }, format);
+      }
+      return;
+    }
+    err(`Unknown format: ${name}. Available: kanban, doc (e.g. vibe-pub format doc)`);
     return;
   }
 
@@ -185,6 +192,7 @@ async function main() {
         view: flags.view,
         access: flags.access,
         theme: flags.theme,
+        agentPublished: flags['no-agent-published'] ? false : undefined,
       });
       out(result, format);
     } catch (e) {

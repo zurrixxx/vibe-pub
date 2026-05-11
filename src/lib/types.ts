@@ -36,6 +36,8 @@ export interface Page {
   view: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme: PageTheme;
   access: 'public' | 'unlisted' | 'private';
+  /** 1 = published via agent tooling (CLI/MCP/API `agent_published`); 0 = web / legacy */
+  agent_published: number;
   expires_at: string | null;
   created: string;
   updated: string;
@@ -56,6 +58,17 @@ export interface User {
   created: string;
 }
 
+/** Gemini block-revise API response (pairs = delete / add suggestions). */
+export interface BlockRevisePair {
+  remove: string;
+  add: string;
+}
+
+export interface BlockReviseSuggestResponse {
+  summary: string;
+  pairs: BlockRevisePair[];
+}
+
 export interface Comment {
   id: string;
   page_id: string;
@@ -65,6 +78,8 @@ export interface Comment {
   anchor_hint: string | null; // Text fingerprint for reconciliation
   body: string;
   resolved: number;
+  /** 1 = POST set agent_published: true (CLI/MCP); 0 = web / omitted */
+  agent_published: number;
   created: string;
 }
 

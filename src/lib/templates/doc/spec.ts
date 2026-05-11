@@ -19,15 +19,13 @@ export const docSpec: TemplateSpec = {
       theme: 'Theme name (optional)',
     },
     structure:
-      'Standard markdown. Headings create sections; paragraphs, lists, code blocks are content blocks under each heading.',
+      'Use frontmatter title (or a single # line) for the page title. Put one short plain paragraph before the first ## — that becomes the hero lede. Use ## / ### for sections (outline + comment anchors). See CLI: vibe-pub format doc.',
     example: `---
 view: doc
 title: My Document
 ---
 
-# Introduction
-
-Some introductory text.
+One or two sentences: what this page covers and how to read it.
 
 ## Details
 

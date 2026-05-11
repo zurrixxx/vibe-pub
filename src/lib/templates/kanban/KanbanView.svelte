@@ -386,36 +386,39 @@
   async function toggleChecklist(checkboxIndex: number) {
     if (!expandedCard || checklistSaving) return;
     checklistSaving = true;
-
-    const body = expandedCard.body;
-    let count = 0;
-    const newBody = body.replace(/^(\s*- \[)([x ])(\])/gm, (match, pre, state, post) => {
-      if (count === checkboxIndex) {
+    try {
+      const body = expandedCard.body;
+      let count = 0;
+      // Match GFM task items: `- [ ]`, `- [x]`, `- [X]`
+      const newBody = body.replace(/^(\s*- \[)([xX ])(\])/gm, (match, pre, state, post) => {
+        if (count === checkboxIndex) {
+          count++;
+          const unchecked = state === ' ';
+          return `${pre}${unchecked ? 'x' : ' '}${post}`;
+        }
         count++;
-        return `${pre}${state === ' ' ? 'x' : ' '}${post}`;
+        return match;
+      });
+
+      if (newBody === body) {
+        return;
       }
-      count++;
-      return match;
-    });
 
-    if (newBody === body) {
+      const fm = getFrontmatter();
+      const newColumns = columns.map((col) => ({
+        ...col,
+        cards: col.cards.map((c) => (c.id === expandedCard!.id ? { ...c, body: newBody } : c)),
+      }));
+      const newMarkdown = serializeKanban(fm, newColumns, labels);
+
+      // Optimistic local update — no full reload needed
+      expandedCard = { ...expandedCard, body: newBody };
+      columns = newColumns;
+
+      await putMarkdown(newMarkdown);
+    } finally {
       checklistSaving = false;
-      return;
     }
-
-    const fm = getFrontmatter();
-    const newColumns = columns.map((col) => ({
-      ...col,
-      cards: col.cards.map((c) => (c.id === expandedCard!.id ? { ...c, body: newBody } : c)),
-    }));
-    const newMarkdown = serializeKanban(fm, newColumns, labels);
-
-    // Optimistic local update — no full reload needed
-    expandedCard = { ...expandedCard, body: newBody };
-    columns = newColumns;
-
-    await putMarkdown(newMarkdown);
-    checklistSaving = false;
   }
 </script>
 
@@ -531,7 +534,16 @@
     aria-labelledby="modal-card-title"
     tabindex="-1"
   >
-    <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+    <div
+      class="modal-content"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          closeExpanded();
+        }
+      }}
+    >
       <div class="modal-header">
         {#if !editMode && expandedCard.labels.length > 0}
           <div class="modal-labels">
@@ -587,9 +599,12 @@
             rows={10}
           ></textarea>
         {:else if expandedCard.body}
-          <div use:checklistAction>
-            {@html marked.parse(expandedCard.body)}
-          </div>
+          <!-- {#key} forces remount when body changes so `checklistAction` re-runs; marked always emits disabled checkboxes -->
+          {#key expandedCard.body}
+            <div class="modal-body-md" use:checklistAction>
+              {@html marked.parse(expandedCard.body)}
+            </div>
+          {/key}
         {:else}
           <p class="empty-body">No description.</p>
         {/if}

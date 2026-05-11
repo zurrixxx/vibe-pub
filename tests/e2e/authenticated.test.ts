@@ -101,7 +101,9 @@ test.describe('Authenticated user flows', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThanOrEqual(1);
-    expect(res.body[0].slug).toBeTruthy();
+    const listRow = res.body.find((p: { title?: string | null }) => p.title === 'API List Test');
+    expect(listRow).toBeDefined();
+    expect(listRow!.agent_published).toBe(false);
   });
 
   test('non-owner cannot see Edit button', async ({ authedPage, browser }) => {

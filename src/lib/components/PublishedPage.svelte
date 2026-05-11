@@ -9,8 +9,7 @@
   import TimelineView from '$lib/templates/timeline/TimelineView.svelte';
   import SlidesView from '$lib/templates/slides/SlidesView.svelte';
   import DashboardView from '$lib/templates/dashboard/DashboardView.svelte';
-  import type { PublishedPageData } from '$lib/types';
-  import type { Comment } from '$lib/types';
+  import type { PublishedPageData, Comment, BlockReviseSuggestResponse } from '$lib/types';
   import { marked } from 'marked';
   import {
     cancelDeferredCommentsPanelBlockClear,
@@ -21,6 +20,10 @@
     readerHistoryPanelOpen,
   } from '$lib/stores';
   import { listDocViewBlockIdsInOrder } from '$lib/doc-view-block-ids';
+  import {
+    parseBlockReviseCommentBody,
+    serializeBlockReviseCommentBody,
+  } from '$lib/block-revise-comment-payload';
 
   interface Props {
     data: PublishedPageData;
@@ -315,6 +318,11 @@
 
   let panelNewBody = $state('');
   let panelPosting = $state(false);
+  let panelComposeInputEl = $state<HTMLInputElement | null>(null);
+  let blockReviseLoading = $state(false);
+  let blockReviseError = $state('');
+  let blockRevisePanelKey = $state('');
+  let commentBodyExpandedById = $state<Record<string, boolean>>({});
 
   $effect(() => {
     if (!commentsPanelOpen) panelNewBody = '';
@@ -389,6 +397,13 @@
     return parseBlockAnchorId(c) === blockId;
   }
 
+  /** Show “Suggestion for revise” only when this block has at least one open comment */
+  let panelBlockHasOpenComment = $derived.by(() => {
+    const bid = panelBlockId;
+    if (!bid) return false;
+    return localComments.some((c) => commentAnchoredToBlock(c, bid) && c.resolved === 0);
+  });
+
   /** Global “open” list: jump to block in article and switch panel to that block’s thread */
   async function openThreadFromGlobalComment(comment: Comment) {
     if (panelBlockId !== null) return;
@@ -441,6 +456,7 @@
             anchor_hint: saved.anchor_hint ?? panelBlockId,
             body: saved.body ?? panelNewBody.trim(),
             resolved: typeof saved.resolved === 'number' ? saved.resolved : 0,
+            agent_published: typeof saved.agent_published === 'number' ? saved.agent_published : 0,
             created: typeof saved.created === 'string' ? saved.created : new Date().toISOString(),
           };
           localComments = [...localComments, row];
@@ -451,6 +467,79 @@
       /* ignore */
     }
     panelPosting = false;
+  }
+
+  $effect(() => {
+    const key = commentsPanelOpen && panelBlockId ? `${panelBlockId}` : '';
+    if (!commentsPanelOpen) {
+      commentBodyExpandedById = {};
+    }
+    if (key !== blockRevisePanelKey) {
+      blockReviseError = '';
+      blockReviseLoading = false;
+      blockRevisePanelKey = key;
+    }
+  });
+
+  async function requestBlockReviseSuggestion() {
+    if (
+      !browser ||
+      docCommentsSnapshotReadonly ||
+      !panelBlockId ||
+      !panelBlockHasOpenComment ||
+      !isOwner ||
+      page.view !== 'doc'
+    )
+      return;
+    const el = document.getElementById(panelBlockId);
+    const block_plain_text = (el?.innerText ?? '').replace(/\s+/g, ' ').trim();
+    if (!block_plain_text) {
+      blockReviseError = '无法从页面读取该块的正文。';
+      return;
+    }
+    const docRoot = document.querySelector('article.doc-view');
+    let doc_plain_text = (docRoot instanceof HTMLElement ? docRoot.innerText : '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!doc_plain_text) doc_plain_text = block_plain_text;
+    const anchorBlockId = panelBlockId;
+    blockReviseLoading = true;
+    blockReviseError = '';
+    let newResult: BlockReviseSuggestResponse | null = null;
+    try {
+      const res = await fetch(`/api/pub/${page.id}/block-revise-suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          block_id: anchorBlockId,
+          block_plain_text: block_plain_text.slice(0, 12_000),
+          doc_plain_text: doc_plain_text.slice(0, 120_000),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      } & Partial<BlockReviseSuggestResponse>;
+      if (!res.ok) {
+        blockReviseError =
+          typeof data.message === 'string' && data.message
+            ? data.message
+            : `请求失败（${res.status}）`;
+        return;
+      }
+      newResult = {
+        summary: typeof data.summary === 'string' ? data.summary : '',
+        pairs: Array.isArray(data.pairs) ? data.pairs : [],
+      };
+      const persisted = await persistBlockReviseSuggestionComment(newResult, anchorBlockId);
+      if (!persisted) {
+        blockReviseError = '修订建议已生成，但保存到评论失败，请稍后重试。';
+      }
+    } catch {
+      blockReviseError = '网络错误。';
+    } finally {
+      blockReviseLoading = false;
+    }
   }
 
   afterNavigate(() => {
@@ -569,8 +658,95 @@
   }
 
   function isAgentComment(c: Comment): boolean {
+    if (c.agent_published === 1) return true;
     const n = (c.display_name ?? '').trim().toLowerCase();
     return n === 'agent' || n === 'vibe agent';
+  }
+
+  const COMMENT_BODY_COLLAPSE_CHARS = 400;
+  const COMMENT_BODY_COLLAPSE_NEWLINES = 8;
+
+  function shouldCollapseCommentBody(text: string): boolean {
+    if (!text) return false;
+    if (text.length > COMMENT_BODY_COLLAPSE_CHARS) return true;
+    return (text.match(/\n/g)?.length ?? 0) >= COMMENT_BODY_COLLAPSE_NEWLINES;
+  }
+
+  function blockReviseShouldCollapse(r: BlockReviseSuggestResponse): boolean {
+    const pairsLen = r.pairs.reduce(
+      (n, p) => n + (p.remove?.length ?? 0) + (p.add?.length ?? 0),
+      0
+    );
+    const total = (r.summary?.length ?? 0) + pairsLen;
+    return total > 480 || r.pairs.length >= 2;
+  }
+
+  async function persistBlockReviseSuggestionComment(
+    r: BlockReviseSuggestResponse,
+    blockIdForPersist: string
+  ): Promise<boolean> {
+    if (!browser || !isOwner) return false;
+    const bodyText = serializeBlockReviseCommentBody(r);
+    if (!bodyText.trim()) return false;
+    try {
+      const anchor = { type: 'block', block_id: blockIdForPersist };
+      const res = await fetch(`/api/comment/${page.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          body: bodyText,
+          anchor,
+          anchor_hint: blockIdForPersist,
+          display_name: 'agent',
+        }),
+      });
+      if (!res.ok) return false;
+      const saved = (await res.json().catch(() => null)) as
+        | (Partial<Comment> & { anchor?: unknown })
+        | null;
+      if (!saved || typeof saved.id !== 'string') return false;
+      const anchorNorm =
+        saved.anchor == null
+          ? null
+          : typeof saved.anchor === 'string'
+            ? saved.anchor
+            : JSON.stringify(saved.anchor);
+      const row: Comment = {
+        id: saved.id,
+        page_id: saved.page_id ?? page.id,
+        user_id: saved.user_id ?? null,
+        display_name: saved.display_name ?? 'agent',
+        anchor: anchorNorm,
+        anchor_hint: saved.anchor_hint ?? blockIdForPersist,
+        body: saved.body ?? bodyText,
+        resolved: typeof saved.resolved === 'number' ? saved.resolved : 0,
+        agent_published: typeof saved.agent_published === 'number' ? saved.agent_published : 0,
+        created: typeof saved.created === 'string' ? saved.created : new Date().toISOString(),
+      };
+      localComments = [...localComments, row];
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function toggleCommentBodyExpanded(e: MouseEvent, id: string) {
+    e.stopPropagation();
+    commentBodyExpandedById = {
+      ...commentBodyExpandedById,
+      [id]: !commentBodyExpandedById[id],
+    };
+  }
+
+  function onNavCommentCardActivate(comment: Comment) {
+    void openThreadFromGlobalComment(comment);
+  }
+
+  function onNavCommentCardKeydown(e: KeyboardEvent, comment: Comment) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onNavCommentCardActivate(comment);
+    }
   }
 
   /** Block thread title in panel head (design: serif context line under THREAD · RESOLVED) */
@@ -1165,11 +1341,24 @@
               <span class="rail-h thread-kicker-resolved">THREAD · RESOLVED</span>
               <h3 class="thread-context-title">{panelBlockThreadTitle}</h3>
             {:else if panelBlockId}
-              <span class="rail-h"
-                >thread · {panelCommentsFiltered.length}{panelCommentsFiltered.length === 1
-                  ? ' reply'
-                  : ' replies'}</span
-              >
+              <div class="comments-panel-head-block-row">
+                <span class="rail-h comments-panel-thread-kicker"
+                  >thread · {panelCommentsFiltered.length}{panelCommentsFiltered.length === 1
+                    ? ' reply'
+                    : ' replies'}</span
+                >
+                {#if panelBlockHasOpenComment && isOwner && page.view === 'doc'}
+                  <button
+                    type="button"
+                    class="comments-panel-suggest-btn"
+                    class:comments-panel-suggest-btn--busy={blockReviseLoading}
+                    disabled={blockReviseLoading}
+                    onclick={() => void requestBlockReviseSuggestion()}
+                  >
+                    {blockReviseLoading ? '…' : 'Suggestion for revise'}
+                  </button>
+                {/if}
+              </div>
             {:else}
               <span class="rail-h">open · {panelCommentsFiltered.length}</span>
             {/if}
@@ -1223,21 +1412,34 @@
             <div class="cp-list">
               {#each panelCommentsFiltered as comment (comment.id)}
                 {@const navBid = !panelBlockId ? parseBlockAnchorId(comment) : null}
+                {@const brPayload = isAgentComment(comment)
+                  ? parseBlockReviseCommentBody(comment.body)
+                  : null}
+                {@const bodyLong = brPayload
+                  ? blockReviseShouldCollapse(brPayload)
+                  : shouldCollapseCommentBody(comment.body)}
                 <article class="cp-comment">
-                  <!-- svelte-ignore a11y_no_static_element_interactions: `this` is button when navigable (native role) -->
-                  <svelte:element
-                    this={navBid ? 'button' : 'div'}
-                    type={navBid ? 'button' : undefined}
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex: div acts as button via role + keyboard -->
+                  <div
                     class="cp-comment-card"
                     class:cp-comment-card--agent={isAgentComment(comment)}
                     class:cp-comment-card--navigable={!!navBid}
+                    role={navBid ? 'button' : undefined}
+                    tabindex={navBid ? 0 : undefined}
                     aria-label={navBid ? '在正文中定位并打开该段落讨论' : undefined}
                     onclick={navBid
                       ? (e: MouseEvent) => {
+                          const t = e.target;
+                          if (
+                            t instanceof Element &&
+                            (t.closest('.cp-body-outer') || t.closest('.cp-block-revise-embed'))
+                          )
+                            return;
                           e.stopPropagation();
-                          void openThreadFromGlobalComment(comment);
+                          onNavCommentCardActivate(comment);
                         }
                       : undefined}
+                    onkeydown={navBid ? (e) => onNavCommentCardKeydown(e, comment) : undefined}
                   >
                     <div class="cp-top">
                       <div
@@ -1261,12 +1463,80 @@
                         <span class="cp-time">{commentTimeAgo(comment.created)}</span>
                       </header>
                     </div>
-                    <p class="cp-body">{comment.body}</p>
-                  </svelte:element>
+                    {#if brPayload}
+                      <div class="block-revise-card-body cp-block-revise-embed">
+                        <div
+                          class="block-revise-scroll"
+                          class:block-revise-scroll--auto={!bodyLong}
+                          class:block-revise-scroll--collapsed={bodyLong &&
+                            !commentBodyExpandedById[comment.id]}
+                          class:block-revise-scroll--expanded={bodyLong &&
+                            !!commentBodyExpandedById[comment.id]}
+                        >
+                          {#if brPayload.summary}
+                            <p class="block-revise-summary">{brPayload.summary}</p>
+                          {/if}
+                          {#each brPayload.pairs as pair, i (i)}
+                            {#if pair.remove || pair.add}
+                              <div class="block-revise-diff-wrap">
+                                <div class="block-revise-diff-inner">
+                                  {#if pair.remove}
+                                    <div class="block-revise-line block-revise-remove">
+                                      {pair.remove}
+                                    </div>
+                                  {/if}
+                                  {#if pair.add}
+                                    <div class="block-revise-line block-revise-add">{pair.add}</div>
+                                  {/if}
+                                </div>
+                              </div>
+                            {/if}
+                          {/each}
+                        </div>
+                        {#if bodyLong}
+                          <button
+                            type="button"
+                            class="cp-body-toggle block-revise-toggle"
+                            onclick={(e) => toggleCommentBodyExpanded(e, comment.id)}
+                          >
+                            {commentBodyExpandedById[comment.id] ? '收起' : '展开'}
+                          </button>
+                        {/if}
+                      </div>
+                    {:else if bodyLong}
+                      <div class="cp-body-outer">
+                        <div
+                          class="cp-body-scroll"
+                          class:cp-body-scroll--collapsed={!commentBodyExpandedById[comment.id]}
+                          class:cp-body-scroll--expanded={!!commentBodyExpandedById[comment.id]}
+                        >
+                          <p class="cp-body">{comment.body}</p>
+                        </div>
+                        <button
+                          type="button"
+                          class="cp-body-toggle"
+                          onclick={(e) => toggleCommentBodyExpanded(e, comment.id)}
+                        >
+                          {commentBodyExpandedById[comment.id] ? '收起' : '展开'}
+                        </button>
+                      </div>
+                    {:else}
+                      <p class="cp-body">{comment.body}</p>
+                    {/if}
+                  </div>
                 </article>
               {/each}
               {#if panelBlockId && panelBlockThreadAllResolved}
                 <div class="thread-resolved-footer" role="status">✓ resolved · now</div>
+              {/if}
+            </div>
+          {/if}
+          {#if panelBlockId && isOwner && page.view === 'doc' && (blockReviseLoading || blockReviseError)}
+            <div class="block-revise-slot" aria-live="polite">
+              {#if blockReviseLoading}
+                <p class="block-revise-loading">Generating revise suggestion...</p>
+              {:else if blockReviseError}
+                <p class="block-revise-error" role="alert">{blockReviseError}</p>
               {/if}
             </div>
           {/if}
@@ -1278,6 +1548,7 @@
                 type="text"
                 class="cp-compose-input"
                 placeholder="Reply, or leave a new note…"
+                bind:this={panelComposeInputEl}
                 bind:value={panelNewBody}
                 onkeydown={(e) => {
                   if (e.key === 'Enter') {
@@ -2152,10 +2423,8 @@
     align-items: center;
   }
 
-  /* Reader — .thread-head */
+  /* Reader — .thread-head (fixed strip above the scroll column) */
   .comments-panel-head {
-    position: sticky;
-    top: 0;
     flex-shrink: 0;
     margin: 0;
     padding: 20px 24px 14px;
@@ -2177,6 +2446,212 @@
     padding-right: 10px;
   }
 
+  .comments-panel-head-block-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .comments-panel-thread-kicker {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .comments-panel-suggest-btn {
+    flex-shrink: 0;
+    max-width: 55%;
+    padding: 4px 10px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .comments-panel-suggest-btn:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  :global(.dark) .comments-panel-suggest-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .comments-panel-suggest-btn--busy {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .comments-panel-suggest-btn:disabled {
+    cursor: wait;
+  }
+
+  /* Gemini block revision: loading/error slot + diff body inside agent comment cards */
+  .block-revise-slot {
+    flex-shrink: 0;
+    margin-top: 16px;
+    padding: 0 0 8px;
+    border-top: 1px solid transparent;
+  }
+
+  .block-revise-loading,
+  .block-revise-error {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  .block-revise-error {
+    color: #b91c1c;
+  }
+
+  :global(.dark) .block-revise-error {
+    color: #fca5a5;
+  }
+
+  .block-revise-summary {
+    margin: 0 0 12px;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.45;
+    color: #fafaf9;
+  }
+
+  .block-revise-diff-wrap + .block-revise-diff-wrap {
+    margin-top: 10px;
+  }
+
+  .block-revise-diff-inner {
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+      monospace;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .block-revise-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .block-revise-remove {
+    color: #a8a29e;
+    text-decoration: line-through;
+    text-decoration-color: #b45309;
+    text-decoration-thickness: 1px;
+  }
+
+  .block-revise-add {
+    margin-top: 6px;
+    color: #4ade80;
+  }
+
+  .block-revise-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .cp-block-revise-embed {
+    margin-top: 6px;
+  }
+
+  .block-revise-scroll {
+    min-width: 0;
+  }
+
+  .block-revise-scroll--auto {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .block-revise-scroll--collapsed {
+    max-height: 15rem;
+    overflow: hidden;
+  }
+
+  .block-revise-scroll--expanded {
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cp-body-outer {
+    margin-top: 6px;
+    min-width: 0;
+  }
+
+  .cp-body-scroll {
+    min-width: 0;
+  }
+
+  .cp-body-scroll--collapsed {
+    max-height: 10.5rem;
+    overflow: hidden;
+  }
+
+  .cp-body-scroll--expanded {
+    max-height: min(70vh, 28rem);
+    overflow-y: auto;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cp-body-toggle {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 4px 10px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--bg) 90%, var(--text-primary) 3%);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .cp-body-toggle:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+  }
+
+  .block-revise-toggle {
+    color: #e7e5e4;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .block-revise-toggle:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+
   .thread-kicker-resolved {
     letter-spacing: 0.14em;
   }
@@ -2191,12 +2666,14 @@
     line-height: 1.28;
   }
 
-  /* Reader — .thread-body */
+  /* Reader — .thread-body: scrolls list + Gemini card + composer as one column */
   .comments-panel-scroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 16px 24px 20px;
   }
 
@@ -2349,8 +2826,9 @@
   .cp-compose {
     flex-shrink: 0;
     border-top: 1px solid var(--border);
-    padding: 14px 24px 20px;
+    padding: 14px 24px max(20px, env(safe-area-inset-bottom, 0px));
     background: var(--bg);
+    z-index: 2;
   }
 
   .cp-compose-row {
@@ -2445,19 +2923,14 @@
     box-shadow: var(--shadow-card);
   }
 
-  button.cp-comment-card {
+  .cp-comment-card.cp-comment-card--navigable {
     font: inherit;
+    cursor: pointer;
+    outline: none;
     text-align: left;
     width: 100%;
     margin: 0;
-    border: none;
-    appearance: none;
-    -webkit-appearance: none;
-  }
-
-  .cp-comment-card.cp-comment-card--navigable {
-    cursor: pointer;
-    outline: none;
+    box-sizing: border-box;
     transition:
       background 0.12s ease,
       box-shadow 0.12s ease;

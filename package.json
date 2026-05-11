@@ -35,6 +35,7 @@
     "wrangler": "^4.10.0"
   },
   "dependencies": {
+    "@google/genai": "^2.0.1",
     "gray-matter": "^4.0.3",
     "jose": "^6.0.10",
     "marked": "^18.0.0",

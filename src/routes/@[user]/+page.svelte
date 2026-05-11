@@ -66,9 +66,7 @@
   // Determine if a page was likely agent-published (heuristic: no title usually means CLI/agent)
   // In reality this should come from a `source` column; for now use a simple heuristic
   function isAgentPublished(page: (typeof pages)[0]): boolean {
-    // Pages created via CLI/MCP typically have workspace_id set or specific patterns
-    // For now, treat pages with workspace_id as agent-published
-    return page.workspace_id !== null;
+    return page.agent_published === 1;
   }
 
   function getGreeting(): string {
