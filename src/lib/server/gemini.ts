@@ -68,8 +68,6 @@ Return ONLY valid JSON (no markdown fences) with this shape:
       model: GEMINI_MODEL,
       contents: prompt,
       config: {
-        temperature: 0.25,
-        maxOutputTokens: 4096,
         responseMimeType: 'application/json',
       },
     });
