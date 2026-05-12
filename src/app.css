@@ -576,6 +576,14 @@
     border-color: var(--border);
     font-style: italic;
     color: var(--text-secondary);
+    border-radius: 0;
+    quotes: none;
+  }
+
+  /* Typography plugin: drop decorative quote glyphs — left rule should read as a straight bar */
+  .prose :where(blockquote > p)::before,
+  .prose :where(blockquote > p)::after {
+    content: none;
   }
 
   .prose :where(hr) {

@@ -1956,16 +1956,17 @@
     color: inherit;
   }
 
+  /* Reader_Doc.html — .prose blockquote (match DocView.svelte) */
   .doc-article :global(.doc-view blockquote) {
-    margin: 24px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65em;
-    padding: 14px 16px 14px 24px;
-    border-left: 2px solid var(--text-primary);
+    margin: 28px 0;
+    padding: 2px 0 2px 22px;
+    border-left: 3px solid var(--text-primary);
+    border-radius: 0;
+    font-family: var(--font-prose);
+    font-size: 1.05em;
+    line-height: 1.7;
     font-style: italic;
     color: var(--text-secondary);
-    font-family: var(--font-serif);
     quotes: none;
   }
 
@@ -1974,8 +1975,17 @@
     content: none;
   }
 
+  .doc-article :global(.doc-view blockquote > p::before),
+  .doc-article :global(.doc-view blockquote > p::after) {
+    content: none;
+  }
+
   .doc-article :global(.doc-view blockquote > *) {
     margin: 0;
+  }
+
+  .doc-article :global(.doc-view blockquote > * + *) {
+    margin-top: 0.65em;
   }
 
   .doc-article :global(.doc-view code:not(pre code)) {
