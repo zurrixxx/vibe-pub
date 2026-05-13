@@ -595,38 +595,6 @@
     font-weight: 700;
   }
 
-  /* Reader_Doc.html — .prose blockquote (design handoff) */
-  article.doc-view :global(blockquote) {
-    margin: 28px 0;
-    padding: 2px 0 2px 22px;
-    border-left: 3px solid var(--text-primary);
-    border-radius: 0;
-    font-family: var(--font-prose);
-    font-size: 1.05em;
-    line-height: 1.7;
-    font-style: italic;
-    color: var(--text-secondary);
-    quotes: none;
-  }
-
-  article.doc-view :global(blockquote::before),
-  article.doc-view :global(blockquote::after) {
-    content: none;
-  }
-
-  article.doc-view :global(blockquote > p::before),
-  article.doc-view :global(blockquote > p::after) {
-    content: none;
-  }
-
-  article.doc-view :global(blockquote > *) {
-    margin: 0;
-  }
-
-  article.doc-view :global(blockquote > * + *) {
-    margin-top: 0.65em;
-  }
-
   article.doc-view :global(:not(pre) > code) {
     font-family: var(--font-mono);
     font-size: 0.88em;

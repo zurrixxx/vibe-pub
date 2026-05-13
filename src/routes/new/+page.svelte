@@ -455,23 +455,6 @@
     color: var(--text-primary);
     font-weight: 700;
   }
-  .preview-html :global(blockquote) {
-    margin: 28px 0;
-    padding: 2px 0 2px 22px;
-    border-left: 3px solid var(--text-primary);
-    border-radius: 0;
-    font-family: var(--font-prose);
-    font-size: 1.05em;
-    line-height: 1.7;
-    font-style: italic;
-    color: var(--text-secondary);
-    quotes: none;
-  }
-
-  .preview-html :global(blockquote > p::before),
-  .preview-html :global(blockquote > p::after) {
-    content: none;
-  }
   .preview-html :global(pre) {
     background: var(--text-primary);
     color: var(--bg);

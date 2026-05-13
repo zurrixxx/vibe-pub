@@ -573,6 +573,7 @@
 
   .prose :where(blockquote) {
     border-left-width: 2px;
+    border-left-style: solid;
     border-color: var(--border);
     font-style: italic;
     color: var(--text-secondary);
@@ -580,10 +581,52 @@
     quotes: none;
   }
 
-  /* Typography plugin: drop decorative quote glyphs — left rule should read as a straight bar */
+  /* Typography plugin: drop decorative quote glyphs */
   .prose :where(blockquote > p)::before,
   .prose :where(blockquote > p)::after {
     content: none;
+  }
+
+  /*
+   * Reader_Doc blockquote — single source for doc reading + /new preview.
+   * Overrides generic .prose quote above (higher specificity on article.doc-view.prose).
+   */
+  article.doc-view.prose :where(blockquote),
+  .preview-html :where(blockquote) {
+    margin: 28px 0;
+    padding: 2px 0 2px 22px;
+    border-left: 3px solid var(--text-primary);
+    border-radius: 0;
+    font-family: var(--font-prose);
+    font-size: 1.05em;
+    line-height: 1.7;
+    font-style: italic;
+    color: var(--text-secondary);
+    quotes: none;
+  }
+
+  article.doc-view.prose :where(blockquote)::before,
+  article.doc-view.prose :where(blockquote)::after,
+  .preview-html :where(blockquote)::before,
+  .preview-html :where(blockquote)::after {
+    content: none;
+  }
+
+  article.doc-view.prose :where(blockquote > p)::before,
+  article.doc-view.prose :where(blockquote > p)::after,
+  .preview-html :where(blockquote > p)::before,
+  .preview-html :where(blockquote > p)::after {
+    content: none;
+  }
+
+  article.doc-view.prose :where(blockquote > *),
+  .preview-html :where(blockquote > *) {
+    margin: 0;
+  }
+
+  article.doc-view.prose :where(blockquote > * + *),
+  .preview-html :where(blockquote > * + *) {
+    margin-top: 0.65em;
   }
 
   .prose :where(hr) {

@@ -7,6 +7,20 @@ export function getDb(platform: App.Platform) {
 
 const PAGE_ID_RETRIES = 5;
 
+/**
+ * Every path that returns a full {@link Page} must include `agent_published`
+ * (`SELECT * FROM pages`, or an explicit column list that names `agent_published`).
+ * `@[user]` and `/api/pub` GET rely on this for the agent-published filter.
+ */
+function normalizePageRow(row: Page | null): Page | null {
+  if (!row) return null;
+  return { ...row, agent_published: row.agent_published === 1 ? 1 : 0 };
+}
+
+function normalizePages(rows: Page[]): Page[] {
+  return rows.map((r) => ({ ...r, agent_published: r.agent_published === 1 ? 1 : 0 }));
+}
+
 function isUniqueConstraintError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /UNIQUE constraint failed/i.test(msg);
@@ -64,7 +78,8 @@ export async function createPage(
 }
 
 export async function getPageById(db: D1Database, id: string): Promise<Page | null> {
-  return db.prepare('SELECT * FROM pages WHERE id = ?').bind(id).first<Page>();
+  const row = await db.prepare('SELECT * FROM pages WHERE id = ?').bind(id).first<Page>();
+  return normalizePageRow(row);
 }
 
 /** Resolve a page from a URL segment.
@@ -80,10 +95,11 @@ export async function getPageByUrlSegment(db: D1Database, segment: string): Prom
   const id = extractIdFromUrlSegment(segment);
   const byId = await getPageById(db, id);
   if (byId) return byId;
-  return db
+  const legacy = await db
     .prepare('SELECT * FROM pages WHERE slug = ? AND legacy_slug = 1')
     .bind(segment)
     .first<Page>();
+  return normalizePageRow(legacy);
 }
 
 export async function getPagesByUser(db: D1Database, userId: string): Promise<Page[]> {
@@ -91,7 +107,7 @@ export async function getPagesByUser(db: D1Database, userId: string): Promise<Pa
     .prepare('SELECT * FROM pages WHERE user_id = ? ORDER BY updated DESC')
     .bind(userId)
     .all<Page>();
-  return result.results;
+  return normalizePages(result.results);
 }
 
 export async function updatePage(

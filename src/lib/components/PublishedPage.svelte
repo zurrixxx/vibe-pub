@@ -318,7 +318,6 @@
 
   let panelNewBody = $state('');
   let panelPosting = $state(false);
-  let panelComposeInputEl = $state<HTMLInputElement | null>(null);
   let blockReviseLoading = $state(false);
   let blockReviseError = $state('');
   let blockRevisePanelKey = $state('');
@@ -494,7 +493,7 @@
     const el = document.getElementById(panelBlockId);
     const block_plain_text = (el?.innerText ?? '').replace(/\s+/g, ' ').trim();
     if (!block_plain_text) {
-      blockReviseError = '无法从页面读取该块的正文。';
+      blockReviseError = "Could not read this block's text from the page.";
       return;
     }
     const docRoot = document.querySelector('article.doc-view');
@@ -524,7 +523,7 @@
         blockReviseError =
           typeof data.message === 'string' && data.message
             ? data.message
-            : `请求失败（${res.status}）`;
+            : `Request failed (${res.status})`;
         return;
       }
       newResult = {
@@ -533,10 +532,15 @@
       };
       const persisted = await persistBlockReviseSuggestionComment(newResult, anchorBlockId);
       if (!persisted) {
-        blockReviseError = '修订建议已生成，但保存到评论失败，请稍后重试。';
+        blockReviseError =
+          'The suggestion was generated but could not be saved as a comment. Please try again.';
+        console.warn(
+          '[block-revise-suggest] persistBlockReviseSuggestionComment failed — Gemini result (not saved)',
+          { pageId: page.id, blockId: anchorBlockId, payload: newResult }
+        );
       }
     } catch {
-      blockReviseError = '网络错误。';
+      blockReviseError = 'Network error.';
     } finally {
       blockReviseLoading = false;
     }
@@ -698,6 +702,7 @@
           anchor,
           anchor_hint: blockIdForPersist,
           display_name: 'agent',
+          agent_published: true,
         }),
       });
       if (!res.ok) return false;
@@ -720,7 +725,7 @@
         anchor_hint: saved.anchor_hint ?? blockIdForPersist,
         body: saved.body ?? bodyText,
         resolved: typeof saved.resolved === 'number' ? saved.resolved : 0,
-        agent_published: typeof saved.agent_published === 'number' ? saved.agent_published : 0,
+        agent_published: typeof saved.agent_published === 'number' ? saved.agent_published : 1,
         created: typeof saved.created === 'string' ? saved.created : new Date().toISOString(),
       };
       localComments = [...localComments, row];
@@ -1426,7 +1431,9 @@
                     class:cp-comment-card--navigable={!!navBid}
                     role={navBid ? 'button' : undefined}
                     tabindex={navBid ? 0 : undefined}
-                    aria-label={navBid ? '在正文中定位并打开该段落讨论' : undefined}
+                    aria-label={navBid
+                      ? 'Go to this paragraph in the article and open discussion'
+                      : undefined}
                     onclick={navBid
                       ? (e: MouseEvent) => {
                           const t = e.target;
@@ -1499,7 +1506,7 @@
                             class="cp-body-toggle block-revise-toggle"
                             onclick={(e) => toggleCommentBodyExpanded(e, comment.id)}
                           >
-                            {commentBodyExpandedById[comment.id] ? '收起' : '展开'}
+                            {commentBodyExpandedById[comment.id] ? 'Show less' : 'Show more'}
                           </button>
                         {/if}
                       </div>
@@ -1517,7 +1524,7 @@
                           class="cp-body-toggle"
                           onclick={(e) => toggleCommentBodyExpanded(e, comment.id)}
                         >
-                          {commentBodyExpandedById[comment.id] ? '收起' : '展开'}
+                          {commentBodyExpandedById[comment.id] ? 'Show less' : 'Show more'}
                         </button>
                       </div>
                     {:else}
@@ -1548,7 +1555,6 @@
                 type="text"
                 class="cp-compose-input"
                 placeholder="Reply, or leave a new note…"
-                bind:this={panelComposeInputEl}
                 bind:value={panelNewBody}
                 onkeydown={(e) => {
                   if (e.key === 'Enter') {
@@ -1954,38 +1960,6 @@
   .doc-article :global(.doc-view pre code) {
     background: transparent;
     color: inherit;
-  }
-
-  /* Reader_Doc.html — .prose blockquote (match DocView.svelte) */
-  .doc-article :global(.doc-view blockquote) {
-    margin: 28px 0;
-    padding: 2px 0 2px 22px;
-    border-left: 3px solid var(--text-primary);
-    border-radius: 0;
-    font-family: var(--font-prose);
-    font-size: 1.05em;
-    line-height: 1.7;
-    font-style: italic;
-    color: var(--text-secondary);
-    quotes: none;
-  }
-
-  .doc-article :global(.doc-view blockquote::before),
-  .doc-article :global(.doc-view blockquote::after) {
-    content: none;
-  }
-
-  .doc-article :global(.doc-view blockquote > p::before),
-  .doc-article :global(.doc-view blockquote > p::after) {
-    content: none;
-  }
-
-  .doc-article :global(.doc-view blockquote > *) {
-    margin: 0;
-  }
-
-  .doc-article :global(.doc-view blockquote > * + *) {
-    margin-top: 0.65em;
   }
 
   .doc-article :global(.doc-view code:not(pre code)) {
