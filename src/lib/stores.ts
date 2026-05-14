@@ -61,10 +61,24 @@ export function toggleDocCommentsPanelAllThreads() {
   }
 }
 
-/** Header History (non-owner): open reader history rail; closes comments. */
+/** Doc/kanban reader: slide-in version history rail (Header ··· → History). */
 export function openReaderHistoryPanel() {
   cancelDeferredCommentsPanelBlockClear();
   docCommentsPanelOpen.set(false);
   docCommentsPanelBlockId.set(null);
   readerHistoryPanelOpen.set(true);
+}
+
+/** Kanban reader: full-width board (Header “···” + board toolbar stay in sync). */
+export const kanbanReaderBoardFullwidth = writable(true);
+
+/** Reader “Appearance” panel (theme preview for this session). */
+export const readerAppearancePanelOpen = writable(false);
+
+export function openReaderAppearancePanel() {
+  readerAppearancePanelOpen.set(true);
+}
+
+export function closeReaderAppearancePanel() {
+  readerAppearancePanelOpen.set(false);
 }

@@ -290,6 +290,11 @@
       margin 0.15s;
   }
 
+  /* Quote bar is border-left; full 6px radius rounds top-left/bottom-left and looks like a bracket. */
+  article.doc-view :global(blockquote.block-el) {
+    border-radius: 0 6px 6px 0;
+  }
+
   article.doc-view :global(.block-el:hover) {
     background: rgba(0, 0, 0, 0.015);
   }

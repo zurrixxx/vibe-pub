@@ -4,8 +4,11 @@
   import { browser } from '$app/environment';
   import {
     closeDocCommentsPanel,
+    closeReaderAppearancePanel,
     closeReaderHistoryPanel,
     docCommentsPanelOpen,
+    kanbanReaderBoardFullwidth,
+    openReaderAppearancePanel,
     openReaderHistoryPanel,
     toggleDocCommentsPanelAllThreads,
   } from '$lib/stores';
@@ -47,8 +50,6 @@
       : `${$page.url.hostname}${$page.url.pathname === '/' ? '' : $page.url.pathname}`
   );
 
-  let historyHref = $derived(canonicalPath ? `${canonicalPath}/history` : `${pathname}/history`);
-
   let shareUrl = $derived(
     browser
       ? canonicalPath
@@ -84,6 +85,8 @@
 
   let isDocArticle = $derived(isArticlePage && (pg?.view ?? 'doc') === 'doc');
 
+  let isKanbanArticle = $derived(isArticlePage && pg?.view === 'kanban');
+
   let isPageOwner = $derived(pdata?.isOwner === true);
 
   let moreOpen = $state(false);
@@ -114,6 +117,7 @@
     if (next) {
       closeDocCommentsPanel();
       closeReaderHistoryPanel();
+      closeReaderAppearancePanel();
     }
   }
 
@@ -128,6 +132,7 @@
     e.stopPropagation();
     closeMenus();
     closeReaderHistoryPanel();
+    closeReaderAppearancePanel();
     shareOpen = true;
     copyState = 'idle';
     shareQrOpen = false;
@@ -263,21 +268,7 @@
             </svg>
           </button>
           <div class="more-menu" class:open={moreOpen}>
-            {#if isPageOwner}
-              <a href={historyHref} class="mm-item" onclick={() => (moreOpen = false)}>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                  ><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /><path
-                    d="M12 7v5l3 2"
-                  /></svg
-                >
-                History
-              </a>
-            {:else}
+            {#if isDocArticle}
               <button
                 type="button"
                 class="mm-item"
@@ -298,50 +289,13 @@
                 >
                 History
               </button>
-            {/if}
-            <div class="divider"></div>
-            <a
-              href={markdownExportHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mm-item"
-              onclick={() => (moreOpen = false)}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-                ><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg
-              >
-              View source
-            </a>
-            <a
-              href={markdownExportHref}
-              download={markdownDownloadName}
-              class="mm-item"
-              onclick={() => (moreOpen = false)}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-                ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline
-                  points="14 2 14 8 20 8"
-                /></svg
-              >
-              Export as markdown
-            </a>
-            {#if isPageOwner}
-              <div class="divider"></div>
               <button
                 type="button"
-                class="mm-item mm-danger"
-                onclick={deletePublishedPage}
-                disabled={deletingPage}
+                class="mm-item"
+                onclick={() => {
+                  moreOpen = false;
+                  openReaderAppearancePanel();
+                }}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -349,17 +303,272 @@
                   stroke="currentColor"
                   stroke-width="2"
                   aria-hidden="true"
-                  ><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path
-                    d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                  /><line x1="10" y1="11" x2="10" y2="17" /><line
-                    x1="14"
-                    y1="11"
-                    x2="14"
-                    y2="17"
+                  ><circle cx="12" cy="12" r="4" /><path
+                    d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
                   /></svg
                 >
-                {deletingPage ? 'Deleting…' : 'Delete page'}
+                Appearance
               </button>
+              <div class="divider"></div>
+              <a
+                href={markdownExportHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mm-item"
+                onclick={() => (moreOpen = false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg
+                >
+                View source
+              </a>
+              <a
+                href={markdownExportHref}
+                download={markdownDownloadName}
+                class="mm-item"
+                onclick={() => (moreOpen = false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline
+                    points="14 2 14 8 20 8"
+                  /></svg
+                >
+                Export as markdown
+              </a>
+              {#if canonicalPath}
+                <a
+                  href={`${canonicalPath}?kanban=1`}
+                  class="mm-item"
+                  onclick={() => (moreOpen = false)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                    ><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect
+                      x="14"
+                      y="3"
+                      width="7"
+                      height="7"
+                      rx="1.5"
+                    /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect
+                      x="14"
+                      y="14"
+                      width="7"
+                      height="7"
+                      rx="1.5"
+                    /></svg
+                  >
+                  Open as kanban
+                </a>
+              {/if}
+              {#if isPageOwner}
+                <div class="divider"></div>
+                <button
+                  type="button"
+                  class="mm-item mm-danger"
+                  onclick={deletePublishedPage}
+                  disabled={deletingPage}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                    ><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path
+                      d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                    /><line x1="10" y1="11" x2="10" y2="17" /><line
+                      x1="14"
+                      y1="11"
+                      x2="14"
+                      y2="17"
+                    /></svg
+                  >
+                  {deletingPage ? 'Deleting…' : 'Delete page'}
+                </button>
+              {/if}
+            {:else}
+              <a
+                href={markdownExportHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mm-item"
+                onclick={() => (moreOpen = false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg
+                >
+                View source
+              </a>
+              <button
+                type="button"
+                class="mm-item"
+                onclick={() => {
+                  moreOpen = false;
+                  openReaderHistoryPanel();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /><path
+                    d="M12 7v5l3 2"
+                  /></svg
+                >
+                History
+              </button>
+              <button
+                type="button"
+                class="mm-item"
+                onclick={() => {
+                  moreOpen = false;
+                  openReaderAppearancePanel();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><circle cx="12" cy="12" r="4" /><path
+                    d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+                  /></svg
+                >
+                Appearance
+              </button>
+              {#if isKanbanArticle}
+                <button
+                  type="button"
+                  class="mm-item"
+                  onclick={() => {
+                    moreOpen = false;
+                    kanbanReaderBoardFullwidth.update((v) => !v);
+                  }}
+                >
+                  {#if $kanbanReaderBoardFullwidth}
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                      ><polyline points="4 14 10 14 10 20" /><polyline
+                        points="20 10 14 10 14 4"
+                      /><line x1="14" y1="10" x2="21" y2="3" /><line
+                        x1="3"
+                        y1="21"
+                        x2="10"
+                        y2="14"
+                      /></svg
+                    >
+                    Shrink to standard width
+                  {:else}
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                      ><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line
+                        x1="21"
+                        y1="3"
+                        x2="14"
+                        y2="10"
+                      /><line x1="3" y1="21" x2="10" y2="14" /></svg
+                    >
+                    Expand to full width
+                  {/if}
+                </button>
+              {/if}
+              <div class="divider"></div>
+              <a
+                href={markdownExportHref}
+                download={markdownDownloadName}
+                class="mm-item"
+                onclick={() => (moreOpen = false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                  ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline
+                    points="14 2 14 8 20 8"
+                  /></svg
+                >
+                Export as markdown
+              </a>
+              {#if isKanbanArticle && canonicalPath}
+                <a
+                  href={`${canonicalPath}?doc=1`}
+                  class="mm-item"
+                  onclick={() => (moreOpen = false)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                    ><line x1="4" y1="6" x2="20" y2="6" /><line
+                      x1="4"
+                      y1="12"
+                      x2="20"
+                      y2="12"
+                    /><line x1="4" y1="18" x2="14" y2="18" /></svg
+                  >
+                  Open as doc
+                </a>
+              {/if}
+              {#if isPageOwner}
+                <div class="divider"></div>
+                <button
+                  type="button"
+                  class="mm-item mm-danger"
+                  onclick={deletePublishedPage}
+                  disabled={deletingPage}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                    ><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path
+                      d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                    /><line x1="10" y1="11" x2="10" y2="17" /><line
+                      x1="14"
+                      y1="11"
+                      x2="14"
+                      y2="17"
+                    /></svg
+                  >
+                  {deletingPage ? 'Deleting…' : 'Delete page'}
+                </button>
+              {/if}
             {/if}
           </div>
         </div>

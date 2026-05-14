@@ -66,6 +66,18 @@ export const load: PageServerLoad = async ({ params, platform, locals, url }) =>
         console.error('Kanban parse error:', e);
         kanbanData = { columns: [], labels: {} };
       }
+    } else if (templateName === 'doc' && url.searchParams.get('kanban') === '1') {
+      /* Reader: doc page “Open as kanban” — parse board data only; keep `blocks` as doc blocks. */
+      try {
+        const parsed = parseKanbanBlocks(page.markdown);
+        kanbanData = {
+          columns: parsed.columns,
+          labels: parsed.labels,
+        };
+      } catch (e) {
+        console.error('Kanban parse error (doc kanban peek):', e);
+        kanbanData = { columns: [], labels: {} };
+      }
     } else if (templateName === 'changelog') {
       try {
         const parsed = parseChangelogBlocks(page.markdown);

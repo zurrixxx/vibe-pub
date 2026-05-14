@@ -5,19 +5,29 @@
   import { browser } from '$app/environment';
   import DocView from '$lib/templates/doc/DocView.svelte';
   import KanbanView from '$lib/templates/kanban/KanbanView.svelte';
+  import KanbanReaderHead from '$lib/templates/kanban/KanbanReaderHead.svelte';
   import ChangelogView from '$lib/templates/changelog/ChangelogView.svelte';
   import TimelineView from '$lib/templates/timeline/TimelineView.svelte';
   import SlidesView from '$lib/templates/slides/SlidesView.svelte';
   import DashboardView from '$lib/templates/dashboard/DashboardView.svelte';
-  import type { PublishedPageData, Comment, BlockReviseSuggestResponse } from '$lib/types';
+  import type {
+    PublishedPageData,
+    Comment,
+    BlockReviseSuggestResponse,
+    PageTheme,
+  } from '$lib/types';
   import { marked } from 'marked';
+  import { get } from 'svelte/store';
   import {
     cancelDeferredCommentsPanelBlockClear,
     docCommentsPanelBlockId,
     docCommentsPanelOpen,
     closeDocCommentsPanel,
     closeReaderHistoryPanel,
+    closeReaderAppearancePanel,
     readerHistoryPanelOpen,
+    kanbanReaderBoardFullwidth,
+    readerAppearancePanelOpen,
   } from '$lib/stores';
   import { listDocViewBlockIdsInOrder } from '$lib/doc-view-block-ids';
   import {
@@ -48,19 +58,32 @@
   /** null = live page (SSR html); otherwise viewing that snapshot in the article */
   let readerHistorySelectedVersion = $state<number | null>(null);
   let readerHistoryPreviewHtml = $state('');
+  /** Snapshot source for Kanban when a history row is selected (doc HTML uses `readerHistoryPreviewHtml`). */
+  let readerHistoryPreviewMarkdown = $state('');
   let readerHistoryPreviewTitle = $state<string | null>(null);
   let readerHistoryPreviewCreated = $state<string | null>(null);
   let readerHistoryVersionLoading = $state(false);
   let readerHistoryVersionLoadError = $state('');
+  let historyRestoreLoading = $state(false);
+
+  /** History rail: live tip selected (`null`) vs a numbered snapshot. */
+  let readerHistoryIsLatestSelected = $derived(readerHistorySelectedVersion === null);
 
   let effectiveDocHtml = $derived.by(() => {
-    if (isOwner || page.view !== 'doc') return html;
+    if (page.view !== 'doc') return html;
     if (readerHistorySelectedVersion === null) return html;
     return readerHistoryPreviewHtml || html;
   });
 
-  /** Reader viewing an old snapshot: comments panel lists threads but no composer. */
-  let docCommentsSnapshotReadonly = $derived(!isOwner && readerHistorySelectedVersion !== null);
+  /** Kanban reader + doc “open as kanban”: live `page.markdown`, or selected version snapshot. */
+  let effectiveKanbanMarkdown = $derived(
+    readerHistorySelectedVersion !== null && readerHistoryPreviewMarkdown.length > 0
+      ? readerHistoryPreviewMarkdown
+      : page.markdown
+  );
+
+  /** Viewing a non-current snapshot: comments rail is read-only (owner and reader). */
+  let docCommentsSnapshotReadonly = $derived(readerHistorySelectedVersion !== null);
 
   let readerHistoryOpen = $state(false);
   $effect(() => readerHistoryPanelOpen.subscribe((v) => (readerHistoryOpen = v)));
@@ -102,6 +125,7 @@
     if (i === 0) {
       readerHistorySelectedVersion = null;
       readerHistoryPreviewHtml = '';
+      readerHistoryPreviewMarkdown = '';
       readerHistoryPreviewTitle = null;
       readerHistoryPreviewCreated = null;
       readerHistoryVersionLoading = false;
@@ -109,18 +133,18 @@
     }
     readerHistoryVersionLoading = true;
     readerHistorySelectedVersion = row.version;
-    readerHistoryPreviewHtml = '';
-    readerHistoryPreviewTitle = null;
-    readerHistoryPreviewCreated = null;
+    /* Keep prior snapshot (or live) in place until fetch completes — avoids main-column height snap. */
     try {
       const res = await fetch(`/api/pub/${page.id}/versions/${row.version}`);
       if (!res.ok) {
         readerHistoryVersionLoadError =
           res.status === 404 ? 'Snapshot not found.' : 'Could not load this snapshot.';
         readerHistorySelectedVersion = null;
+        readerHistoryPreviewMarkdown = '';
         return;
       }
       const v = (await res.json()) as { markdown: string; title: string | null; created: string };
+      readerHistoryPreviewMarkdown = v.markdown;
       const parsed = marked.parse(v.markdown);
       readerHistoryPreviewHtml = typeof parsed === 'string' ? parsed : await parsed;
       readerHistoryPreviewTitle = v.title ?? null;
@@ -129,13 +153,42 @@
       readerHistoryVersionLoadError = 'Could not load this snapshot.';
       readerHistorySelectedVersion = null;
       readerHistoryPreviewHtml = '';
+      readerHistoryPreviewMarkdown = '';
     } finally {
       readerHistoryVersionLoading = false;
     }
   }
 
+  /** Owner: persist selected snapshot as the live page (new version row). */
+  async function restoreHistoryVersion() {
+    if (!browser || !isOwner || readerHistorySelectedVersion === null) return;
+    const md = readerHistoryPreviewMarkdown.trim();
+    if (!md) return;
+    const ok = window.confirm(
+      'Replace the live page with this snapshot? You can open History again afterward if needed.'
+    );
+    if (!ok) return;
+    historyRestoreLoading = true;
+    try {
+      const res = await fetch(`/api/pub/${page.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: md }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const detail = await res.text().catch(() => '');
+        window.alert(`Could not restore (${res.status})${detail ? ': ' + detail : ''}`);
+      }
+    } catch {
+      window.alert('Network error — try again.');
+    }
+    historyRestoreLoading = false;
+  }
+
   $effect(() => {
-    if (!browser || !readerHistoryOpen || isOwner) return;
+    if (!browser || !readerHistoryOpen) return;
     void page.id;
     void loadReaderVersions();
   });
@@ -145,6 +198,7 @@
     void page.id;
     readerHistorySelectedVersion = null;
     readerHistoryPreviewHtml = '';
+    readerHistoryPreviewMarkdown = '';
     readerHistoryPreviewTitle = null;
     readerHistoryPreviewCreated = null;
     readerHistoryVersionLoading = false;
@@ -157,8 +211,56 @@
   let editMarkdown = $state('');
   let saving = $state(false);
   let saveError = $state('');
+  let saveAsDocLoading = $state(false);
+  let saveAsDocError = $state('');
+  let saveAsKanbanLoading = $state(false);
+  let saveAsKanbanError = $state('');
 
   let claiming = $state(false);
+  let kanbanBoardFullwidth = $state(true);
+
+  let readerThemePreview = $state<PageTheme | null>(null);
+  let effectiveTheme = $derived((readerThemePreview ?? page.theme ?? 'default') as PageTheme);
+  let themeWrapperDark = $derived(
+    ['terminal', 'midnight', 'raycast', 'monokai', 'dracula'].includes(effectiveTheme)
+  );
+
+  let kanbanDocPeek = $derived(
+    page.view === 'kanban' && $pageStore.url.searchParams.get('doc') === '1'
+  );
+
+  /** Doc reader: `?kanban=1` shows board parsed from the same markdown (Header “Open as kanban”). */
+  let docKanbanPeek = $derived(
+    page.view === 'doc' && $pageStore.url.searchParams.get('kanban') === '1'
+  );
+
+  let readerKanbanChrome = $derived(page.view === 'kanban' || docKanbanPeek);
+
+  $effect(() => {
+    if (!readerKanbanChrome) return;
+    const unsub = kanbanReaderBoardFullwidth.subscribe((v) => {
+      if (kanbanBoardFullwidth !== v) kanbanBoardFullwidth = v;
+    });
+    return unsub;
+  });
+
+  const readerAppearanceThemes: { id: PageTheme; label: string; chipClass: string }[] = [
+    { id: 'default', label: 'default', chipClass: 'rap-chip-default' },
+    { id: 'paper', label: 'paper', chipClass: 'rap-chip-paper' },
+    { id: 'claude', label: 'claude', chipClass: 'rap-chip-claude' },
+    { id: 'solarized', label: 'solarized', chipClass: 'rap-chip-solarized' },
+    { id: 'midnight', label: 'midnight', chipClass: 'rap-chip-midnight' },
+    { id: 'terminal', label: 'terminal', chipClass: 'rap-chip-terminal' },
+  ];
+
+  let appearanceLightActive = $derived(
+    !['midnight', 'terminal', 'monokai', 'dracula', 'raycast'].includes(effectiveTheme)
+  );
+
+  function onReaderAppearanceKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    if (get(readerAppearancePanelOpen)) closeReaderAppearancePanel();
+  }
 
   async function claimPage() {
     claiming = true;
@@ -198,6 +300,50 @@
   function cancelEdit() {
     editing = false;
     editMarkdown = '';
+  }
+
+  /** Kanban “Open as doc” preview: persist as doc view (same markdown). */
+  async function saveAsDoc() {
+    saveAsDocLoading = true;
+    saveAsDocError = '';
+    try {
+      const res = await fetch(`/api/pub/${page.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ view: 'doc' }),
+      });
+      if (res.ok) {
+        window.location.href = canonicalPath;
+      } else {
+        const detail = await res.text().catch(() => '');
+        saveAsDocError = `Could not save (${res.status})${detail ? ': ' + detail : ''}`;
+      }
+    } catch {
+      saveAsDocError = 'Network error — try again';
+    }
+    saveAsDocLoading = false;
+  }
+
+  /** Doc “Open as kanban” preview: persist as kanban view (same markdown). */
+  async function saveAsKanban() {
+    saveAsKanbanLoading = true;
+    saveAsKanbanError = '';
+    try {
+      const res = await fetch(`/api/pub/${page.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ view: 'kanban' }),
+      });
+      if (res.ok) {
+        window.location.href = canonicalPath;
+      } else {
+        const detail = await res.text().catch(() => '');
+        saveAsKanbanError = `Could not save (${res.status})${detail ? ': ' + detail : ''}`;
+      }
+    } catch {
+      saveAsKanbanError = 'Network error — try again';
+    }
+    saveAsKanbanLoading = false;
   }
 
   function stripHtml(s: string): string {
@@ -561,6 +707,7 @@
       if (e.key === 'Escape') {
         closeDocCommentsPanel();
         closeReaderHistoryPanel();
+        closeReaderAppearancePanel();
       }
     }
     /** Close when clicking outside the panel (same gesture must finish — use click, not pointerdown). */
@@ -569,6 +716,8 @@
       if (!(t instanceof Element)) return;
       if (t.closest('#comments-panel')) return;
       if (t.closest('#reader-history-panel')) return;
+      if (t.closest('.reader-appearance-panel')) return;
+      if (t.closest('.reader-appearance-backdrop')) return;
       if (t.closest('[aria-controls="comments-panel"]')) return;
       if (t.closest('.bcb')) return;
       closeDocCommentsPanel();
@@ -589,14 +738,19 @@
   });
 
   $effect(() => {
-    if (!browser || !readerHistoryOpen || isOwner) return;
+    if (!browser || !readerHistoryOpen) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeReaderHistoryPanel();
+      if (e.key === 'Escape') {
+        closeReaderHistoryPanel();
+        closeReaderAppearancePanel();
+      }
     }
     function onDocClick(e: MouseEvent) {
       const t = e.target;
       if (!(t instanceof Element)) return;
       if (t.closest('#reader-history-panel')) return;
+      if (t.closest('.reader-appearance-panel')) return;
+      if (t.closest('.reader-appearance-backdrop')) return;
       if (t.closest('.more-wrap')) return;
       closeReaderHistoryPanel();
     }
@@ -767,7 +921,7 @@
   // Extract lede (first paragraph) from html for doc view header
   let lede = $derived.by(() => {
     if (page.view !== 'doc' && page.view !== undefined) return '';
-    const src = !isOwner && page.view === 'doc' ? effectiveDocHtml : html;
+    const src = page.view === 'doc' ? effectiveDocHtml : html;
     if (!src) return '';
     const match = src.match(/<p[^>]*>(.*?)<\/p>/s);
     if (!match) return '';
@@ -817,7 +971,6 @@
   let pageTitle = $derived(page.title ?? page.id);
   let docHeroTitle = $derived.by(() => {
     if (
-      !isOwner &&
       page.view === 'doc' &&
       readerHistorySelectedVersion !== null &&
       readerHistoryPreviewTitle != null &&
@@ -829,7 +982,6 @@
   });
   let docBylineDate = $derived.by(() => {
     if (
-      !isOwner &&
       page.view === 'doc' &&
       readerHistorySelectedVersion !== null &&
       readerHistoryPreviewCreated
@@ -839,6 +991,34 @@
     return formatDate(page.updated);
   });
   let pageUrl = $derived($pageStore.url.href);
+
+  /** Kanban reader hero (Reader_Kanban `page-head` + stats row) */
+  let kanbanKickerText = $derived.by(() => {
+    if (!readerKanbanChrome) return '';
+    const k = frontmatter.kicker;
+    if (typeof k === 'string' && k.trim()) return k.trim();
+    const d = new Date(page.updated);
+    if (Number.isNaN(d.getTime())) return 'kanban board';
+    const q = Math.floor(d.getMonth() / 3) + 1;
+    return `roadmap · q${q} ${d.getFullYear()}`;
+  });
+
+  let kanbanTitleEmphasis = $derived(
+    typeof frontmatter.title_emphasis === 'string' && frontmatter.title_emphasis.trim()
+      ? frontmatter.title_emphasis.trim()
+      : null
+  );
+
+  let kanbanLedeText = $derived.by(() => {
+    if (!readerKanbanChrome) return '';
+    const l = frontmatter.lede;
+    const s = frontmatter.subtitle;
+    if (typeof l === 'string' && l.trim()) return l.trim();
+    if (typeof s === 'string' && s.trim()) return s.trim();
+    const cols = data.kanbanData?.columns ?? [];
+    const n = cols.reduce((a, c) => a + (c.cards?.length ?? 0), 0);
+    return `The board in ${n} cards across ${cols.length} column${cols.length === 1 ? '' : 's'}. Readable by anyone — this page is the markdown.`;
+  });
 
   // Scroll spy for TOC
   function setupScrollSpy(node: HTMLElement) {
@@ -950,6 +1130,8 @@
   />
 </svelte:head>
 
+<svelte:window onkeydown={onReaderAppearanceKeydown} />
+
 <!--
   SEO / LLM fallback: server-rendered article body, visible to any parser
   that does not execute JS (search bots, LLM fetchers, readability cleaners).
@@ -976,40 +1158,86 @@
   </main>
 {/if}
 
-<div
-  class="page-wrapper theme-{page.theme ?? 'default'}"
-  class:dark={['terminal', 'midnight', 'raycast', 'monokai', 'dracula'].includes(page.theme)}
->
+<div class="page-wrapper theme-{effectiveTheme}" class:dark={themeWrapperDark}>
   {#if page.view === 'kanban'}
-    <!-- ═══ KANBAN LAYOUT: full width ═══ -->
-    <div class="kanban-layout">
-      {#if canClaim}
-        <div class="kanban-toolbar">
-          <button class="toolbar-btn" onclick={claimPage} disabled={claiming}
-            >{claiming ? 'Claiming...' : 'Claim this page'}</button
-          >
-          <span class="toolbar-hint">Claim to enable editing</span>
-        </div>
-      {/if}
-
-      <div class="kanban-board-wrapper">
-        <KanbanView
-          markdown={page.markdown}
-          pageId={page.id}
-          {comments}
-          initialColumns={data.kanbanData?.columns ?? []}
-          initialLabels={data.kanbanData?.labels ?? {}}
-          {isOwner}
-        />
+    {#if kanbanDocPeek}
+      <div class="kanban-doc-peek kanban-doc-peek--full-doc">
+        <nav class="kanban-doc-peek-nav">
+          <a class="kanban-doc-peek-back" href={canonicalPath}>← Back to board</a>
+          {#if isOwner}
+            <div class="kanban-doc-peek-nav-actions">
+              <button
+                type="button"
+                class="toolbar-btn toolbar-save"
+                onclick={saveAsDoc}
+                disabled={saveAsDocLoading}
+              >
+                {saveAsDocLoading ? 'Saving…' : 'Save as doc'}
+              </button>
+              {#if saveAsDocError}
+                <span class="kanban-doc-peek-save-error" role="alert">{saveAsDocError}</span>
+              {/if}
+            </div>
+          {/if}
+        </nav>
+        <main class="kanban-doc-peek-main">
+          <div class="kanban-doc-peek-body">
+            <article class="prose dark:prose-invert kanban-doc-peek-article max-w-none">
+              {@html seoHtml}
+            </article>
+          </div>
+        </main>
+        <footer class="kanban-article-foot" aria-label="Colophon">
+          <p class="kanban-foot-inner">
+            <a href="/" class="kanban-foot-brand">vibe.<em>pub</em></a>
+            <span class="kanban-foot-lead">This is a live markdown file.</span>
+            <a class="kanban-foot-source" href={`${canonicalPath}.md`}>See the source →</a>
+            <span class="kanban-foot-meta">published · no login required</span>
+          </p>
+        </footer>
       </div>
+    {:else}
+      <!-- ═══ KANBAN LAYOUT: full width ═══ -->
+      <div class="kanban-layout" class:board-fullwidth={kanbanBoardFullwidth}>
+        {#if canClaim}
+          <div class="kanban-toolbar">
+            <button class="toolbar-btn" onclick={claimPage} disabled={claiming}
+              >{claiming ? 'Claiming...' : 'Claim this page'}</button
+            >
+            <span class="toolbar-hint">Claim to enable editing</span>
+          </div>
+        {/if}
 
-      <footer class="page-footer">
-        <span>Published on </span>
-        <a href="/">vibe.pub</a>
-        <span class="footer-sep"> — </span>
-        <a href="/">Create yours</a>
-      </footer>
-    </div>
+        <KanbanReaderHead
+          boardFullwidth={kanbanBoardFullwidth}
+          kicker={kanbanKickerText}
+          title={pageTitle}
+          titleEmphasis={kanbanTitleEmphasis}
+          lede={kanbanLedeText}
+        />
+
+        <div class="kanban-board-wrapper">
+          <KanbanView
+            boardFullwidth={kanbanBoardFullwidth}
+            markdown={effectiveKanbanMarkdown}
+            pageId={page.id}
+            {comments}
+            initialColumns={data.kanbanData?.columns ?? []}
+            initialLabels={data.kanbanData?.labels ?? {}}
+            {isOwner}
+          />
+        </div>
+
+        <footer class="kanban-article-foot" aria-label="Colophon">
+          <p class="kanban-foot-inner">
+            <a href="/" class="kanban-foot-brand">vibe.<em>pub</em></a>
+            <span class="kanban-foot-lead">This is a live markdown file.</span>
+            <a class="kanban-foot-source" href={`${canonicalPath}.md`}>See the source →</a>
+            <span class="kanban-foot-meta">published · no login required</span>
+          </p>
+        </footer>
+      </div>
+    {/if}
   {:else if page.view === 'changelog'}
     <!-- ═══ CHANGELOG LAYOUT ═══ -->
     <div class="changelog-layout">
@@ -1189,6 +1417,66 @@
         <a href="/">Create yours</a>
       </footer>
     </div>
+  {:else if docKanbanPeek}
+    <div class="kanban-doc-peek kanban-doc-peek--full-board">
+      <nav class="kanban-doc-peek-nav">
+        <a class="kanban-doc-peek-back" href={canonicalPath}>← Back to doc</a>
+        {#if isOwner}
+          <div class="kanban-doc-peek-nav-actions">
+            <button
+              type="button"
+              class="toolbar-btn toolbar-save"
+              onclick={saveAsKanban}
+              disabled={saveAsKanbanLoading}
+            >
+              {saveAsKanbanLoading ? 'Saving…' : 'Save as kanban'}
+            </button>
+            {#if saveAsKanbanError}
+              <span class="kanban-doc-peek-save-error" role="alert">{saveAsKanbanError}</span>
+            {/if}
+          </div>
+        {/if}
+      </nav>
+      <div class="kanban-layout" class:board-fullwidth={kanbanBoardFullwidth}>
+        {#if canClaim}
+          <div class="kanban-toolbar">
+            <button class="toolbar-btn" onclick={claimPage} disabled={claiming}
+              >{claiming ? 'Claiming...' : 'Claim this page'}</button
+            >
+            <span class="toolbar-hint">Claim to enable editing</span>
+          </div>
+        {/if}
+
+        <KanbanReaderHead
+          boardFullwidth={kanbanBoardFullwidth}
+          kicker={kanbanKickerText}
+          title={pageTitle}
+          titleEmphasis={kanbanTitleEmphasis}
+          lede={kanbanLedeText}
+        />
+
+        <div class="kanban-board-wrapper">
+          <KanbanView
+            boardFullwidth={kanbanBoardFullwidth}
+            markdown={effectiveKanbanMarkdown}
+            pageId={page.id}
+            {comments}
+            initialColumns={data.kanbanData?.columns ?? []}
+            initialLabels={data.kanbanData?.labels ?? {}}
+            {isOwner}
+          />
+        </div>
+
+        <footer class="kanban-article-foot" aria-label="Colophon">
+          <p class="kanban-foot-inner">
+            <a href="/" class="kanban-foot-brand">vibe.<em>pub</em></a>
+            <span class="kanban-foot-lead">This is a live markdown file.</span>
+            <a class="kanban-foot-source" href={`${canonicalPath}.md`}>See the source →</a>
+            <span class="kanban-foot-meta">published · no login required</span>
+          </p>
+        </footer>
+      </div>
+    </div>
   {:else}
     <!-- ═══ DOC LAYOUT ═══ -->
     <div class="doc-layout">
@@ -1295,15 +1583,8 @@
             </div>
           </header>
 
-          <article
-            class="doc-article"
-            class:doc-article--version-pending={!isOwner && readerHistoryVersionLoading}
-            use:docActions={effectiveDocHtml}
-          >
-            {#if !isOwner && readerHistoryVersionLoading}
-              <div class="reader-version-loading" role="status">Loading snapshot…</div>
-            {/if}
-            {#if !isOwner && readerHistoryVersionLoadError}
+          <article class="doc-article" use:docActions={effectiveDocHtml}>
+            {#if readerHistoryVersionLoadError}
               <div class="reader-version-error" role="alert">{readerHistoryVersionLoadError}</div>
             {/if}
             <DocView
@@ -1578,76 +1859,159 @@
     {/if}
   {/if}
 
-  {#if !isOwner}
-    <aside
-      id="reader-history-panel"
-      class="history-panel-reader"
-      class:open={readerHistoryOpen}
-      aria-hidden={!readerHistoryOpen}
-    >
-      <div class="history-panel-head rail-head">
-        <div class="history-panel-head-l">
-          <div class="history-kicker">version history</div>
-          <h2 class="history-panel-title">Previous <em>versions</em></h2>
-        </div>
-        <button
-          type="button"
-          class="history-panel-close"
-          aria-label="Close history"
-          onclick={() => closeReaderHistoryPanel()}
-        >
-          ✕
-        </button>
-      </div>
-      <div class="history-panel-body">
-        {#if readerHistoryLoading}
-          <p class="history-panel-status">Loading…</p>
-        {:else if readerHistoryError}
-          <p class="history-panel-status history-panel-status--error">{readerHistoryError}</p>
-        {:else if readerVersions.length === 0}
-          <p class="history-panel-status">No saved versions yet.</p>
-        {:else}
-          {#each readerVersions as row, i (row.version)}
-            {@const historyAuthor = row.author_username ?? data.pageUser?.username ?? ''}
+  <aside
+    id="reader-history-panel"
+    class="history-panel-reader"
+    class:open={readerHistoryOpen}
+    aria-hidden={!readerHistoryOpen}
+  >
+    <div class="history-panel-head rail-head">
+      <div class="history-kicker">version history</div>
+      <div class="history-panel-head-row2">
+        <h2 class="history-panel-title">Previous <em>versions</em></h2>
+        <div class="history-panel-head-r">
+          {#if isOwner}
+            {@const historyRestoreReady =
+              !readerHistoryIsLatestSelected &&
+              !readerHistoryVersionLoading &&
+              readerHistoryPreviewMarkdown.trim().length > 0}
             <button
               type="button"
-              class="history-entry"
-              class:history-entry--selected={readerHistorySelectedVersion === null
-                ? i === 0
-                : readerHistorySelectedVersion === row.version}
-              aria-current={(
-                readerHistorySelectedVersion === null
-                  ? i === 0
-                  : readerHistorySelectedVersion === row.version
-              )
-                ? 'true'
-                : undefined}
-              onclick={() => selectReaderHistoryVersion(row, i)}
+              class="history-panel-restore"
+              class:history-panel-restore--latest={readerHistoryIsLatestSelected}
+              disabled={!historyRestoreReady ||
+                historyRestoreLoading ||
+                readerVersions.length === 0}
+              onclick={() => void restoreHistoryVersion()}
             >
-              <div class="history-date">{formatHistoryDate(row.created)}</div>
-              <div class="history-title">
-                {row.title?.trim() || 'Untitled'}{#if i === 0}<span class="history-badge-current"
-                    >current</span
-                  >{/if}
-              </div>
-              <div class="history-summary">
-                Snapshot · {row.lines} line{row.lines === 1 ? '' : 's'}
-              </div>
-              <div
-                class="history-stats"
-                aria-label="Lines changed vs previous snapshot, and who updated the page"
-              >
-                <span class="stat lines"><b>+{row.lines_added}</b> lines</span>
-                <span class="stat lines"><b>−{row.lines_removed}</b> lines</span>
-                {#if historyAuthor}
-                  <span class="stat"><b>@{historyAuthor}</b></span>
-                {/if}
-              </div>
+              {#if readerHistoryIsLatestSelected}
+                the latest version
+              {:else}
+                restore this version
+              {/if}
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="history-panel-close"
+            aria-label="Close history"
+            onclick={() => closeReaderHistoryPanel()}
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="history-panel-body">
+      {#if readerHistoryLoading}
+        <p class="history-panel-status">Loading…</p>
+      {:else if readerHistoryError}
+        <p class="history-panel-status history-panel-status--error">{readerHistoryError}</p>
+      {:else if readerVersions.length === 0}
+        <p class="history-panel-status">No saved versions yet.</p>
+      {:else}
+        {#each readerVersions as row, i (row.version)}
+          {@const historyAuthor = row.author_username ?? data.pageUser?.username ?? ''}
+          <button
+            type="button"
+            class="history-entry"
+            class:history-entry--selected={readerHistorySelectedVersion === null
+              ? i === 0
+              : readerHistorySelectedVersion === row.version}
+            aria-current={(
+              readerHistorySelectedVersion === null
+                ? i === 0
+                : readerHistorySelectedVersion === row.version
+            )
+              ? 'true'
+              : undefined}
+            onclick={() => selectReaderHistoryVersion(row, i)}
+          >
+            <div class="history-date">{formatHistoryDate(row.created)}</div>
+            <div class="history-title">
+              {row.title?.trim() || 'Untitled'}{#if i === 0}<span class="history-badge-current"
+                  >current</span
+                >{/if}
+            </div>
+            <div class="history-summary">
+              Snapshot · {row.lines} line{row.lines === 1 ? '' : 's'}
+            </div>
+            <div
+              class="history-stats"
+              aria-label="Lines changed vs previous snapshot, and who updated the page"
+            >
+              <span class="stat lines"><b>+{row.lines_added}</b> lines</span>
+              <span class="stat lines"><b>−{row.lines_removed}</b> lines</span>
+              {#if historyAuthor}
+                <span class="stat"><b>@{historyAuthor}</b></span>
+              {/if}
+            </div>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </aside>
+
+  {#if $readerAppearancePanelOpen}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="reader-appearance-backdrop"
+      onclick={() => closeReaderAppearancePanel()}
+      role="presentation"
+    ></div>
+    <div class="reader-appearance-panel" role="dialog" aria-modal="true" aria-label="Appearance">
+      <div class="reader-appearance-head">
+        <span class="reader-appearance-title">Appearance</span>
+        <button
+          type="button"
+          class="reader-appearance-close"
+          onclick={() => closeReaderAppearancePanel()}
+          aria-label="Close appearance">✕</button
+        >
+      </div>
+      <div class="rap-section">
+        <div class="rap-label">
+          Theme <span class="rap-val">{effectiveTheme}</span>
+        </div>
+        <div class="rap-theme-grid">
+          {#each readerAppearanceThemes as row (row.id)}
+            <button
+              type="button"
+              class="rap-theme-chip {row.chipClass}"
+              class:active={effectiveTheme === row.id}
+              onclick={() => (readerThemePreview = row.id)}
+            >
+              <span class="rap-name">{row.label}</span>
             </button>
           {/each}
-        {/if}
+        </div>
+        <button type="button" class="rap-reset" onclick={() => (readerThemePreview = null)}>
+          Reset to published
+        </button>
       </div>
-    </aside>
+      <div class="rap-section">
+        <div class="rap-label">Mode</div>
+        <div class="rap-mode-row">
+          <button
+            type="button"
+            class="rap-mode-btn"
+            class:active={appearanceLightActive}
+            onclick={() => (readerThemePreview = 'default')}
+          >
+            light
+          </button>
+          <button
+            type="button"
+            class="rap-mode-btn"
+            class:active={!appearanceLightActive}
+            onclick={() => (readerThemePreview = 'midnight')}
+          >
+            dark (midnight)
+          </button>
+        </div>
+      </div>
+    </div>
   {/if}
 </div>
 
@@ -1691,22 +2055,365 @@
     min-height: 100vh;
   }
 
-  /* ═══ KANBAN LAYOUT ═══ */
+  /* ═══ KANBAN LAYOUT ═══
+     Matches Reader_Kanban: flex column fills viewport; board scrolls inside. */
   .kanban-layout {
-    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 0;
     max-width: 100%;
   }
 
   .kanban-toolbar {
-    max-width: 1200px;
-    margin: 0 auto 12px;
+    max-width: none;
+    margin: 0;
+    padding: 16px 22px 0;
+    width: 100%;
+    box-sizing: border-box;
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 901px) {
+    .kanban-toolbar {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
   }
 
   .kanban-board-wrapper {
-    max-width: 100%;
-    overflow-x: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .kanban-layout.board-fullwidth .kanban-board-wrapper {
+    max-width: none;
+  }
+
+  /* Kanban: “Open as doc” — prose preview of same markdown (seo body) */
+  .kanban-doc-peek {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+    box-sizing: border-box;
+  }
+
+  .kanban-doc-peek-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 16px 0 8px;
+    flex-shrink: 0;
+  }
+
+  .kanban-doc-peek-nav-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .kanban-doc-peek-save-error {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--danger, #b91c1c);
+    max-width: 280px;
+  }
+
+  :global(.dark) .kanban-doc-peek-save-error {
+    color: var(--danger, #fca5a5);
+  }
+
+  .kanban-doc-peek-back {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+
+  .kanban-doc-peek-back:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+  }
+
+  .kanban-doc-peek-main {
+    flex: 1 1 auto;
+  }
+
+  .kanban-doc-peek-article {
+    padding-bottom: 32px;
+  }
+
+  /* Doc “Open as kanban”: full-width board (same as native kanban). */
+  .kanban-doc-peek--full-board {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .kanban-doc-peek--full-board .kanban-doc-peek-nav {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  @media (min-width: 901px) {
+    .kanban-doc-peek--full-board .kanban-doc-peek-nav {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+  }
+
+  /* Kanban “Open as doc”: full-width shell + 680px prose column (same measure as Reader `.doc-main`). */
+  .kanban-doc-peek--full-doc {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .kanban-doc-peek--full-doc .kanban-doc-peek-nav {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  @media (min-width: 901px) {
+    .kanban-doc-peek--full-doc .kanban-doc-peek-nav {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+  }
+
+  .kanban-doc-peek--full-doc .kanban-doc-peek-main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px 120px;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 900px) {
+    .kanban-doc-peek--full-doc .kanban-doc-peek-main {
+      padding-left: 22px;
+      padding-right: 22px;
+    }
+  }
+
+  .kanban-doc-peek--full-doc .kanban-doc-peek-body {
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .kanban-doc-peek--full-doc .kanban-article-foot {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 32px;
+    padding-right: 32px;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 900px) {
+    .kanban-doc-peek--full-doc .kanban-article-foot {
+      padding-left: 22px;
+      padding-right: 22px;
+    }
+  }
+
+  /* Reader “Appearance” (Header ···) */
+  .reader-appearance-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.12);
+  }
+
+  .reader-appearance-panel {
+    position: fixed;
+    top: 68px;
+    right: 16px;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(0, 0, 0, 0.04);
+    padding: 18px 20px 20px;
+    z-index: 70;
+    box-sizing: border-box;
+  }
+
+  .reader-appearance-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .reader-appearance-title {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .reader-appearance-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .reader-appearance-close:hover {
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+    color: var(--text-primary);
+  }
+
+  .rap-section {
+    margin-bottom: 18px;
+  }
+
+  .rap-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .rap-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .rap-val {
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .rap-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .rap-theme-chip {
+    position: relative;
+    border-radius: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: border-color 0.15s ease;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    min-height: 44px;
+    text-align: left;
+  }
+
+  .rap-theme-chip.active {
+    border-color: currentColor;
+  }
+
+  .rap-chip-default {
+    background: #edeae5;
+    color: #1a1917;
+  }
+  .rap-chip-paper {
+    background: #faf8f5;
+    color: #1c1917;
+  }
+  .rap-chip-claude {
+    background: #f5f4ed;
+    color: #c96442;
+  }
+  .rap-chip-solarized {
+    background: #fdf6e3;
+    color: #268bd2;
+  }
+  .rap-chip-midnight {
+    background: #0f172a;
+    color: #a5b4fc;
+  }
+  .rap-chip-terminal {
+    background: #0c0c0c;
+    color: #4ade80;
+  }
+
+  .rap-name {
+    font-weight: 600;
+  }
+
+  .rap-reset {
+    margin-top: 10px;
+    width: 100%;
+    padding: 8px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .rap-reset:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+  }
+
+  .rap-mode-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .rap-mode-btn {
+    flex: 1;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .rap-mode-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+  }
+
+  .rap-mode-btn.active {
+    background: var(--text-primary);
+    color: var(--bg);
+    border-color: var(--text-primary);
   }
 
   /* ═══ CHANGELOG LAYOUT ═══ */
@@ -1918,6 +2625,15 @@
 
   .doc-article :global(.doc-view p) {
     margin: 0 0 22px;
+  }
+
+  /* Unlayered: same cascade reason as DocView — paragraph rule above would otherwise keep 22px bottom on `blockquote > p`. */
+  .doc-article :global(.doc-view blockquote > *) {
+    margin: 0;
+  }
+
+  .doc-article :global(.doc-view blockquote > * + *) {
+    margin-top: 0.65em;
   }
 
   .doc-article :global(.doc-view h2) {
@@ -2150,7 +2866,7 @@
     pointer-events: auto;
   }
 
-  /* Reader_Doc.html — .history-panel (non-owner version rail) */
+  /* Reader_Doc.html — .history-panel (version rail) */
   .history-panel-reader {
     position: fixed;
     top: 56px;
@@ -2189,14 +2905,68 @@
     background: var(--bg);
     z-index: 1;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
     border-bottom: 1px solid var(--border);
   }
 
-  .history-panel-head-l {
+  .history-panel-head-row2 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     min-width: 0;
+    min-height: 30px;
+  }
+
+  .history-panel-head-r {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .history-panel-restore {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+    max-width: 118px;
+    min-height: 42px;
+    min-width: 108px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 7px 10px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-hover);
+    background: var(--surface-hover);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+      color 0.12s ease,
+      background 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  .history-panel-restore:hover:not(:disabled) {
+    border-color: var(--border);
+    color: var(--text-secondary);
+    background: var(--bg);
+  }
+
+  .history-panel-restore:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+
+  .history-panel-restore--latest:disabled {
+    opacity: 0.55;
   }
 
   .history-kicker {
@@ -2207,6 +2977,7 @@
     text-transform: uppercase;
     color: var(--text-tertiary);
     margin: 0 0 4px;
+    white-space: nowrap;
   }
 
   .history-panel-title {
@@ -2217,6 +2988,8 @@
     margin: 0;
     color: var(--text-primary);
     line-height: 1.2;
+    flex: 1;
+    min-width: 0;
   }
 
   .history-panel-title em {
@@ -2303,26 +3076,6 @@
 
   :global(.dark) .history-entry--selected {
     background: rgba(255, 255, 255, 0.03);
-  }
-
-  .doc-article--version-pending :global(.doc-view) {
-    opacity: 0.45;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-  }
-
-  .reader-version-loading {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 2.5rem;
-    font-family: var(--font-sans);
-    font-size: 14px;
-    color: var(--text-secondary);
-    pointer-events: none;
   }
 
   .reader-version-error {

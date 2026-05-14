@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getCommentsByPage } from '$lib/server/db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
+import { buildCanonicalPath } from '$lib/server/slug';
 import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 
 interface CollectionRow {
@@ -23,6 +24,7 @@ interface CollectionPageRow {
   title: string | null;
   markdown: string;
   view: string;
+  updated: string;
 }
 
 export const load: PageServerLoad = async ({ params, url, platform, depends }) => {
@@ -48,7 +50,7 @@ export const load: PageServerLoad = async ({ params, url, platform, depends }) =
   const pagesResult = await db
     .prepare(
       `
-      SELECT cp.page_id, cp.sort_order, cp.label, p.id, p.slug, p.title, p.markdown, p.view
+      SELECT cp.page_id, cp.sort_order, cp.label, p.id, p.slug, p.title, p.markdown, p.view, p.updated
       FROM collection_pages cp
       JOIN pages p ON cp.page_id = p.id
       WHERE cp.collection_id = ?
@@ -136,10 +138,17 @@ export const load: PageServerLoad = async ({ params, url, platform, depends }) =
       title: activePage.title,
       markdown: activePage.markdown,
       view: activePage.view,
+      updated: activePage.updated,
       html,
       comments,
       frontmatter: fm,
       kanbanData,
+      sourceMarkdownHref:
+        buildCanonicalPath({
+          id: activePage.page_id,
+          slug: activePage.slug,
+          title: activePage.title,
+        }) + '.md',
     },
     allHeadings,
   };

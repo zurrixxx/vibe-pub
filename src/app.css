@@ -587,48 +587,6 @@
     content: none;
   }
 
-  /*
-   * Reader_Doc blockquote — single source for doc reading + /new preview.
-   * Overrides generic .prose quote above (higher specificity on article.doc-view.prose).
-   */
-  article.doc-view.prose :where(blockquote),
-  .preview-html :where(blockquote) {
-    margin: 28px 0;
-    padding: 2px 0 2px 22px;
-    border-left: 3px solid var(--text-primary);
-    border-radius: 0;
-    font-family: var(--font-prose);
-    font-size: 1.05em;
-    line-height: 1.7;
-    font-style: italic;
-    color: var(--text-secondary);
-    quotes: none;
-  }
-
-  article.doc-view.prose :where(blockquote)::before,
-  article.doc-view.prose :where(blockquote)::after,
-  .preview-html :where(blockquote)::before,
-  .preview-html :where(blockquote)::after {
-    content: none;
-  }
-
-  article.doc-view.prose :where(blockquote > p)::before,
-  article.doc-view.prose :where(blockquote > p)::after,
-  .preview-html :where(blockquote > p)::before,
-  .preview-html :where(blockquote > p)::after {
-    content: none;
-  }
-
-  article.doc-view.prose :where(blockquote > *),
-  .preview-html :where(blockquote > *) {
-    margin: 0;
-  }
-
-  article.doc-view.prose :where(blockquote > * + *),
-  .preview-html :where(blockquote > * + *) {
-    margin-top: 0.65em;
-  }
-
   .prose :where(hr) {
     border-color: var(--border);
   }
@@ -938,4 +896,159 @@
 .theme-raycast .prose :where(a) {
   color: #ff6363;
   text-decoration-color: rgba(255, 99, 99, 0.3);
+}
+
+/*
+ * Reader_Doc.html `.prose blockquote` — lives in @layer utilities so it wins over
+ * @tailwindcss/typography (same layer sets border-inline-start-width: 0.25rem ≈ 4px).
+ * Matches project/Reader_Doc.html: 3px primary bar, 22px inset, 28px vertical rhythm.
+ */
+@layer utilities {
+  article.doc-view.prose :where(blockquote),
+  .preview-html :where(blockquote) {
+    margin: 28px 0;
+    padding: 2px 0 2px 22px;
+    border-inline-start: 3px solid var(--text-primary);
+    border-radius: 0;
+    font-family: var(--font-prose);
+    font-size: 1.05em;
+    line-height: 1.7;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--text-secondary);
+    quotes: none;
+  }
+
+  article.doc-view.prose :where(blockquote)::before,
+  article.doc-view.prose :where(blockquote)::after,
+  .preview-html :where(blockquote)::before,
+  .preview-html :where(blockquote)::after,
+  article.doc-view.prose :where(blockquote > p)::before,
+  article.doc-view.prose :where(blockquote > p)::after,
+  .preview-html :where(blockquote > p)::before,
+  .preview-html :where(blockquote > p)::after {
+    content: none;
+  }
+
+  article.doc-view.prose :where(blockquote > *),
+  .preview-html :where(blockquote > *) {
+    margin: 0;
+  }
+
+  article.doc-view.prose :where(blockquote > * + *),
+  .preview-html :where(blockquote > * + *) {
+    margin-top: 0.65em;
+  }
+
+  /*
+   * Kill prose / preview `p` margins inside blockquotes (Tailwind typography & /new preview
+   * use high-utility rules; :where(blockquote > *) alone loses on specificity).
+   */
+  article.doc-view.prose blockquote > p,
+  article.doc-view.prose blockquote > ul,
+  article.doc-view.prose blockquote > ol,
+  article.doc-view.prose blockquote > pre,
+  .preview-html blockquote > p,
+  .preview-html blockquote > ul,
+  .preview-html blockquote > ol,
+  .preview-html blockquote > pre {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+
+/* Kanban reader colophon — design: single centered row (serif + mono), not space-between columns */
+.kanban-article-foot {
+  max-width: 1320px;
+  margin: 60px auto 0;
+  padding: 32px 22px 56px;
+  border-top: 1px solid var(--border);
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center;
+}
+
+@media (min-width: 901px) {
+  .kanban-article-foot {
+    padding-left: 48px;
+    padding-right: 48px;
+    padding-bottom: 64px;
+  }
+}
+
+.kanban-layout.board-fullwidth .kanban-article-foot {
+  max-width: none;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+.kanban-doc-peek .kanban-article-foot {
+  max-width: none;
+  margin-top: 40px;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 48px;
+}
+
+.kanban-foot-inner {
+  margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.35em 0.55em;
+  max-width: 100%;
+  text-align: center;
+}
+
+.kanban-foot-brand,
+.kanban-foot-lead {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.kanban-foot-brand {
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.kanban-foot-brand:hover {
+  color: var(--text-primary);
+}
+
+.kanban-foot-brand em {
+  font-style: italic;
+}
+
+.kanban-foot-source {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.kanban-foot-source:hover {
+  color: var(--text-primary);
+}
+
+.kanban-foot-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+@media print {
+  .kanban-article-foot {
+    display: none !important;
+  }
 }

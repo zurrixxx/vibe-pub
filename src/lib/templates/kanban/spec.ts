@@ -19,7 +19,7 @@ export const kanbanSpec: TemplateSpec = {
       labels: 'Map of label name to hex color (e.g. bug: "#ef4444")',
     },
     structure:
-      '## columns contain ### cards. Cards have optional {#id} and [labels]. Card body is free markdown.',
+      '## columns contain ### cards. Cards have optional {#id} and [labels]. Card body is free markdown. Optional due: HTML comment <!-- due: YYYY-MM-DD --> or a body line due: … (see vibe-pub format kanban).',
     example: `---
 view: kanban
 title: Q2 Roadmap
@@ -31,6 +31,7 @@ labels:
 ## Backlog
 
 ### SEO optimization {#c1} [feature]
+<!-- due: 2025-06-01 -->
 Research keywords, update meta tags.
 
 - [ ] Keyword research

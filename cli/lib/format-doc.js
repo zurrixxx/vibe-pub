@@ -8,6 +8,22 @@ export const DOC_FORMAT_DOC = `vibe.pub Document (doc) markdown format
 Use this so the reader shows a clean title, a readable one-line summary (lede),
 and body content that does not duplicate the hero title.
 
+YAML FRONTMATTER (necessary for every page)
+---------------------------
+Put **YAML between two \`---\` lines** at the very top of the file. The server parses it
+with gray-matter; everything after the closing \`---\` is the Markdown body.
+
+Shape:
+
+  ---
+  view: doc
+  title: My page
+  theme: paper
+  access: unlisted
+  ---
+
+  First paragraph of the article…
+
 PAGE TITLE (large H1 in the reader header)
 -------------------------------------------
 The stored title (hero) is chosen in this order:
@@ -65,6 +81,7 @@ git branch -a
 
 VIEW SELECTION
 --------------
-- Default template is doc when the file is not detected as another view.
-- Force doc: \`view: doc\` in frontmatter, or \`vibe-pub publish notes.md --view doc\`.
+- Default reader template is **doc** when heuristics do not match another view.
+- Force doc: \`view: doc\` in frontmatter (see “YAML FRONTMATTER” above), or
+  \`vibe-pub publish notes.md --view doc\`.
 `;

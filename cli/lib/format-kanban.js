@@ -48,6 +48,32 @@ Everything after the ### line until the next ### or ## belongs to that card.
 Lists, checkboxes, code blocks, etc. are rendered as normal Markdown in the
 card detail view.
 
+OPTIONAL DUE DATE (BOARD CARD FOOT — CALENDAR CHIP)
+---------------------------------------------------
+The reader shows a small calendar icon on each card. The text next to it is the
+**due date** parsed from that card's body (not the page created time).
+
+**Precedence:** an HTML comment is read first; if missing, a \`due:\` line in
+the body is used. If neither matches, the chip shows an em dash (—).
+
+1) **HTML comment** (recommended — hidden from rendered markdown):
+
+  <!-- due: 2025-06-15 -->
+
+- Put it anywhere in the card body. The value is the date token after \`due:\`
+  (digits and hyphens, e.g. \`YYYY-MM-DD\`). Invalid dates are ignored.
+
+2) **Body line** (visible in prose unless you hide it):
+
+  due: 2025-06-15
+  **Due:** 2025-06-20
+
+- A line starting (after optional whitespace / list indent) with \`due\`
+  optionally wrapped in \`**\`, then \`:\`, then the rest of the line.
+- If the rest starts with \`YYYY-MM-DD\`, that date is shown in short form
+  (e.g. \`Jun 15\`) like the HTML form.
+- Otherwise the raw text is shown (up to 14 chars, or 12 chars + "…").
+
 VIEW SELECTION
 --------------
 - Force kanban: set \`view: kanban\` in frontmatter, or publish with
@@ -69,6 +95,7 @@ labels:
 ## Backlog
 
 ### SEO work {#c1} [feature]
+<!-- due: 2025-06-30 -->
 - [ ] Keyword research
 
 ## Done

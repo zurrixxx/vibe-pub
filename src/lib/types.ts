@@ -89,6 +89,13 @@ export interface PageFrontmatter {
   access?: 'public' | 'unlisted' | 'private';
   title?: string;
   expires?: string;
+  /** Kanban reader: small caps line above hero (e.g. roadmap · q2 2026) */
+  kicker?: string;
+  /** Kanban reader: subtitle under hero */
+  lede?: string;
+  subtitle?: string;
+  /** Substring of `title` to render wrapped in <em> in the hero */
+  title_emphasis?: string;
 }
 
 /** Payload from /[slug] +page.server load — shared by PublishedPage.svelte */

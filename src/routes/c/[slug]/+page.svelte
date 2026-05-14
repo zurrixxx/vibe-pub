@@ -3,11 +3,59 @@
   import { goto, invalidateAll } from '$app/navigation';
   import DocView from '$lib/templates/doc/DocView.svelte';
   import KanbanView from '$lib/templates/kanban/KanbanView.svelte';
+  import KanbanReaderHead from '$lib/templates/kanban/KanbanReaderHead.svelte';
+  import { kanbanReaderBoardFullwidth } from '$lib/stores';
+  import type { PageFrontmatter } from '$lib/types';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
 
   let isDoc = $derived(data.activePage?.view !== 'kanban');
+
+  let kanbanBoardFullwidth = $state(true);
+
+  $effect(() => {
+    if (data.activePage?.view !== 'kanban') return;
+    return kanbanReaderBoardFullwidth.subscribe((v) => {
+      if (kanbanBoardFullwidth !== v) kanbanBoardFullwidth = v;
+    });
+  });
+
+  let kanbanReaderHeadProps = $derived.by(() => {
+    const ap = data.activePage;
+    if (!ap || ap.view !== 'kanban') return null;
+    const fm = ap.frontmatter as PageFrontmatter & Record<string, unknown>;
+    const title = (ap.title ?? ap.slug ?? '').trim() || 'Untitled';
+    const k =
+      typeof fm.kicker === 'string' && fm.kicker.trim()
+        ? fm.kicker.trim()
+        : (() => {
+            const d = new Date(ap.updated);
+            if (Number.isNaN(d.getTime())) return 'kanban board';
+            const q = Math.floor(d.getMonth() / 3) + 1;
+            return `roadmap · q${q} ${d.getFullYear()}`;
+          })();
+    const lede =
+      typeof fm.lede === 'string' && fm.lede.trim()
+        ? fm.lede.trim()
+        : typeof fm.subtitle === 'string' && fm.subtitle.trim()
+          ? fm.subtitle.trim()
+          : (() => {
+              const cols = ap.kanbanData?.columns ?? [];
+              const n = cols.reduce((a, c) => a + (c.cards?.length ?? 0), 0);
+              return `The board in ${n} cards across ${cols.length} column${cols.length === 1 ? '' : 's'}. Readable by anyone — this page is the markdown.`;
+            })();
+    const titleEmphasis =
+      typeof fm.title_emphasis === 'string' && fm.title_emphasis.trim()
+        ? fm.title_emphasis.trim()
+        : null;
+    return {
+      kicker: k,
+      title,
+      lede,
+      titleEmphasis,
+    };
+  });
 
   let showDropdown = $state(false);
   let showOutline = $state(false);
@@ -137,14 +185,34 @@
 {#if data.activePage}
   <div class="collection-page theme-{data.collection.theme ?? 'default'}">
     {#if data.activePage.view === 'kanban'}
-      <div class="kanban-layout">
+      <div class="kanban-layout" class:board-fullwidth={kanbanBoardFullwidth}>
+        {#if kanbanReaderHeadProps}
+          <KanbanReaderHead
+            boardFullwidth={kanbanBoardFullwidth}
+            kicker={kanbanReaderHeadProps.kicker}
+            title={kanbanReaderHeadProps.title}
+            titleEmphasis={kanbanReaderHeadProps.titleEmphasis}
+            lede={kanbanReaderHeadProps.lede}
+          />
+        {/if}
         <KanbanView
+          boardFullwidth={kanbanBoardFullwidth}
           markdown={data.activePage.markdown}
           pageId={data.activePage.id}
           comments={data.activePage.comments}
           initialColumns={data.activePage.kanbanData?.columns ?? []}
           initialLabels={data.activePage.kanbanData?.labels ?? {}}
         />
+        <footer class="kanban-article-foot" aria-label="Colophon">
+          <p class="kanban-foot-inner">
+            <a href="/" class="kanban-foot-brand">vibe.<em>pub</em></a>
+            <span class="kanban-foot-lead">This is a live markdown file.</span>
+            <a class="kanban-foot-source" href={data.activePage.sourceMarkdownHref}
+              >See the source →</a
+            >
+            <span class="kanban-foot-meta">published · no login required</span>
+          </p>
+        </footer>
       </div>
     {:else}
       <!-- Same layout as single page doc view -->
@@ -392,10 +460,16 @@
     background: var(--bg);
     color: var(--text-primary);
     min-height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
   }
 
   .kanban-layout {
-    padding: 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
   }
 
   .doc-layout {

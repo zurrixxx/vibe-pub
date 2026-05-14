@@ -1,6 +1,5 @@
-// src/lib/templates/kanban/parser.ts — server-only (imports gray-matter)
+// src/lib/templates/kanban/parser.ts — Kanban parse (browser-safe; no gray-matter — avoids Buffer / yaml issues in client bundles)
 import type { Block } from '../types';
-import matter from 'gray-matter';
 // Re-export types and serialize from the client-safe module
 export {
   serializeKanban,
@@ -9,6 +8,61 @@ export {
   type KanbanLabels,
 } from './serialize';
 import type { KanbanCard, KanbanColumn, KanbanLabels } from './serialize';
+
+/**
+ * Split YAML frontmatter from body without gray-matter (safe in the browser).
+ * Supports top-level `key: value` lines and a `labels:` block with indented `name: color` rows.
+ */
+function splitKanbanFrontmatter(markdown: string): {
+  data: Record<string, unknown>;
+  content: string;
+} {
+  const m = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!m || m.index !== 0) {
+    return { data: {}, content: markdown };
+  }
+  const yaml = m[1];
+  const content = markdown.slice(m[0].length);
+  const data: Record<string, unknown> = {};
+  const lines = yaml.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    const top = line.match(/^([\w-]+):\s*(.*)$/);
+    if (!top) {
+      i += 1;
+      continue;
+    }
+    const key = top[1];
+    const rest = top[2].trim();
+    if (key === 'labels' && rest === '') {
+      const labelObj: KanbanLabels = {};
+      i += 1;
+      while (i < lines.length) {
+        const sub = lines[i]!;
+        if (/^[\w-]+:\s*\S/.test(sub) && !/^\s/.test(sub)) break;
+        const lm = sub.match(/^\s+([\w-]+):\s*(.+)$/);
+        if (lm) {
+          let v = lm[2].trim();
+          if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
+            v = v.slice(1, -1);
+          labelObj[lm[1]] = v;
+        }
+        i += 1;
+      }
+      data.labels = labelObj;
+      continue;
+    }
+    let val: unknown = rest;
+    if (rest === 'true' || rest === 'True') val = true;
+    else if (rest === 'false' || rest === 'False') val = false;
+    else if (rest.startsWith('"') && rest.endsWith('"')) val = rest.slice(1, -1);
+    else if (rest.startsWith("'") && rest.endsWith("'")) val = rest.slice(1, -1);
+    data[key] = val;
+    i += 1;
+  }
+  return { data, content };
+}
 
 function nanoid(size = 6): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -36,7 +90,7 @@ export interface KanbanParseResult {
  *   body lines...            -> card body (until next ### or ##)
  */
 export function parseKanbanBlocks(markdown: string): KanbanParseResult {
-  const { data: fm, content } = matter(markdown);
+  const { data: fm, content } = splitKanbanFrontmatter(markdown);
   const labels: KanbanLabels = (fm.labels as KanbanLabels) || {};
   const lines = content.split('\n');
 
@@ -56,7 +110,7 @@ export function parseKanbanBlocks(markdown: string): KanbanParseResult {
   const outputLines: string[] = [];
 
   // Rebuild frontmatter for normalizedMarkdown
-  const fmRaw = markdown.match(/^---\n[\s\S]*?\n---\n/);
+  const fmRaw = markdown.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
   if (fmRaw) {
     outputLines.push(fmRaw[0].trimEnd());
   }

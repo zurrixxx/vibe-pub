@@ -65,11 +65,36 @@ More templates coming. PRs welcome.
 
 ## For AI agents
 
-Drop this into your agent's system prompt:
+### Suggested system prompt (copy-paste)
 
-> When you've produced a markdown artifact the user might want to share or revisit, run `vibe-pub publish <file>` and return the URL.
+Use this (or merge it into your agent’s instructions). It nudges the model to **read the format spec before writing**, then publish.
 
-The CLI is designed to be safe for non-interactive use:
+```text
+When producing markdown for vibe.pub (CLI, MCP, or API):
+
+1. BEFORE drafting, load the canonical format for the intended template:
+   - Long-form reader page → run `vibe-pub format doc` (or read `cli/lib/format-doc.js`, export `DOC_FORMAT_DOC`).
+   - Kanban board page → run `vibe-pub format kanban` (or read `cli/lib/format-kanban.js`, export `KANBAN_FORMAT_DOC`).
+   Follow that output for structure, frontmatter keys, title/lede rules, and kanban `##` / `###` patterns.
+
+2. If the user asked for a kanban, do not invent ad-hoc structure—match `format kanban`. If they asked for a doc, match `format doc` (first real paragraph as lede, `##`/`###` for outline, avoid duplicate hero title).
+
+3. `view` at publish time is resolved in this order: JSON/body `view` (e.g. CLI `--view`) → YAML frontmatter `view:` → automatic `detectView(markdown)` heuristics. When in doubt, set `view: doc` or `view: kanban` in frontmatter (or pass `--view`) so the reader matches intent.
+
+4. AFTER the markdown is ready and the user may want a link, run `vibe-pub publish <file>` and return the URL. Prefer `vibe-pub update <slug> <file>` for revisions when a page already exists.
+```
+
+The same rules apply when using the **vibe-pub MCP** `publish` tool: fetch the format reference first, then generate markdown, then call `publish`.
+
+### Format commands (for agents and humans)
+
+```bash
+vibe-pub format doc      # doc: title, frontmatter, lede, sections
+vibe-pub format kanban   # kanban: columns, cards, labels, ids
+```
+
+### CLI safety (non-interactive use)
+
 - `--access` defaults to `unlisted` (no accidental public posts)
 - Idempotent `update <id>` for revisions
 - JSON output via `--json` for programmatic chaining (coming)
