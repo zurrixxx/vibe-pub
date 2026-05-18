@@ -228,7 +228,7 @@
 </div>
 
 <div class="doc-wrap">
-  <article class="doc-view prose dark:prose-invert max-w-[680px]" use:enhanceDoc={docEnhanceOpts}>
+  <article class="doc-view prose max-w-[var(--reader-measure)]" use:enhanceDoc={docEnhanceOpts}>
     {#if showTitle}
       <h1 class="doc-title">{title}</h1>
     {/if}
@@ -511,7 +511,7 @@
       background: rgba(0, 0, 0, 0.03);
       border-radius: 6px;
       padding: 4px 10px;
-      margin: 0 -10px 22px -10px;
+      margin: 0 -10px var(--reader-block-gap) -10px;
     }
 
     :global(.dark) article.doc-view :global(.block-el.block-el-commented) {
@@ -535,22 +535,14 @@
     }
   }
 
-  /* ── Base article (L3 design system prose) ── */
+  /* Base prose scale: app.css (Reader_Doc.html tokens) */
   article.doc-view {
-    font-family: var(--font-prose);
-    font-size: 18px;
-    line-height: 1.7;
-    color: var(--text-primary);
     --tw-prose-body: var(--text-primary);
     --tw-prose-headings: var(--text-primary);
     --tw-prose-links: var(--text-primary);
     --tw-prose-code: var(--text-primary);
     --tw-prose-quotes: var(--text-secondary);
     --tw-prose-quote-borders: var(--text-primary);
-  }
-
-  article.doc-view :global(p) {
-    margin: 0 0 22px;
   }
 
   .doc-title,
@@ -563,26 +555,10 @@
 
   article.doc-view :global(h1) {
     font-weight: 400;
-    font-size: 40px;
-    line-height: 1.1;
+    font-size: var(--reader-h1-size);
+    line-height: 1.12;
     letter-spacing: -0.025em;
-    margin: 56px 0 20px;
-  }
-
-  article.doc-view :global(h2) {
-    font-weight: 400;
-    font-size: 32px;
-    line-height: 1.15;
-    letter-spacing: -0.015em;
     margin: 48px 0 16px;
-  }
-
-  article.doc-view :global(h3) {
-    font-weight: 400;
-    font-size: 24px;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-    margin: 36px 0 12px;
   }
 
   article.doc-view :global(a) {
@@ -614,8 +590,8 @@
     padding: 18px 22px;
     border-radius: 10px;
     font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.65;
+    font-size: 13.5px;
+    line-height: 1.7;
     margin: 24px 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -677,8 +653,12 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  article.doc-view :global(th),
+  article.doc-view :global(th) {
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
   article.doc-view :global(td) {
+    color: var(--text-primary);
     white-space: nowrap;
   }
   @media (min-width: 640px) {

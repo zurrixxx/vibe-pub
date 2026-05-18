@@ -434,21 +434,32 @@
 
   let activeTocId = $state('');
 
-  // Outline: Reader — fixed left rail when ≥1280px; below that, overlay via toggle only.
-  let showToc = $state(false);
+  const OUTLINE_VISIBLE_KEY = 'vibe-reader-outline-visible';
+
+  function readOutlineVisiblePref(): boolean {
+    if (!browser) return true;
+    const v = localStorage.getItem(OUTLINE_VISIBLE_KEY);
+    return v !== '0' && v !== 'false';
+  }
+
+  /** User preference: show the left outline rail (persisted in localStorage). */
+  let outlineVisible = $state(true);
 
   $effect(() => {
     if (!browser) return;
-    tocFromText.length;
-    const mq = window.matchMedia('(min-width: 1280px)');
-    const apply = () => {
-      if (mq.matches && tocFromText.length > 0) showToc = true;
-      else if (!mq.matches) showToc = false;
-    };
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    outlineVisible = readOutlineVisiblePref();
   });
+
+  function setOutlineVisible(visible: boolean) {
+    outlineVisible = visible;
+    if (browser) localStorage.setItem(OUTLINE_VISIBLE_KEY, visible ? '1' : '0');
+  }
+
+  function toggleOutlineVisible() {
+    setOutlineVisible(!outlineVisible);
+  }
+
+  let showOutlinePanel = $derived(outlineVisible && tocFromText.length > 0);
 
   let commentsPanelOpen = $state(false);
   $effect(() => docCommentsPanelOpen.subscribe((v) => (commentsPanelOpen = v)));
@@ -1182,7 +1193,7 @@
         </nav>
         <main class="kanban-doc-peek-main">
           <div class="kanban-doc-peek-body">
-            <article class="prose dark:prose-invert kanban-doc-peek-article max-w-none">
+            <article class="prose kanban-doc-peek-article max-w-none">
               {@html seoHtml}
             </article>
           </div>
@@ -1481,37 +1492,16 @@
     <!-- ═══ DOC LAYOUT ═══ -->
     <div class="doc-layout">
       <main class="doc-main">
-        <!-- Doc actions (outline + print) -->
-        <div class="doc-actions">
-          {#if tocFromText.length > 0}
-            <button
-              class="outline-toggle"
-              class:active={showToc}
-              onclick={() => (showToc = !showToc)}
-              title="Outline"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"><path d="M4 6h16M4 12h10M4 18h13" /></svg
-              >
-            </button>
-          {/if}
-        </div>
-
         <!-- Floating outline panel -->
-        {#if showToc && tocFromText.length > 0}
+        {#if showOutlinePanel}
           <div class="outline-panel">
             <div class="outline-header">
               <span class="outline-label">Outline</span>
               <button
                 type="button"
                 class="outline-close"
-                onclick={() => (showToc = false)}
-                aria-label="Close outline"
+                onclick={() => setOutlineVisible(false)}
+                aria-label="Hide outline"
               >
                 <svg
                   width="12"
@@ -1580,6 +1570,31 @@
               <span>{docBylineDate}</span>
               <span class="doc-byline-dot"></span>
               <span>{readTime}</span>
+              {#if tocFromText.length > 0}
+                <span class="doc-byline-dot"></span>
+                <button
+                  type="button"
+                  class="meta-outline-btn"
+                  class:active={outlineVisible}
+                  onclick={toggleOutlineVisible}
+                  aria-pressed={outlineVisible}
+                  aria-label={outlineVisible ? 'Hide outline' : 'Show outline'}
+                  title={outlineVisible ? 'Hide outline' : 'Show outline'}
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13" /></svg
+                  >
+                  <span class="meta-outline-btn-text"
+                    >{outlineVisible ? 'Hide outline' : 'Show outline'}</span
+                  >
+                </button>
+              {/if}
             </div>
           </header>
 
@@ -2155,6 +2170,16 @@
     padding-bottom: 32px;
   }
 
+  .kanban-doc-peek-article :global(th) {
+    color: var(--text-secondary);
+  }
+
+  .kanban-doc-peek-article :global(td),
+  .kanban-doc-peek-article :global(p),
+  .kanban-doc-peek-article :global(li) {
+    color: var(--text-primary);
+  }
+
   /* Doc “Open as kanban”: full-width board (same as native kanban). */
   .kanban-doc-peek--full-board {
     max-width: none;
@@ -2514,8 +2539,8 @@
   .doc-hero-title {
     font-family: var(--font-serif);
     font-weight: 400;
-    font-size: clamp(40px, 5vw, 56px);
-    line-height: 1.04;
+    font-size: clamp(36px, 4.5vw, 48px);
+    line-height: 1.06;
     letter-spacing: -0.028em;
     text-align: left;
     margin: 0 0 20px;
@@ -2550,6 +2575,52 @@
     white-space: nowrap;
   }
 
+  /* Reader_Doc.html — .meta-outline-btn in byline */
+  .meta-outline-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    opacity: 0.65;
+    transition:
+      opacity 140ms ease,
+      background 140ms ease,
+      color 140ms ease;
+  }
+
+  .meta-outline-btn svg {
+    flex-shrink: 0;
+  }
+
+  .meta-outline-btn:hover {
+    opacity: 1;
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  :global(.dark) .meta-outline-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .meta-outline-btn.active {
+    opacity: 1;
+    color: var(--text-primary);
+  }
+
+  .meta-outline-btn-text {
+    white-space: nowrap;
+  }
+
   .doc-byline-dot {
     width: 3px;
     height: 3px;
@@ -2563,7 +2634,7 @@
   .doc-lede {
     font-family: var(--font-prose);
     font-style: normal;
-    font-size: 22px;
+    font-size: var(--reader-lede-size);
     line-height: 1.5;
     color: var(--text-secondary);
     text-align: left;
@@ -2615,18 +2686,6 @@
     opacity: 1;
   }
 
-  /* Prose overrides for doc view to match L3 design */
-  .doc-article :global(.doc-view) {
-    font-family: var(--font-prose);
-    font-size: 18px;
-    line-height: 1.7;
-    color: var(--text-primary);
-  }
-
-  .doc-article :global(.doc-view p) {
-    margin: 0 0 22px;
-  }
-
   /* Unlayered: same cascade reason as DocView — paragraph rule above would otherwise keep 22px bottom on `blockquote > p`. */
   .doc-article :global(.doc-view blockquote > *) {
     margin: 0;
@@ -2636,32 +2695,12 @@
     margin-top: 0.65em;
   }
 
-  .doc-article :global(.doc-view h2) {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 32px;
-    line-height: 1.15;
-    letter-spacing: -0.015em;
-    margin: 48px 0 16px;
-    color: var(--text-primary);
-  }
-
-  .doc-article :global(.doc-view h3) {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 24px;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-    margin: 36px 0 12px;
-    color: var(--text-primary);
-  }
-
   .doc-article :global(.doc-view pre) {
     padding: 18px 22px;
     border-radius: 10px;
     font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.65;
+    font-size: 13.5px;
+    line-height: 1.7;
     margin: 24px 0;
     overflow-x: auto;
     border: none;
@@ -2684,58 +2723,6 @@
     background: rgba(0, 0, 0, 0.05);
     padding: 2px 6px;
     border-radius: 4px;
-  }
-
-  /* ── Outline toggle (Reader meta-outline-btn — narrow only; wide uses fixed TOC) ── */
-  .doc-actions {
-    position: fixed;
-    left: 12px;
-    bottom: 24px;
-    top: auto;
-    transform: none;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 39;
-  }
-
-  .outline-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    opacity: 0.3;
-    transition:
-      opacity 140ms ease,
-      background 140ms ease,
-      color 140ms ease;
-  }
-
-  .outline-toggle svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .outline-toggle:hover {
-    opacity: 1;
-    color: var(--text-primary);
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  :global(.dark) .outline-toggle:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .outline-toggle.active {
-    opacity: 1;
-    color: var(--text-primary);
   }
 
   /* ── Outline rail (Reader #toc) ── */
@@ -3810,10 +3797,10 @@
       padding: 16px 16px 80px;
     }
     .doc-hero-title {
-      font-size: 36px;
+      font-size: 32px;
     }
     .doc-lede {
-      font-size: 18px;
+      font-size: 17px;
     }
     .doc-byline {
       flex-wrap: wrap;
@@ -3823,22 +3810,14 @@
 
   @media (min-width: 640px) and (max-width: 959px) {
     .doc-hero-title {
-      font-size: 48px;
+      font-size: 42px;
     }
     .doc-lede {
-      font-size: 20px;
+      font-size: 18px;
     }
   }
 
   @media (min-width: 1280px) {
-    .doc-actions {
-      display: none;
-    }
-
-    .outline-toggle {
-      display: none;
-    }
-
     .outline-close {
       display: none !important;
     }

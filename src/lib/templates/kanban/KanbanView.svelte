@@ -73,15 +73,95 @@
 
   const dueBodyLineRe = /^(?:\*\*)?due:?\*?\*?\s*.+$/i;
 
-  // Get body preview (first 2 non-empty lines), excluding due-only lines
-  function bodyPreview(body: string): string {
-    if (!body) return '';
-    const cleaned = stripDueMetaForPreview(body);
+  const taskListLineRe = /^\s*[-*+]\s+\[( |x|X)\]/;
+  const bulletListLineRe = /^\s*[-*+]\s+(?!\[(?: |x|X)\])/;
+  const orderedListLineRe = /^\s*\d+\.\s+/;
+
+  function extractLineRun(
+    lines: string[],
+    start: number,
+    matches: (line: string) => boolean,
+    maxLines: number
+  ): string[] {
+    const chunk: string[] = [];
+    for (let i = start; i < lines.length && chunk.length < maxLines; i++) {
+      const line = lines[i]!;
+      if (!matches(line)) break;
+      chunk.push(line);
+    }
+    return chunk;
+  }
+
+  /** First table / checklist / list block in body (compact slice for card preview). */
+  function extractFirstPreviewMarkdown(text: string): string | null {
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (!line.trim()) continue;
+
+      if (/^\s*\|/.test(line)) {
+        const tableLines = extractLineRun(lines, i, (l) => /^\s*\|/.test(l), 5);
+        if (tableLines.length >= 2) return tableLines.join('\n');
+        continue;
+      }
+
+      if (taskListLineRe.test(line)) {
+        const taskLines = extractLineRun(lines, i, (l) => taskListLineRe.test(l), 5);
+        if (taskLines.length > 0) return taskLines.join('\n');
+        continue;
+      }
+
+      if (bulletListLineRe.test(line) || orderedListLineRe.test(line)) {
+        const listLines = extractLineRun(
+          lines,
+          i,
+          (l) => bulletListLineRe.test(l) || orderedListLineRe.test(l),
+          4
+        );
+        if (listLines.length > 0) return listLines.join('\n');
+      }
+    }
+    return null;
+  }
+
+  /** Board preview HTML — markdown block or short prose. */
+  function buildCardBodyPreview(body: string): string | null {
+    if (!body) return null;
+    const cleaned = stripDueMetaForPreview(body).trim();
+    if (!cleaned) return null;
+
+    const blockMd = extractFirstPreviewMarkdown(cleaned);
+    if (blockMd) {
+      try {
+        const html = marked.parse(blockMd, { async: false });
+        if (typeof html === 'string' && html.trim()) return html;
+      } catch {
+        /* fall through to text preview */
+      }
+    }
+
     const lines = cleaned
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l.length > 0 && !dueBodyLineRe.test(l));
-    return lines.slice(0, 2).join(' ').slice(0, 120);
+      .filter(
+        (l) =>
+          l.length > 0 &&
+          !dueBodyLineRe.test(l) &&
+          !/^#{1,6}\s/.test(l) &&
+          !/^\s*\|/.test(l) &&
+          !taskListLineRe.test(l) &&
+          !bulletListLineRe.test(l) &&
+          !orderedListLineRe.test(l)
+      );
+    const plain = lines.slice(0, 2).join(' ').slice(0, 120);
+    if (!plain) return null;
+
+    try {
+      const html = marked.parseInline(plain);
+      return typeof html === 'string' ? html : escapeHtml(plain);
+    } catch {
+      return escapeHtml(plain);
+    }
   }
 
   // ─── Card detail drawer (Reader_Kanban `.card-drawer`) ─────────
@@ -1196,7 +1276,7 @@
                       labels={card.labels}
                       labelColors={labels}
                       body={card.body}
-                      bodyPreview={bodyPreview(card.body)}
+                      bodyPreviewHtml={buildCardBodyPreview(card.body)}
                       commentCount={commentCountForCard(card.id)}
                       commentLatestRelative={cardCommentLatestRelative(card.id)}
                       compact={density === 'compact'}
@@ -1283,7 +1363,7 @@
         <div class="dr-lbl">Details</div>
         {#if expandedCard.body}
           {#key expandedCard.body}
-            <div class="dr-prose prose dark:prose-invert dr-body-md" use:checklistAction>
+            <div class="dr-prose prose dr-body-md" use:checklistAction>
               {@html marked.parse(expandedCard.body)}
             </div>
           {/key}
@@ -2135,6 +2215,36 @@
     margin: 0.6em 0;
   }
 
+  .dr-body-md :global(ul:has(input[type='checkbox'])) {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .dr-body-md :global(li:has(> input[type='checkbox'])) {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .dr-body-md :global(li:has(> input[type='checkbox']):last-child) {
+    border-bottom: none;
+  }
+
+  .dr-body-md :global(li:has(> input[type='checkbox']) input[type='checkbox']) {
+    width: 15px;
+    height: 15px;
+    margin: 2px 0 0;
+    flex-shrink: 0;
+    accent-color: var(--text-primary);
+  }
+
+  .dr-body-md :global(li:has(> input[type='checkbox']:checked)) {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+
   .dr-body-md :global(code) {
     background: var(--surface-hover);
     padding: 1px 5px;
@@ -2165,6 +2275,38 @@
   .dr-body-md :global(a) {
     color: var(--accent);
     text-decoration: underline;
+  }
+
+  .dr-body-md :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .dr-body-md :global(th) {
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .dr-body-md :global(td) {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text-primary);
+  }
+
+  :global(.dark) .dr-body-md :global(th) {
+    color: var(--text-secondary);
+  }
+
+  :global(.dark) .dr-body-md :global(td) {
+    color: var(--text-primary);
   }
 
   @media (max-width: 900px) {

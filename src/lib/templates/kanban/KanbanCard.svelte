@@ -6,7 +6,7 @@
     labelColors: Record<string, string>;
     /** Card body markdown — used for checklist row + optional due line (Reader_Kanban card foot). */
     body: string;
-    bodyPreview: string;
+    bodyPreviewHtml: string | null;
     commentCount: number;
     /** Latest comment on this card, e.g. `2h ago` (Reader `.act-updated`). */
     commentLatestRelative: string | null;
@@ -23,7 +23,7 @@
     labels,
     labelColors,
     body,
-    bodyPreview,
+    bodyPreviewHtml,
     commentCount,
     commentLatestRelative,
     compact = false,
@@ -125,8 +125,10 @@
     <span class="pin" aria-hidden="true">↗</span>
   </div>
   <div class="card-title">{title}</div>
-  {#if bodyPreview}
-    <p class="card-body-hint" class:card-body-hint--hidden={compact}>{bodyPreview}</p>
+  {#if bodyPreviewHtml}
+    <div class="card-body-hint" class:card-body-hint--hidden={compact} aria-hidden={compact}>
+      {@html bodyPreviewHtml}
+    </div>
   {/if}
   <div class="card-foot">
     <span class="ic ic-date">{dueText ?? '—'}</span>
@@ -282,20 +284,138 @@
   }
 
   .card-body-hint {
+    position: relative;
     font-family: var(--font-sans);
     font-size: 12px;
     line-height: 1.5;
     color: var(--text-secondary);
     margin: 6px 0 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    max-height: 4.2em;
     overflow: hidden;
+    word-break: break-word;
+  }
+
+  .card-body-hint::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1.2em;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--surface));
   }
 
   .card-body-hint--hidden {
     display: none;
+  }
+
+  .card-body-hint :global(ul:not(:has(input[type='checkbox']))),
+  .card-body-hint :global(ol) {
+    margin: 0;
+    padding-left: 0;
+  }
+
+  .card-body-hint :global(ul:not(:has(input[type='checkbox']))) {
+    list-style-type: disc;
+    list-style-position: inside;
+  }
+
+  .card-body-hint :global(ol) {
+    list-style-type: decimal;
+    list-style-position: inside;
+  }
+
+  .card-body-hint :global(li) {
+    margin: 0;
+    padding: 0;
+    line-height: 1.45;
+  }
+
+  .card-body-hint :global(li)::marker {
+    color: var(--text-tertiary);
+  }
+
+  .card-body-hint :global(li + li) {
+    margin-top: 2px;
+  }
+
+  .card-body-hint :global(ul:has(input[type='checkbox'])) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .card-body-hint :global(li:has(> input[type='checkbox'])) {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .card-body-hint :global(input[type='checkbox']) {
+    width: 12px;
+    height: 12px;
+    margin: 1px 0 0;
+    flex-shrink: 0;
+    accent-color: var(--text-primary);
+    pointer-events: none;
+  }
+
+  .card-body-hint :global(li:has(input:checked)) {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+
+  .card-body-hint :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 10px;
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  .card-body-hint :global(th),
+  .card-body-hint :global(td) {
+    padding: 2px 6px 2px 0;
+    border: none;
+    text-align: left;
+    vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-body-hint :global(th) {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .card-body-hint :global(td) {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .card-body-hint :global(thead th) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-body-hint :global(strong),
+  .card-body-hint :global(b) {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .card-body-hint :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0 3px;
+    border-radius: 3px;
+  }
+
+  .card-body-hint :global(em) {
+    font-style: italic;
   }
 
   .card-foot {

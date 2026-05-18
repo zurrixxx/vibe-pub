@@ -17,6 +17,7 @@
   // Sidebar filter state
   let activeFilter = $state<'all' | 'live' | 'drafts' | 'archived'>('all');
   let sourceFilter = $state<'all' | 'agent' | 'manual'>('all');
+  let viewFilter = $state<'all' | 'doc' | 'kanban'>('all');
 
   function autoSlug(title: string): string {
     return title
@@ -84,6 +85,10 @@
     return `${month} ${day} · ${liveCount} page${liveCount !== 1 ? 's' : ''} live`;
   }
 
+  function pageView(page: (typeof pages)[0]): string {
+    return page.view || 'doc';
+  }
+
   // Computed counts
   let counts = $derived({
     all: pages.length,
@@ -92,6 +97,8 @@
     archived: 0, // no archive status yet, placeholder
     agent: pages.filter((p) => isAgentPublished(p)).length,
     manual: pages.filter((p) => !isAgentPublished(p)).length,
+    doc: pages.filter((p) => pageView(p) === 'doc').length,
+    kanban: pages.filter((p) => pageView(p) === 'kanban').length,
   });
 
   // Filtered pages
@@ -111,6 +118,13 @@
       result = result.filter((p) => isAgentPublished(p));
     } else if (sourceFilter === 'manual') {
       result = result.filter((p) => !isAgentPublished(p));
+    }
+
+    // View type filter
+    if (viewFilter === 'doc') {
+      result = result.filter((p) => pageView(p) === 'doc');
+    } else if (viewFilter === 'kanban') {
+      result = result.filter((p) => pageView(p) === 'kanban');
     }
 
     return result;
@@ -200,6 +214,20 @@
         class:active={sourceFilter === 'manual'}
         onclick={() => (sourceFilter = sourceFilter === 'manual' ? 'all' : 'manual')}
         >&#x25C7; Manual <span class="n">{counts.manual}</span></button
+      >
+
+      <div class="nav-h">By type</div>
+      <button
+        class="nav-item"
+        class:active={viewFilter === 'doc'}
+        onclick={() => (viewFilter = viewFilter === 'doc' ? 'all' : 'doc')}
+        >Doc <span class="n">{counts.doc}</span></button
+      >
+      <button
+        class="nav-item"
+        class:active={viewFilter === 'kanban'}
+        onclick={() => (viewFilter = viewFilter === 'kanban' ? 'all' : 'kanban')}
+        >Kanban <span class="n">{counts.kanban}</span></button
       >
 
       <div class="nav-h">Tools</div>
@@ -323,13 +351,13 @@
       {:else}
         <div class="empty-state">
           <p class="empty-title">
-            {#if activeFilter !== 'all' || sourceFilter !== 'all'}
+            {#if activeFilter !== 'all' || sourceFilter !== 'all' || viewFilter !== 'all'}
               No pages match this filter
             {:else}
               No pages yet
             {/if}
           </p>
-          {#if activeFilter === 'all' && sourceFilter === 'all'}
+          {#if activeFilter === 'all' && sourceFilter === 'all' && viewFilter === 'all'}
             <a href="/new" class="empty-cta">Publish your first page &rarr;</a>
           {:else}
             <button
@@ -337,6 +365,7 @@
               onclick={() => {
                 activeFilter = 'all';
                 sourceFilter = 'all';
+                viewFilter = 'all';
               }}
             >
               Clear filters
