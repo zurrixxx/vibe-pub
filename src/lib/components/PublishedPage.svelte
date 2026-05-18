@@ -435,6 +435,7 @@
   let activeTocId = $state('');
 
   const OUTLINE_VISIBLE_KEY = 'vibe-reader-outline-visible';
+  const OUTLINE_WIDE_MQ = '(min-width: 1280px)';
 
   function readOutlineVisiblePref(): boolean {
     if (!browser) return true;
@@ -442,24 +443,53 @@
     return v !== '0' && v !== 'false';
   }
 
-  /** User preference: show the left outline rail (persisted in localStorage). */
-  let outlineVisible = $state(true);
+  /** Wide viewport: fixed left rail on/off (persisted). */
+  let outlineEnabledWide = $state(true);
+  /** Narrow viewport: overlay open only after user toggles (never auto-shown). */
+  let outlineOpenNarrow = $state(false);
+  let viewportWide = $state(false);
 
   $effect(() => {
     if (!browser) return;
-    outlineVisible = readOutlineVisiblePref();
+    const mq = window.matchMedia(OUTLINE_WIDE_MQ);
+    const sync = () => {
+      const wide = mq.matches;
+      if (viewportWide && !wide) {
+        outlineOpenNarrow = false;
+      }
+      if (!viewportWide && wide) {
+        outlineEnabledWide = readOutlineVisiblePref();
+      }
+      viewportWide = wide;
+    };
+    outlineEnabledWide = readOutlineVisiblePref();
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
   });
 
   function setOutlineVisible(visible: boolean) {
-    outlineVisible = visible;
-    if (browser) localStorage.setItem(OUTLINE_VISIBLE_KEY, visible ? '1' : '0');
+    if (viewportWide) {
+      outlineEnabledWide = visible;
+      if (browser) localStorage.setItem(OUTLINE_VISIBLE_KEY, visible ? '1' : '0');
+    } else {
+      outlineOpenNarrow = visible;
+    }
   }
 
   function toggleOutlineVisible() {
-    setOutlineVisible(!outlineVisible);
+    if (viewportWide) {
+      setOutlineVisible(!outlineEnabledWide);
+    } else {
+      outlineOpenNarrow = !outlineOpenNarrow;
+    }
   }
 
-  let showOutlinePanel = $derived(outlineVisible && tocFromText.length > 0);
+  let outlineToggleActive = $derived(viewportWide ? outlineEnabledWide : outlineOpenNarrow);
+
+  let showOutlinePanel = $derived(
+    tocFromText.length > 0 && (viewportWide ? outlineEnabledWide : outlineOpenNarrow)
+  );
 
   let commentsPanelOpen = $state(false);
   $effect(() => docCommentsPanelOpen.subscribe((v) => (commentsPanelOpen = v)));
@@ -1575,11 +1605,11 @@
                 <button
                   type="button"
                   class="meta-outline-btn"
-                  class:active={outlineVisible}
+                  class:active={outlineToggleActive}
                   onclick={toggleOutlineVisible}
-                  aria-pressed={outlineVisible}
-                  aria-label={outlineVisible ? 'Hide outline' : 'Show outline'}
-                  title={outlineVisible ? 'Hide outline' : 'Show outline'}
+                  aria-pressed={outlineToggleActive}
+                  aria-label={outlineToggleActive ? 'Hide outline' : 'Show outline'}
+                  title={outlineToggleActive ? 'Hide outline' : 'Show outline'}
                 >
                   <svg
                     width="15"
@@ -1591,7 +1621,7 @@
                     aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13" /></svg
                   >
                   <span class="meta-outline-btn-text"
-                    >{outlineVisible ? 'Hide outline' : 'Show outline'}</span
+                    >{outlineToggleActive ? 'Hide outline' : 'Show outline'}</span
                   >
                 </button>
               {/if}
