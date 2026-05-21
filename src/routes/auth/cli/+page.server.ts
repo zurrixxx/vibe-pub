@@ -25,9 +25,7 @@ export const load: PageServerLoad = async ({ url, locals, cookies, platform }) =
   setCliAuthCookie(cookies, pending);
 
   return {
-    user: locals.user
-      ? { username: locals.user.username, email: locals.user.email }
-      : null,
+    user: locals.user ? { username: locals.user.username, email: locals.user.email } : null,
   };
 };
 

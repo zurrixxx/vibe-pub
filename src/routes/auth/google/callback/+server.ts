@@ -1,10 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-  createSessionToken,
-  getSessionCookie,
-  cliAuthContinueResponse,
-} from '$lib/server/auth';
+import { createSessionToken, getSessionCookie, cliAuthContinueResponse } from '$lib/server/auth';
 import { getUserByEmail, createUser, getDb } from '$lib/server/db';
 
 export const GET: RequestHandler = async ({ url, platform, cookies }) => {
