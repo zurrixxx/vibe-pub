@@ -1,7 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import { newCollectionEntityId, readerGuideFromBody } from '$lib/templates/collection/server';
+import {
+  newCollectionEntityId,
+  readerGuideFromBody,
+  resolveCollectionAccess,
+} from '$lib/templates/collection/server';
 
 // List collections for the authenticated user
 export const GET: RequestHandler = async ({ locals, platform }) => {
@@ -169,6 +173,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (page_slugs?.length) allSlugs.push(...page_slugs);
 
   const pageMap = await resolvePageSlugs(db, allSlugs);
+  const ownerId = locals.user?.id ?? null;
+  const effectiveAccess = resolveCollectionAccess(access, ownerId);
 
   await db
     .prepare(
@@ -186,8 +192,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       readerGuide.what_its_about ?? null,
       readerGuide.who_its_for ?? null,
       readerGuide.how_to_read_it ?? null,
-      locals.user?.id ?? null,
-      access ?? 'unlisted',
+      ownerId,
+      effectiveAccess,
       theme ?? 'default'
     )
     .run();

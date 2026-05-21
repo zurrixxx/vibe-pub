@@ -30,6 +30,34 @@ export function assertCollectionOwner(
   }
 }
 
+export type CollectionAccess = 'public' | 'unlisted' | 'private';
+
+const COLLECTION_ACCESS_LEVELS: CollectionAccess[] = ['public', 'unlisted', 'private'];
+
+/** Collections without an owner cannot be private or unlisted — always public. */
+export function resolveCollectionAccess(
+  access: string | undefined,
+  ownerUserId: string | null | undefined,
+  defaultAccess: CollectionAccess = 'unlisted'
+): CollectionAccess {
+  if (!ownerUserId) return 'public';
+  if (access === undefined) return defaultAccess;
+  if (COLLECTION_ACCESS_LEVELS.includes(access as CollectionAccess)) {
+    return access as CollectionAccess;
+  }
+  return defaultAccess;
+}
+
+/** Reject non-public access when the collection has no owner. */
+export function assertCollectionAccessForOwner(
+  access: string,
+  ownerUserId: string | null | undefined
+): void {
+  if (!ownerUserId && access !== 'public') {
+    throw error(400, 'Collections without an owner must be public');
+  }
+}
+
 /** Private collections are readable by the owner only; public/unlisted are open. */
 export function assertCollectionReadable(
   collection: { access: string; user_id: string | null },

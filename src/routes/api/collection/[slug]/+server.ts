@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import {
+  assertCollectionAccessForOwner,
   assertCollectionOwner,
   PAGES_ORDER_SQL,
   getCollectionBySlug,
@@ -139,6 +140,7 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     if (!['public', 'unlisted', 'private'].includes(access)) {
       throw error(400, 'access must be public, unlisted, or private');
     }
+    assertCollectionAccessForOwner(access, collection.user_id);
     sets.push('access = ?');
     values.push(access);
   }
