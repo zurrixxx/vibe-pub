@@ -18,7 +18,6 @@
     updated?: string | null;
     parts: CoverPart[];
     pageCount: number;
-    firstPageHref?: string | null;
     ownerProfileHref?: string | null;
   }
 
@@ -33,7 +32,6 @@
     updated = null,
     parts,
     pageCount,
-    firstPageHref = null,
     ownerProfileHref = null,
   }: Props = $props();
 
@@ -143,28 +141,6 @@
         <p class="coll-guide-foot">
           <em>Published on vibe.pub.</em> Pages update when the author pushes new markdown.
         </p>
-      </div>
-    {/if}
-
-    {#if firstPageHref}
-      <div class="coll-cover-start">
-        <div class="coll-cover-start-l">
-          <div class="coll-cover-start-k">Start reading</div>
-          <p class="coll-cover-start-t">Chapter <em>1</em></p>
-          <p class="coll-cover-start-s">{pageCount} chapters in this collection</p>
-        </div>
-        <a class="coll-cover-start-btn" href={firstPageHref}>
-          Continue
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-          >
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </a>
       </div>
     {/if}
   </div>
@@ -391,73 +367,5 @@
   .coll-guide-foot em {
     font-style: italic;
     color: var(--text-primary);
-  }
-
-  .coll-cover-start {
-    margin-top: 48px;
-    padding: 32px;
-    border-radius: 16px;
-    background: var(--text-primary);
-    color: var(--bg);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-
-  .coll-cover-start-k {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    opacity: 0.6;
-    margin-bottom: 6px;
-  }
-
-  .coll-cover-start-t {
-    font-family: var(--font-serif);
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    margin: 0;
-  }
-
-  .coll-cover-start-t em {
-    font-style: italic;
-  }
-
-  .coll-cover-start-s {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    opacity: 0.7;
-    margin: 6px 0 0;
-  }
-
-  .coll-cover-start-btn {
-    font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 500;
-    padding: 12px 22px;
-    border-radius: 999px;
-    background: var(--bg);
-    color: var(--text-primary);
-    border: 0;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: transform 0.15s;
-  }
-
-  .coll-cover-start-btn:hover {
-    transform: translateX(2px);
-  }
-
-  .coll-cover-start-btn svg {
-    width: 14px;
-    height: 14px;
   }
 </style>

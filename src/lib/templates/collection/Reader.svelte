@@ -209,7 +209,6 @@
         updated={data.collection.updated ?? null}
         parts={data.coverParts}
         pageCount={data.pages.length}
-        firstPageHref={data.firstPageHref}
         ownerProfileHref={data.owner ? `/@${data.owner.username}` : null}
       />
     {:else if data.activePage && chapterProps}

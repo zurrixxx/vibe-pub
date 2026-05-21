@@ -65,8 +65,6 @@ export const load: PageServerLoad = async ({ params, url, platform, locals, depe
   const pageParam = url.searchParams.get('page');
   const showCover = !pageParam || pageParam === 'cover';
   const coverParts = buildCoverParts(partsMeta, pages);
-  const firstPageHref = pages.length > 0 ? `/c/${collection.slug}?page=${pages[0].id}` : null;
-
   let owner: { username: string } | null = null;
   if (collection.user_id) {
     const ownerUser = await getUserById(db, collection.user_id);
@@ -77,7 +75,6 @@ export const load: PageServerLoad = async ({ params, url, platform, locals, depe
     collection: collectionMeta,
     owner,
     coverParts,
-    firstPageHref,
     isCollectionOwner,
     settingsChapters,
     settingsParts,
