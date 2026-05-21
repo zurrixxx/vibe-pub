@@ -105,66 +105,6 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-function buildLauncherHtml(authUrl) {
-  const href = authUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Sign in — vibe.pub CLI</title>
-  <style>
-    body {
-      font-family: Inter, -apple-system, sans-serif;
-      background: #edeae5;
-      color: #1a1917;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      max-width: 360px;
-      background: #fff;
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-      text-align: center;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    .card a { color: #1a1917; }
-    .hint { color: #6b6963; font-size: 13px; margin-top: 12px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <p id="msg">Opening sign-in window…</p>
-    <p class="hint">If nothing appears, <a id="auth-link" href="${href}">open sign-in manually</a>.</p>
-    <p class="hint">You can close this tab after the popup finishes.</p>
-  </div>
-  <script>
-    (function () {
-      var url = document.getElementById('auth-link').href;
-      var popup = window.open(
-        url,
-        'vibe_pub_cli',
-        'width=520,height=720,menubar=no,toolbar=no,location=yes,status=no,resizable=yes,scrollbars=yes'
-      );
-      var msg = document.getElementById('msg');
-      if (popup) {
-        if (msg) msg.textContent = 'Complete sign-in in the popup window.';
-        popup.focus();
-      } else if (msg) {
-        msg.textContent = 'Popup blocked — use the link below to sign in.';
-      }
-    })();
-  </script>
-</body>
-</html>`;
-}
-
 /**
  * @param {{ onAuthUrl?: (url: string) => void }} [options]
  * @returns {Promise<{ token: string, authUrl: string }>}
@@ -207,15 +147,6 @@ export function loginViaLocalhost(options = {}) {
       try {
         const url = new URL(req.url ?? '/', 'http://127.0.0.1');
 
-        if (url.pathname === '/start') {
-          if (!authUrl) {
-            respond(req, res, 503, 'Not ready', 'text/plain; charset=utf-8');
-            return;
-          }
-          respond(req, res, 200, buildLauncherHtml(authUrl), 'text/html; charset=utf-8');
-          return;
-        }
-
         if (url.pathname !== '/callback') {
           respond(req, res, 404, 'Not found', 'text/plain; charset=utf-8');
           return;
@@ -251,7 +182,7 @@ export function loginViaLocalhost(options = {}) {
       const baseUrl = getBaseUrl().replace(/\/$/, '');
       authUrl = `${baseUrl}/auth/cli?state=${state}&port=${port}`;
       options.onAuthUrl?.(authUrl);
-      openBrowser(`http://127.0.0.1:${port}/start`);
+      openBrowser(authUrl);
 
       timeoutId = setTimeout(() => {
         finish(reject, new Error('Login timed out after 15 minutes'));

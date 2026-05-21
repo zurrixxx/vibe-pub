@@ -403,10 +403,9 @@ async function main() {
           process.stderr.write('(Browser should open automatically. Approve within 15 min.)\n');
         },
       });
-      process.stderr.write('Logged in. Token saved to ~/.config/vibe/config.json\n');
-      out({ ok: true, authenticated: true, base_url: baseUrl }, format);
+      process.stderr.write('Successfully logged in.\n');
     } catch (e) {
-      err(e instanceof Error ? e.message : 'Login failed');
+      err(e instanceof Error ? e.message : 'Login failed, please try again.');
     }
     return;
   }
@@ -415,15 +414,9 @@ async function main() {
   if (cmd === 'logout') {
     clearToken();
     const stillAuthed = !!getToken();
-    if (format === 'human') {
-      process.stderr.write('Removed saved token from ~/.config/vibe/config.json\n');
-      if (stillAuthed) {
-        process.stderr.write(
-          'Still authenticated via VIBE_PUB_TOKEN. Unset it to log out fully.\n'
-        );
-      }
-    }
-    out({ logged_out: !stillAuthed, authenticated: stillAuthed }, format);
+    process.stderr.write(
+      stillAuthed ? 'Failed to logout, please try again.\n' : 'Success logout.\n'
+    );
     return;
   }
 
