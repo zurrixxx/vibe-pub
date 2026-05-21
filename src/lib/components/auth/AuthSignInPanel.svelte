@@ -114,7 +114,6 @@
                 name="email"
                 placeholder="you@example.com"
                 required
-                autofocus
                 class="form-input"
               />
               <button type="submit" class="submit-btn">Send magic link</button>
