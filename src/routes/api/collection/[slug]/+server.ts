@@ -8,7 +8,6 @@ import {
   getCollectionBySlug,
   readerGuideFromBody,
   readerGuideFromRow,
-  touchCollectionUpdated,
 } from '$lib/templates/collection/server';
 
 // Get collection details with parts and pages
