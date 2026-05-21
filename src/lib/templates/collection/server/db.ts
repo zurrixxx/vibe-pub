@@ -30,6 +30,16 @@ export function assertCollectionOwner(
   }
 }
 
+/** Private collections are readable by the owner only; public/unlisted are open. */
+export function assertCollectionReadable(
+  collection: { access: string; user_id: string | null },
+  viewerUserId: string | undefined
+): void {
+  if (collection.access !== 'private') return;
+  if (collection.user_id && viewerUserId === collection.user_id) return;
+  throw error(403, 'This collection is private');
+}
+
 export async function touchCollectionUpdated(db: D1Database, collectionId: string): Promise<void> {
   await db
     .prepare("UPDATE collections SET updated = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?")

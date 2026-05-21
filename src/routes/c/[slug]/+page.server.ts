@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getUserById } from '$lib/server/db';
+import { assertCollectionReadable } from '$lib/templates/collection/server/db';
 import {
   PAGES_ORDER_SQL,
   type CollectionPageRow,
@@ -27,7 +28,7 @@ export const load: PageServerLoad = async ({ params, url, platform, locals, depe
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  if (collection.access === 'private') throw error(403, 'This collection is private');
+  assertCollectionReadable(collection, locals.user?.id);
 
   const partsResult = await db
     .prepare(

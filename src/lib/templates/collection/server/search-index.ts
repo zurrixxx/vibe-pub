@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { toRoman } from '$lib/roman';
-import { PAGES_ORDER_SQL } from './db';
+import { assertCollectionReadable, PAGES_ORDER_SQL } from './db';
 import { markdownToPlainSearchText } from '$lib/templates/collection/search/plaintext';
 
 export type SearchEntry = {
@@ -21,6 +21,7 @@ interface CollectionRow {
   id: string;
   slug: string;
   access: string;
+  user_id: string | null;
 }
 
 interface PageRow {
@@ -42,15 +43,16 @@ export { markdownToPlainSearchText } from '$lib/templates/collection/search/plai
 
 export async function loadSearchIndex(
   db: D1Database,
-  collectionSlug: string
+  collectionSlug: string,
+  viewerUserId?: string
 ): Promise<SearchEntry[]> {
   const collection = await db
-    .prepare('SELECT id, slug, access FROM collections WHERE slug = ?')
+    .prepare('SELECT id, slug, access, user_id FROM collections WHERE slug = ?')
     .bind(collectionSlug)
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  if (collection.access === 'private') throw error(403, 'This collection is private');
+  assertCollectionReadable(collection, viewerUserId);
 
   const partsResult = await db
     .prepare(

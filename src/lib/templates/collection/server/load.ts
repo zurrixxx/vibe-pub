@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { getCommentsByPage, getUserById } from '$lib/server/db';
-import { PAGES_ORDER_SQL, readerGuideFromRow } from './db';
+import { assertCollectionReadable, PAGES_ORDER_SQL, readerGuideFromRow } from './db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 import { buildCanonicalPath } from '$lib/server/slug';
 import { toRoman } from '$lib/roman';
@@ -275,7 +275,8 @@ export function extractAllHeadings(pages: CollectionPageRow[]) {
 
 export async function loadCollectionReaderContext(
   db: D1Database,
-  collectionSlug: string
+  collectionSlug: string,
+  viewerUserId?: string
 ): Promise<{
   collection: CollectionRow;
   pages: CollectionPageRow[];
@@ -291,7 +292,7 @@ export async function loadCollectionReaderContext(
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  if (collection.access === 'private') throw error(403, 'This collection is private');
+  assertCollectionReadable(collection, viewerUserId);
 
   const partsResult = await db
     .prepare(

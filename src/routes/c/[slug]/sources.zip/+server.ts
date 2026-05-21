@@ -3,10 +3,10 @@ import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { buildCollectionMarkdownZip } from '$lib/templates/collection/server/export';
 
-export const GET: RequestHandler = async ({ params, platform }) => {
+export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
-  const { filename, bytes } = await buildCollectionMarkdownZip(db, params.slug);
+  const { filename, bytes } = await buildCollectionMarkdownZip(db, params.slug, locals.user?.id);
 
   return new Response(new Uint8Array(bytes), {
     headers: {

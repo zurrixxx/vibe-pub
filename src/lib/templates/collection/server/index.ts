@@ -7,6 +7,7 @@ export {
   newCollectionEntityId,
   getCollectionBySlug,
   assertCollectionOwner,
+  assertCollectionReadable,
   touchCollectionUpdated,
   getPartInCollection,
   nextPartSortOrder,

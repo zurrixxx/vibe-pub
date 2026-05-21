@@ -1,7 +1,7 @@
 <script lang="ts">
   import AppearancePanel from '$lib/components/topbar/AppearancePanel.svelte';
   import Panel from '$lib/components/comment/Panel.svelte';
-  import { buildCanonicalPath } from '$lib/server/slug';
+  import { buildCanonicalPath } from '$lib/slug-path';
   import { readerReadingMode, readerThemeIsDark, readerThemePreview } from '$lib/components/topbar';
   import { closeDocCommentsPanel } from '$lib/stores';
   import type { PageFrontmatter, PageTheme } from '$lib/types';

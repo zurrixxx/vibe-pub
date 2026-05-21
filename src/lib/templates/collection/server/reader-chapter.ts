@@ -92,9 +92,14 @@ async function buildChapterPayload(
 
 export async function loadAllReaderChapters(
   db: D1Database,
-  collectionSlug: string
+  collectionSlug: string,
+  viewerUserId?: string
 ): Promise<ReaderChapterPayload[]> {
-  const ctx = (await loadCollectionReaderContext(db, collectionSlug)) as ReaderContext;
+  const ctx = (await loadCollectionReaderContext(
+    db,
+    collectionSlug,
+    viewerUserId
+  )) as ReaderContext;
   return Promise.all(ctx.pages.map((page, index) => buildChapterPayload(db, ctx, page, index)));
 }
 
@@ -104,9 +109,14 @@ export const loadAllCollectionReaderChapters = loadAllReaderChapters;
 export async function loadReaderChapter(
   db: D1Database,
   collectionSlug: string,
-  pageId: string
+  pageId: string,
+  viewerUserId?: string
 ): Promise<ReaderChapterPayload> {
-  const ctx = (await loadCollectionReaderContext(db, collectionSlug)) as ReaderContext;
+  const ctx = (await loadCollectionReaderContext(
+    db,
+    collectionSlug,
+    viewerUserId
+  )) as ReaderContext;
   const chapterIndex = ctx.pages.findIndex((p) => p.id === pageId || p.page_id === pageId);
   if (chapterIndex < 0) throw error(404, 'Page not found in collection');
   return buildChapterPayload(db, ctx, ctx.pages[chapterIndex], chapterIndex);
