@@ -1,9 +1,14 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { verifyMagicLinkToken, createSessionToken, getSessionCookie } from '$lib/server/auth';
+import {
+  verifyMagicLinkToken,
+  createSessionToken,
+  getSessionCookie,
+  cliAuthContinueResponse,
+} from '$lib/server/auth';
 import { getUserByEmail, createUser } from '$lib/server/db';
 
-export const GET: RequestHandler = async ({ url, platform }) => {
+export const GET: RequestHandler = async ({ url, platform, cookies }) => {
   if (!platform) throw error(500, 'Platform not available');
 
   const token = url.searchParams.get('token');
@@ -33,6 +38,9 @@ export const GET: RequestHandler = async ({ url, platform }) => {
   }
 
   const sessionToken = await createSessionToken(user.id, platform.env.JWT_SECRET);
+
+  const cliContinue = cliAuthContinueResponse(sessionToken, cookies, url);
+  if (cliContinue) return cliContinue;
 
   return new Response(null, {
     status: 302,

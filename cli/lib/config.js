@@ -24,5 +24,12 @@ export function getBaseUrl() {
 }
 
 export function getToken() {
-  return process.env.VIBE_PUB_TOKEN ?? getConfig().token ?? null;
+  const token = process.env.VIBE_PUB_TOKEN ?? getConfig().token ?? null;
+  return token && String(token).length > 0 ? token : null;
+}
+
+export function clearToken() {
+  const { token: _removed, ...rest } = getConfig();
+  mkdirSync(CONFIG_DIR, { recursive: true });
+  writeFileSync(CONFIG_FILE, JSON.stringify(rest, null, 2), 'utf8');
 }

@@ -29,8 +29,9 @@ Requires Node 18+.
 
 ```bash
 # First time
-vibe-pub login you@example.com           # magic link → email
-vibe-pub config --token <token>          # paste token from email
+vibe-pub login                           # login on browser  
+vibe-pub logout                         
+# Advanced: vibe-pub config --token <token>
 
 # Publish
 vibe-pub publish notes.md                          # unlisted by default

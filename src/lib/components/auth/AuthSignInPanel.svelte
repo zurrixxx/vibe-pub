@@ -10,6 +10,7 @@
     titleEm = 'in',
     titleAfter = '',
     subtitle = '',
+    subtitleSnippet,
     footer = '',
     form,
     emailFormAction,
@@ -21,6 +22,7 @@
     titleEm?: string;
     titleAfter?: string;
     subtitle?: string;
+    subtitleSnippet?: Snippet;
     footer?: string;
     form?: AuthForm;
     /** e.g. `?/magicLink`; omit for default form action */
@@ -46,7 +48,9 @@
       <h1 class="login-title">
         {titleBefore}{#if titleEm}<em>{titleEm}</em>{/if}{titleAfter}
       </h1>
-      {#if subtitle}
+      {#if subtitleSnippet}
+        <p class="login-subtitle">{@render subtitleSnippet()}</p>
+      {:else if subtitle}
         <p class="login-subtitle">{subtitle}</p>
       {/if}
     </div>
@@ -125,10 +129,10 @@
           </button>
         {/if}
       </div>
+    {/if}
 
-      {#if footer}
-        <p class="card-footer">{footer}</p>
-      {/if}
+    {#if footer && !form?.sent}
+      <p class="card-footer">{footer}</p>
     {/if}
   </div>
 </div>
@@ -385,7 +389,6 @@
     margin: 20px 0 0 0;
   }
 
-  /* Used by CLI authorize UI via :global in parent or duplicate - add authorize-btn */
   :global(.authorize-btn) {
     font-size: 15px;
     padding: 13px 16px;

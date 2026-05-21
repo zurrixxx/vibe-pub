@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync } from 'fs';
 import * as api from '../lib/api.js';
-import { saveConfig, getToken, getBaseUrl } from '../lib/config.js';
+import { saveConfig, getToken, getBaseUrl, clearToken } from '../lib/config.js';
+import { loginViaLocalhost } from '../lib/login.js';
 import { KANBAN_FORMAT_DOC } from '../lib/format-kanban.js';
 import { DOC_FORMAT_DOC } from '../lib/format-doc.js';
 import { out, err } from '../lib/output.js';
@@ -74,23 +75,24 @@ Commands:
   publish [file] [options]   Publish markdown (file or stdin); counts as agent-published unless --no-agent-published
   format kanban|doc          Get markdown format reference for agents before publishing
   get <slug>                 Get page details
-  list, ls                   List your pages (requires auth)
+  list, ls                   List your pages
   update <slug> [file]       Update a page (file or stdin)
   delete, rm <slug>          Delete a page
-  comments <slug> [-a]       List open comments (-a / --all: include resolved)
+  comments <slug> [-a]       List open comments (-a / --all: include resolved comments)
   comment <slug> "body"      Add a comment
   resolve <slug> [options]   Resolve comments
   versions <slug>            List version history
   version <slug> <num>       Get a specific version
   collection create <title>  Create a collection (--part / reader's guide flags)
-  collection list, ls        List your collections (requires auth)
+  collection list, ls        List your collections
   collection get <slug>      Get collection details + pages
   collection add <c> <p>     Add page to collection
   collection remove <c> <p>  Remove page from collection
   collection update <slug>   Update collection metadata
   collection part <sub>      Manage collection parts (list|add|update|remove)
   whoami                     Show current auth info
-  login <email>              Print login instructions
+  login                      Sign in via browser
+  logout                     Sign out
   config [options]           Save configuration
   help                       Show this help
 
@@ -119,7 +121,7 @@ Collection create options:
   --slug <slug>              Custom collection slug
   --description <text>         Cover subtitle under the title
   --readers-guide <text>       Cover lede under «A reader's guide»
-  --what-its-about <text>      Cover card: what this collection is about (1–3 sentences)
+  --what-its-about <text>      Cover card: what this collection is about
   --who-its-for <text>         Cover card: intended audience
   --how-to-read-it <text>      Cover card: how to navigate / where to start
   --slugs <p1,p2,...>        Ungrouped page slugs (shown after all parts)
@@ -143,7 +145,7 @@ Collection part update options:
 Collection update options:
   --title <title>            New title
   --description <desc>       Cover subtitle
-  --readers-guide <text>   Cover lede under «A reader's guide»
+  --readers-guide <text>     Cover lede under «A reader's guide»
   --what-its-about <text>    Cover card: what it's about
   --who-its-for <text>       Cover card: who it's for
   --how-to-read-it <text>    Cover card: how to read it
@@ -239,7 +241,7 @@ async function main() {
 
   // --- list ---
   if (cmd === 'list' || cmd === 'ls') {
-    if (!getToken()) err('Not logged in. Run: vibe-pub login <email>');
+    if (!getToken()) err('Not logged in. Run: vibe-pub login');
     try {
       const pages = await api.list();
       out(pages, format);
@@ -393,20 +395,35 @@ async function main() {
 
   // --- login ---
   if (cmd === 'login') {
-    const email = cleanArgs[1];
-    if (!email) err('Usage: vibe-pub login <email>');
     const baseUrl = getBaseUrl();
-    out(
-      {
-        instructions: [
-          `Visit ${baseUrl}/auth/login`,
-          `Sign in with ${email}`,
-          'Copy your session token from browser cookies (vibe_session)',
-          'Run: vibe-pub config --token <token>',
-        ],
-      },
-      format
-    );
+    try {
+      await loginViaLocalhost({
+        onAuthUrl(authUrl) {
+          process.stderr.write(`Open this URL to authorize CLI:\n${authUrl}\n`);
+          process.stderr.write('(Browser should open automatically. Approve within 15 min.)\n');
+        },
+      });
+      process.stderr.write('Logged in. Token saved to ~/.config/vibe/config.json\n');
+      out({ ok: true, authenticated: true, base_url: baseUrl }, format);
+    } catch (e) {
+      err(e instanceof Error ? e.message : 'Login failed');
+    }
+    return;
+  }
+
+  // --- logout ---
+  if (cmd === 'logout') {
+    clearToken();
+    const stillAuthed = !!getToken();
+    if (format === 'human') {
+      process.stderr.write('Removed saved token from ~/.config/vibe/config.json\n');
+      if (stillAuthed) {
+        process.stderr.write(
+          'Still authenticated via VIBE_PUB_TOKEN. Unset it to log out fully.\n'
+        );
+      }
+    }
+    out({ logged_out: !stillAuthed, authenticated: stillAuthed }, format);
     return;
   }
 
@@ -469,7 +486,7 @@ async function main() {
     }
 
     if (sub === 'list' || sub === 'ls') {
-      if (!getToken()) err('Not logged in. Run: vibe-pub login <email>');
+      if (!getToken()) err('Not logged in. Run: vibe-pub login');
       try {
         const collections = await api.listCollections();
         out(collections, format);
