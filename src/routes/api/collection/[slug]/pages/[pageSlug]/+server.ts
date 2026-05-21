@@ -1,25 +1,100 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+import {
+  assertCollectionOwner,
+  getCollectionBySlug,
+  getPartInCollection,
+  touchCollectionUpdated,
+} from '$lib/templates/collection/server';
+
+// Update a page's membership in a collection (part_id, label)
+export const PUT: RequestHandler = async ({ params, request, locals, platform }) => {
+  if (!platform) throw error(500, 'No platform');
+  const db = getDb(platform);
+
+  const collection = await getCollectionBySlug(db, params.slug);
+  if (!collection) throw error(404, 'Collection not found');
+  assertCollectionOwner(collection, locals.user?.id);
+
+  const page = await db
+    .prepare('SELECT id FROM pages WHERE slug = ?')
+    .bind(params.pageSlug)
+    .first<{ id: string }>();
+
+  if (!page) throw error(404, `Page not found: ${params.pageSlug}`);
+
+  const membership = await db
+    .prepare(
+      'SELECT part_id, label, sort_order FROM collection_pages WHERE collection_id = ? AND page_id = ?'
+    )
+    .bind(collection.id, page.id)
+    .first<{ part_id: string | null; label: string | null; sort_order: number }>();
+
+  if (!membership) throw error(404, 'Page is not in this collection');
+
+  const body = await request.json();
+  const { part_id, label, sort_order } = body as {
+    part_id?: string | null;
+    label?: string | null;
+    sort_order?: number;
+  };
+
+  const sets: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (part_id !== undefined) {
+    if (part_id === null) {
+      sets.push('part_id = NULL');
+    } else {
+      const part = await getPartInCollection(db, part_id, collection.id);
+      if (!part) throw error(404, 'Part not found in this collection');
+      sets.push('part_id = ?');
+      values.push(part.id);
+    }
+  }
+  if (label !== undefined) {
+    sets.push('label = ?');
+    values.push(label);
+  }
+  if (sort_order !== undefined) {
+    if (!Number.isInteger(sort_order)) throw error(400, 'sort_order must be an integer');
+    sets.push('sort_order = ?');
+    values.push(sort_order);
+  }
+
+  if (sets.length === 0) throw error(400, 'No fields to update');
+
+  values.push(collection.id, page.id);
+
+  await db
+    .prepare(
+      `UPDATE collection_pages SET ${sets.join(', ')} WHERE collection_id = ? AND page_id = ?`
+    )
+    .bind(...values)
+    .run();
+
+  await touchCollectionUpdated(db, collection.id);
+
+  const updated = await db
+    .prepare(
+      'SELECT part_id, label, sort_order FROM collection_pages WHERE collection_id = ? AND page_id = ?'
+    )
+    .bind(collection.id, page.id)
+    .first();
+
+  return json({ page_slug: params.pageSlug, ...updated });
+};
 
 // Remove a page from a collection
 export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
-  const collection = await db
-    .prepare('SELECT id, user_id FROM collections WHERE slug = ?')
-    .bind(params.slug)
-    .first<{ id: string; user_id: string | null }>();
-
+  const collection = await getCollectionBySlug(db, params.slug);
   if (!collection) throw error(404, 'Collection not found');
+  assertCollectionOwner(collection, locals.user?.id);
 
-  // Owner check
-  if (collection.user_id && locals.user?.id !== collection.user_id) {
-    throw error(403, 'Not authorized');
-  }
-
-  // Resolve page slug to ID
   const page = await db
     .prepare('SELECT id FROM pages WHERE slug = ?')
     .bind(params.pageSlug)
@@ -36,11 +111,7 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
     throw error(404, 'Page is not in this collection');
   }
 
-  // Update collection's updated timestamp
-  await db
-    .prepare("UPDATE collections SET updated = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?")
-    .bind(collection.id)
-    .run();
+  await touchCollectionUpdated(db, collection.id);
 
   return json({ removed: true, page_slug: params.pageSlug });
 };

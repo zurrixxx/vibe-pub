@@ -2,6 +2,7 @@ import { customAlphabet } from 'nanoid';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const ID_LENGTH = 8;
+const MAX_SLUG_LEN = 60;
 
 const nano = customAlphabet(ID_ALPHABET, ID_LENGTH);
 
@@ -19,8 +20,6 @@ export function extractIdFromUrlSegment(segment: string): string {
   const idx = segment.lastIndexOf('-');
   return idx === -1 ? segment : segment.slice(idx + 1);
 }
-
-const MAX_SLUG_LEN = 60;
 
 /** Derive a cosmetic slug from a title. Returns `''` when nothing usable. */
 export function slugifyTitle(title: string | null | undefined): string {

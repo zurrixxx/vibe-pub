@@ -1,30 +1,39 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+import {
+  assertCollectionOwner,
+  getCollectionBySlug,
+  getPartInCollection,
+  nextPageSortOrderInPart,
+  touchCollectionUpdated,
+} from '$lib/templates/collection/server';
 
 // Add a page to a collection
 export const POST: RequestHandler = async ({ params, request, locals, platform }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
-  const collection = await db
-    .prepare('SELECT id, user_id FROM collections WHERE slug = ?')
-    .bind(params.slug)
-    .first<{ id: string; user_id: string | null }>();
-
+  const collection = await getCollectionBySlug(db, params.slug);
   if (!collection) throw error(404, 'Collection not found');
-
-  // Owner check
-  if (collection.user_id && locals.user?.id !== collection.user_id) {
-    throw error(403, 'Not authorized');
-  }
+  assertCollectionOwner(collection, locals.user?.id);
 
   const body = await request.json();
-  const { page_slug, label } = body as { page_slug: string; label?: string };
+  const { page_slug, label, part_id } = body as {
+    page_slug: string;
+    label?: string;
+    part_id?: string | null;
+  };
 
   if (!page_slug) throw error(400, 'page_slug is required');
 
-  // Resolve page slug to ID
+  let resolvedPartId: string | null = null;
+  if (part_id) {
+    const part = await getPartInCollection(db, part_id, collection.id);
+    if (!part) throw error(404, 'Part not found in this collection');
+    resolvedPartId = part.id;
+  }
+
   const page = await db
     .prepare('SELECT id FROM pages WHERE slug = ?')
     .bind(page_slug)
@@ -32,26 +41,19 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 
   if (!page) throw error(404, `Page not found: ${page_slug}`);
 
-  // Get next sort_order
-  const maxOrder = await db
-    .prepare('SELECT MAX(sort_order) as max_order FROM collection_pages WHERE collection_id = ?')
-    .bind(collection.id)
-    .first<{ max_order: number | null }>();
-
-  const nextOrder = (maxOrder?.max_order ?? -1) + 1;
+  const nextOrder = await nextPageSortOrderInPart(db, collection.id, resolvedPartId);
 
   await db
     .prepare(
-      'INSERT INTO collection_pages (collection_id, page_id, sort_order, label) VALUES (?, ?, ?, ?)'
+      'INSERT INTO collection_pages (collection_id, page_id, sort_order, label, part_id) VALUES (?, ?, ?, ?, ?)'
     )
-    .bind(collection.id, page.id, nextOrder, label ?? null)
+    .bind(collection.id, page.id, nextOrder, label ?? null, resolvedPartId)
     .run();
 
-  // Update collection's updated timestamp
-  await db
-    .prepare("UPDATE collections SET updated = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?")
-    .bind(collection.id)
-    .run();
+  await touchCollectionUpdated(db, collection.id);
 
-  return json({ added: true, page_slug, sort_order: nextOrder }, { status: 201 });
+  return json(
+    { added: true, page_slug, sort_order: nextOrder, part_id: resolvedPartId },
+    { status: 201 }
+  );
 };

@@ -110,10 +110,16 @@ export async function getVersion(pageId, num) {
 // --- Collections ---
 
 export async function createCollection(title, options = {}) {
-  const body = { title, page_slugs: options.slugs ?? [] };
+  const body = { title };
+  if (options.slugs?.length) body.page_slugs = options.slugs;
+  if (options.parts?.length) body.parts = options.parts;
   if (options.slug) body.slug = options.slug;
   if (options.access) body.access = options.access;
   if (options.description) body.description = options.description;
+  if (options.readers_guide) body.readers_guide = options.readers_guide;
+  if (options.what_its_about) body.what_its_about = options.what_its_about;
+  if (options.who_its_for) body.who_its_for = options.who_its_for;
+  if (options.how_to_read_it) body.how_to_read_it = options.how_to_read_it;
   if (options.theme) body.theme = options.theme;
   return request('POST', '/api/collection', body);
 }
@@ -133,7 +139,41 @@ export async function updateCollection(slug, data) {
 export async function addToCollection(collectionSlug, pageSlug, options = {}) {
   const body = { page_slug: pageSlug };
   if (options.label) body.label = options.label;
+  if (options.part_id) body.part_id = options.part_id;
   return request('POST', `/api/collection/${encodeURIComponent(collectionSlug)}/pages`, body);
+}
+
+export async function listCollectionParts(collectionSlug) {
+  return request('GET', `/api/collection/${encodeURIComponent(collectionSlug)}/parts`);
+}
+
+export async function createCollectionPart(collectionSlug, title, options = {}) {
+  const body = { title };
+  if (options.sort_order !== undefined) body.sort_order = options.sort_order;
+  return request('POST', `/api/collection/${encodeURIComponent(collectionSlug)}/parts`, body);
+}
+
+export async function updateCollectionPart(collectionSlug, partId, data) {
+  return request(
+    'PUT',
+    `/api/collection/${encodeURIComponent(collectionSlug)}/parts/${encodeURIComponent(partId)}`,
+    data
+  );
+}
+
+export async function deleteCollectionPart(collectionSlug, partId) {
+  return request(
+    'DELETE',
+    `/api/collection/${encodeURIComponent(collectionSlug)}/parts/${encodeURIComponent(partId)}`
+  );
+}
+
+export async function updateCollectionPage(collectionSlug, pageSlug, data) {
+  return request(
+    'PUT',
+    `/api/collection/${encodeURIComponent(collectionSlug)}/pages/${encodeURIComponent(pageSlug)}`,
+    data
+  );
 }
 
 export async function removeFromCollection(collectionSlug, pageSlug) {

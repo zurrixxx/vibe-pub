@@ -12,7 +12,40 @@
   let showNewCollection = $state(false);
   let newCollTitle = $state('');
   let newCollSlug = $state('');
+  let newCollDescription = $state('');
+  let newCollReadersGuide = $state('');
+  let newCollWhatAbout = $state('');
+  let newCollWhoFor = $state('');
+  let newCollHowRead = $state('');
   let newCollCreating = $state(false);
+  let newCollUseParts = $state(false);
+  let nextPartKey = $state(1);
+  let newCollParts = $state([{ key: 0, title: '', pageSlugs: '' }]);
+
+  function resetNewCollectionForm() {
+    newCollTitle = '';
+    newCollSlug = '';
+    newCollDescription = '';
+    newCollReadersGuide = '';
+    newCollWhatAbout = '';
+    newCollWhoFor = '';
+    newCollHowRead = '';
+    newCollUseParts = false;
+    newCollParts = [{ key: 0, title: '', pageSlugs: '' }];
+    nextPartKey = 1;
+  }
+
+  function addPartRow() {
+    newCollParts = [...newCollParts, { key: nextPartKey++, title: '', pageSlugs: '' }];
+  }
+
+  function removePartRow(key: number) {
+    if (newCollParts.length <= 1) {
+      newCollParts = [{ key: nextPartKey++, title: '', pageSlugs: '' }];
+      return;
+    }
+    newCollParts = newCollParts.filter((p) => p.key !== key);
+  }
 
   // Sidebar filter state
   let activeFilter = $state<'all' | 'live' | 'drafts' | 'archived'>('all');
@@ -31,11 +64,44 @@
     if (!newCollTitle.trim()) return;
     newCollCreating = true;
     const slug = newCollSlug.trim() || autoSlug(newCollTitle);
+    const body: {
+      title: string;
+      slug: string;
+      description?: string;
+      readers_guide?: string;
+      what_its_about?: string;
+      who_its_for?: string;
+      how_to_read_it?: string;
+      parts?: { title: string; page_slugs: string[] }[];
+      page_slugs?: string[];
+    } = { title: newCollTitle.trim(), slug };
+
+    if (newCollDescription.trim()) body.description = newCollDescription.trim();
+    if (newCollReadersGuide.trim()) body.readers_guide = newCollReadersGuide.trim();
+    if (newCollWhatAbout.trim()) body.what_its_about = newCollWhatAbout.trim();
+    if (newCollWhoFor.trim()) body.who_its_for = newCollWhoFor.trim();
+    if (newCollHowRead.trim()) body.how_to_read_it = newCollHowRead.trim();
+
+    if (newCollUseParts) {
+      const parts = newCollParts
+        .filter((p) => p.title.trim())
+        .map((p) => ({
+          title: p.title.trim(),
+          page_slugs: p.pageSlugs
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        }));
+      if (parts.length) body.parts = parts;
+    } else {
+      body.page_slugs = [];
+    }
+
     try {
       const res = await fetch('/api/collection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newCollTitle.trim(), slug, page_slugs: [] }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         window.location.reload();
@@ -273,11 +339,89 @@
             bind:value={newCollTitle}
             oninput={() => (newCollSlug = autoSlug(newCollTitle))}
             onkeydown={(e) => {
-              if (e.key === 'Enter') createCollection();
-              if (e.key === 'Escape') showNewCollection = false;
+              if (e.key === 'Enter' && !newCollUseParts) createCollection();
+              if (e.key === 'Escape') {
+                showNewCollection = false;
+                resetNewCollectionForm();
+              }
             }}
           />
           <span class="new-coll-slug">/{newCollSlug || '...'}</span>
+
+          <textarea
+            class="new-coll-textarea"
+            placeholder="Subtitle (optional) — shown under the title on the cover"
+            bind:value={newCollDescription}
+            rows="2"
+          ></textarea>
+          <textarea
+            class="new-coll-textarea"
+            placeholder="A reader's guide — overview lede (optional)"
+            bind:value={newCollReadersGuide}
+            rows="3"
+          ></textarea>
+          <textarea
+            class="new-coll-textarea"
+            placeholder="What it's about (optional)"
+            bind:value={newCollWhatAbout}
+            rows="2"
+          ></textarea>
+          <textarea
+            class="new-coll-textarea"
+            placeholder="Who it's for (optional)"
+            bind:value={newCollWhoFor}
+            rows="2"
+          ></textarea>
+          <textarea
+            class="new-coll-textarea"
+            placeholder="How to read it (optional)"
+            bind:value={newCollHowRead}
+            rows="2"
+          ></textarea>
+
+          <label class="new-coll-parts-toggle">
+            <input type="checkbox" bind:checked={newCollUseParts} />
+            Structure with parts
+          </label>
+
+          {#if newCollUseParts}
+            <div class="new-coll-parts">
+              {#each newCollParts as part (part.key)}
+                <div class="new-coll-part-row">
+                  <input
+                    class="new-coll-input"
+                    type="text"
+                    placeholder="Part title (e.g. Introduction)"
+                    bind:value={part.title}
+                  />
+                  <input
+                    class="new-coll-input new-coll-slugs-input"
+                    type="text"
+                    placeholder="Page slugs, comma-separated (optional)"
+                    bind:value={part.pageSlugs}
+                  />
+                  <button
+                    type="button"
+                    class="btn-part-remove"
+                    onclick={() => removePartRow(part.key)}
+                    aria-label="Remove part">×</button
+                  >
+                </div>
+              {/each}
+              <button type="button" class="btn-part-add" onclick={addPartRow}>+ Add part</button>
+              {#if pages.length > 0}
+                <p class="new-coll-hint">
+                  Your page slugs:
+                  {pages
+                    .map((p) => p.slug)
+                    .filter(Boolean)
+                    .slice(0, 8)
+                    .join(', ')}{pages.filter((p) => p.slug).length > 8 ? ', …' : ''}
+                </p>
+              {/if}
+            </div>
+          {/if}
+
           <div class="new-coll-actions">
             <button
               class="btn-create"
@@ -287,8 +431,13 @@
             >
               {newCollCreating ? 'Creating...' : 'Create'}
             </button>
-            <button class="btn-cancel" type="button" onclick={() => (showNewCollection = false)}
-              >Cancel</button
+            <button
+              class="btn-cancel"
+              type="button"
+              onclick={() => {
+                showNewCollection = false;
+                resetNewCollectionForm();
+              }}>Cancel</button
             >
           </div>
         </div>
@@ -842,10 +991,101 @@
     box-shadow: var(--focus-ring);
   }
 
+  .new-coll-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 14px;
+    font-family: var(--font-prose);
+    line-height: 1.45;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-input);
+    background: var(--bg);
+    color: var(--text-primary);
+    outline: none;
+    resize: vertical;
+    min-height: 52px;
+  }
+
+  .new-coll-textarea:focus {
+    border-color: var(--border-hover);
+    box-shadow: var(--focus-ring);
+  }
+
   .new-coll-slug {
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--text-tertiary);
+  }
+
+  .new-coll-parts-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .new-coll-parts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .new-coll-part-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .new-coll-part-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .btn-part-add {
+    align-self: flex-start;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-button);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .btn-part-add:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .btn-part-remove {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text-tertiary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .btn-part-remove:hover {
+    color: var(--text-primary);
+    background: var(--surface);
+  }
+
+  .new-coll-hint {
+    margin: 0;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+    line-height: 1.5;
   }
 
   .new-coll-actions {

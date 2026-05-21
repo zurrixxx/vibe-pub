@@ -5,6 +5,7 @@ import { saveConfig, getToken, getBaseUrl } from '../lib/config.js';
 import { KANBAN_FORMAT_DOC } from '../lib/format-kanban.js';
 import { DOC_FORMAT_DOC } from '../lib/format-doc.js';
 import { out, err } from '../lib/output.js';
+import { parseCollectionCreateArgv } from '../lib/parse-collection-parts.js';
 
 const args = process.argv.slice(2);
 
@@ -81,12 +82,13 @@ Commands:
   resolve <slug> [options]   Resolve comments
   versions <slug>            List version history
   version <slug> <num>       Get a specific version
-  collection create <title>  Create a collection
+  collection create <title>  Create a collection (--part / reader's guide flags)
   collection list, ls        List your collections (requires auth)
   collection get <slug>      Get collection details + pages
   collection add <c> <p>     Add page to collection
   collection remove <c> <p>  Remove page from collection
   collection update <slug>   Update collection metadata
+  collection part <sub>      Manage collection parts (list|add|update|remove)
   whoami                     Show current auth info
   login <email>              Print login instructions
   config [options]           Save configuration
@@ -115,15 +117,36 @@ Resolve options:
 
 Collection create options:
   --slug <slug>              Custom collection slug
-  --slugs <p1,p2,...>        Comma-separated page slugs to include
+  --description <text>         Cover subtitle under the title
+  --readers-guide <text>       Cover lede under «A reader's guide»
+  --what-its-about <text>      Cover card: what this collection is about (1–3 sentences)
+  --who-its-for <text>         Cover card: intended audience
+  --how-to-read-it <text>      Cover card: how to navigate / where to start
+  --slugs <p1,p2,...>        Ungrouped page slugs (shown after all parts)
+  --part <spec>              Part spec, repeatable: "Title" or "Title:p1,p2"
+  --parts <json>             Parts as JSON array [{ "title", "page_slugs"? }]
+  --parts-file <path>        JSON file with parts array
   --access <level>           public, unlisted (default), or private
+  --theme <theme>            Collection theme
 
 Collection add options:
   --label <label>            Display label (overrides page title in nav)
+  --part-id <id>             Part to add the page into
+
+Collection part add options:
+  --sort-order <n>           Part order in navigation
+
+Collection part update options:
+  --title <title>            New part title
+  --sort-order <n>           New part order
 
 Collection update options:
   --title <title>            New title
-  --description <desc>       New description
+  --description <desc>       Cover subtitle
+  --readers-guide <text>   Cover lede under «A reader's guide»
+  --what-its-about <text>    Cover card: what it's about
+  --who-its-for <text>       Cover card: who it's for
+  --how-to-read-it <text>    Cover card: how to read it
   --access <level>           New access level
 
 Config options:
@@ -410,18 +433,34 @@ async function main() {
       const title = cleanArgs[2];
       if (!title)
         err(
-          'Usage: vibe-pub collection create <title> [--slug s] [--slugs p1,p2] [--access unlisted]'
+          'Usage: vibe-pub collection create <title> [--slug s] [--description d] [--readers-guide …] [--what-its-about …] [--who-its-for …] [--how-to-read-it …] [--part "Title:p1,p2"] [--slugs p1,p2] ...'
         );
       const flagArgs = cleanArgs.slice(3);
-      const flags = parseFlags(flagArgs);
+      let parts = [];
+      let flags = {};
       try {
-        const result = await api.createCollection(title, {
-          slug: flags.slug,
-          slugs: flags.slugs ? flags.slugs.split(',') : [],
-          access: flags.access,
-          description: flags.description,
-          theme: flags.theme,
-        });
+        ({ flags, parts } = parseCollectionCreateArgv(flagArgs));
+      } catch (e) {
+        err(e.message);
+      }
+      const options = {
+        slug: flags.slug,
+        access: flags.access,
+        description: flags.description,
+        readers_guide: flags['readers-guide'],
+        what_its_about: flags['what-its-about'],
+        who_its_for: flags['who-its-for'],
+        how_to_read_it: flags['how-to-read-it'],
+        theme: flags.theme,
+      };
+      if (parts.length) options.parts = parts;
+      if (flags.slugs)
+        options.slugs = String(flags.slugs)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      try {
+        const result = await api.createCollection(title, options);
         out(result, format);
       } catch (e) {
         err(e.message, e.status);
@@ -456,11 +495,16 @@ async function main() {
       const collSlug = cleanArgs[2];
       const pageSlug = cleanArgs[3];
       if (!collSlug || !pageSlug)
-        err('Usage: vibe-pub collection add <collection-slug> <page-slug> [--label "Name"]');
+        err(
+          'Usage: vibe-pub collection add <collection-slug> <page-slug> [--label "Name"] [--part-id id]'
+        );
       const flagArgs = cleanArgs.slice(4);
       const flags = parseFlags(flagArgs);
       try {
-        const result = await api.addToCollection(collSlug, pageSlug, { label: flags.label });
+        const result = await api.addToCollection(collSlug, pageSlug, {
+          label: flags.label,
+          part_id: flags['part-id'] ?? flags.part_id,
+        });
         out(result, format);
       } catch (e) {
         err(e.message, e.status);
@@ -485,15 +529,23 @@ async function main() {
     if (sub === 'update') {
       const slug = cleanArgs[2];
       if (!slug)
-        err('Usage: vibe-pub collection update <slug> [--title t] [--description d] [--access a]');
+        err(
+          'Usage: vibe-pub collection update <slug> [--title t] [--description d] [--readers-guide …] [--what-its-about …] [--who-its-for …] [--how-to-read-it …] [--access a]'
+        );
       const flagArgs = cleanArgs.slice(3);
       const flags = parseFlags(flagArgs);
       const data = {};
       if (flags.title) data.title = flags.title;
       if (flags.description) data.description = flags.description;
+      if (flags['readers-guide']) data.readers_guide = flags['readers-guide'];
+      if (flags['what-its-about']) data.what_its_about = flags['what-its-about'];
+      if (flags['who-its-for']) data.who_its_for = flags['who-its-for'];
+      if (flags['how-to-read-it']) data.how_to_read_it = flags['how-to-read-it'];
       if (flags.access) data.access = flags.access;
       if (!Object.keys(data).length)
-        err('Provide at least one of --title, --description, --access');
+        err(
+          'Provide at least one of --title, --description, --readers-guide, --what-its-about, --who-its-for, --how-to-read-it, --access'
+        );
       try {
         const result = await api.updateCollection(slug, data);
         out(result, format);
@@ -503,7 +555,75 @@ async function main() {
       return;
     }
 
-    err('Usage: vibe-pub collection <create|list|get|add|remove|update>');
+    if (sub === 'part') {
+      const partSub = cleanArgs[2];
+      const collSlug = cleanArgs[3];
+
+      if (partSub === 'list' || partSub === 'ls') {
+        if (!collSlug) err('Usage: vibe-pub collection part list <collection-slug>');
+        try {
+          const parts = await api.listCollectionParts(collSlug);
+          out(parts, format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      if (partSub === 'add') {
+        const title = cleanArgs[4];
+        if (!collSlug || !title)
+          err('Usage: vibe-pub collection part add <collection-slug> <title> [--sort-order n]');
+        const flags = parseFlags(cleanArgs.slice(5));
+        const options = {};
+        if (flags['sort-order'] !== undefined) options.sort_order = Number(flags['sort-order']);
+        try {
+          const result = await api.createCollectionPart(collSlug, title, options);
+          out(result, format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      if (partSub === 'update') {
+        const partId = cleanArgs[4];
+        if (!collSlug || !partId)
+          err(
+            'Usage: vibe-pub collection part update <collection-slug> <part-id> [--title t] [--sort-order n]'
+          );
+        const flags = parseFlags(cleanArgs.slice(5));
+        const data = {};
+        if (flags.title) data.title = flags.title;
+        if (flags['sort-order'] !== undefined) data.sort_order = Number(flags['sort-order']);
+        if (!Object.keys(data).length) err('Provide at least one of --title, --sort-order');
+        try {
+          const result = await api.updateCollectionPart(collSlug, partId, data);
+          out(result, format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      if (partSub === 'remove' || partSub === 'rm') {
+        const partId = cleanArgs[4];
+        if (!collSlug || !partId)
+          err('Usage: vibe-pub collection part remove <collection-slug> <part-id>');
+        try {
+          const result = await api.deleteCollectionPart(collSlug, partId);
+          out(result, format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      err('Usage: vibe-pub collection part <list|add|update|remove> <collection-slug> ...');
+      return;
+    }
+
+    err('Usage: vibe-pub collection <create|list|get|add|remove|update|part>');
     return;
   }
 

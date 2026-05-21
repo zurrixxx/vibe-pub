@@ -25,7 +25,6 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
   const page = await getPageById(db, params.id);
   if (!page) throw error(404, 'Page not found');
   if (page.user_id !== locals.user.id) throw error(403, 'Only the page owner can use this');
-  if (page.view !== 'doc') throw error(400, 'Only doc pages support block revision suggestions');
 
   const body = (await request.json().catch(() => ({}))) as {
     block_id?: string;

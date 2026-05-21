@@ -83,6 +83,12 @@ export interface Comment {
   created: string;
 }
 
+export interface CollectionPart {
+  id: string;
+  title: string;
+  sort_order: number;
+}
+
 export interface PageFrontmatter {
   view?: 'doc' | 'kanban' | 'changelog' | 'timeline' | 'slides' | 'dashboard';
   theme?: PageTheme;

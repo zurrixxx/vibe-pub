@@ -4,10 +4,10 @@
   import { browser } from '$app/environment';
   import type { Comment } from '$lib/types';
   import {
-    cancelDeferredCommentsPanelBlockClear,
     closeDocCommentsPanel,
     docCommentsPanelBlockId,
     docCommentsPanelOpen,
+    openDocCommentsPanelForBlock,
   } from '$lib/stores';
 
   /** Matches Reader_Doc.html thread / comment icon */
@@ -169,9 +169,7 @@
             closeDocCommentsPanel();
             return;
           }
-          cancelDeferredCommentsPanelBlockClear();
-          docCommentsPanelBlockId.set(blockId);
-          docCommentsPanelOpen.set(true);
+          openDocCommentsPanelForBlock(o.pageId, blockId);
         });
         el.appendChild(cbtn);
         blockIdx++;

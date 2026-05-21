@@ -4,14 +4,19 @@
   import { browser } from '$app/environment';
   import {
     closeDocCommentsPanel,
-    closeReaderAppearancePanel,
     closeReaderHistoryPanel,
     docCommentsPanelOpen,
-    kanbanReaderBoardFullwidth,
-    openReaderAppearancePanel,
     openReaderHistoryPanel,
     toggleDocCommentsPanelAllThreads,
   } from '$lib/stores';
+  import {
+    closeReaderAppearancePanel,
+    kanbanReaderBoardFullwidth,
+    openReaderAppearancePanel,
+    readerAppearancePanelOpen,
+  } from '$lib/components/topbar';
+  import Share from '$lib/components/topbar/Share.svelte';
+  import User from '$lib/components/topbar/User.svelte';
 
   interface Props {
     user?: { id: string; email: string; username: string } | null;
@@ -90,10 +95,6 @@
   let isPageOwner = $derived(pdata?.isOwner === true);
 
   let moreOpen = $state(false);
-  let userOpen = $state(false);
-  let shareOpen = $state(false);
-  let copyState = $state<'idle' | 'copied'>('idle');
-  let shareQrOpen = $state(false);
   let docCommentsOpen = $state(false);
   let deletingPage = $state(false);
 
@@ -106,7 +107,6 @@
 
   function closeMenus() {
     moreOpen = false;
-    userOpen = false;
   }
 
   function toggleMore(e: MouseEvent) {
@@ -121,43 +121,13 @@
     }
   }
 
-  function toggleUser(e: MouseEvent) {
+  function toggleAppearance(e: MouseEvent) {
     e.stopPropagation();
-    const next = !userOpen;
-    closeMenus();
-    userOpen = next;
-  }
-
-  function openShare(e: MouseEvent) {
-    e.stopPropagation();
-    closeMenus();
-    closeReaderHistoryPanel();
-    closeReaderAppearancePanel();
-    shareOpen = true;
-    copyState = 'idle';
-    shareQrOpen = false;
-  }
-
-  function closeShare() {
-    shareOpen = false;
-    shareQrOpen = false;
-  }
-
-  function toggleShareQr(e: MouseEvent) {
-    e.stopPropagation();
-    shareQrOpen = !shareQrOpen;
-  }
-
-  async function copyShareUrl() {
-    if (!shareUrl || !browser) return;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      copyState = 'copied';
-      setTimeout(() => {
-        copyState = 'idle';
-      }, 1800);
-    } catch {
-      copyState = 'idle';
+    moreOpen = false;
+    if ($readerAppearancePanelOpen) {
+      closeReaderAppearancePanel();
+    } else {
+      openReaderAppearancePanel();
     }
   }
 
@@ -186,18 +156,13 @@
   }
 
   $effect(() => {
-    if (!browser || (!moreOpen && !userOpen && !shareOpen)) return;
+    if (!browser || !moreOpen) return;
     function onDocClick(e: MouseEvent) {
       const t = e.target as HTMLElement;
       if (moreOpen && !t.closest?.('.more-wrap')) moreOpen = false;
-      if (userOpen && !t.closest?.('.user-wrap')) userOpen = false;
-      if (shareOpen && t.closest?.('.share-backdrop')) closeShare();
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeMenus();
-        closeShare();
-      }
+      if (e.key === 'Escape') closeMenus();
     }
     document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -209,6 +174,7 @@
 </script>
 
 <header class="site-header">
+  <div class="site-header-blur" aria-hidden="true"></div>
   <nav class="topbar" aria-label="Site">
     <div class="top-left">
       <a href={user ? `/@${user.username}` : '/'} class="brand">vibe.<em>pub</em></a>
@@ -292,10 +258,8 @@
               <button
                 type="button"
                 class="mm-item"
-                onclick={() => {
-                  moreOpen = false;
-                  openReaderAppearancePanel();
-                }}
+                data-appearance-trigger
+                onclick={toggleAppearance}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -441,10 +405,8 @@
               <button
                 type="button"
                 class="mm-item"
-                onclick={() => {
-                  moreOpen = false;
-                  openReaderAppearancePanel();
-                }}
+                data-appearance-trigger
+                onclick={toggleAppearance}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -573,203 +535,57 @@
           </div>
         </div>
 
-        <button type="button" class="top-btn primary" onclick={openShare}>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-          >
-            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle
-              cx="18"
-              cy="19"
-              r="3"
-            />
-            <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-          </svg>
-          Share
-        </button>
+        <Share
+          {shareUrl}
+          subject="page"
+          exports={{
+            markdownExportHref,
+            markdownDownloadName,
+            printExportHref,
+            intentX,
+            qrImgSrc,
+          }}
+          onOpen={() => {
+            closeMenus();
+            closeReaderHistoryPanel();
+            closeReaderAppearancePanel();
+          }}
+        />
       {/if}
 
-      {#if user}
-        <div class="user-wrap">
-          <button
-            type="button"
-            class="user-btn"
-            onclick={toggleUser}
-            aria-expanded={userOpen}
-            aria-haspopup="true"
-            title="@{user.username}"
-          >
-            <span class="avatar-dot">{user.username[0]?.toUpperCase() ?? '?'}</span>
-          </button>
-          <div class="user-menu" class:open={userOpen}>
-            <div class="um-head">
-              <div class="um-name">{user.username}</div>
-              <div class="um-handle">@{user.username}</div>
-            </div>
-            <a href={`/@${user.username}`} class="um-item" onclick={() => (userOpen = false)}>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-                ><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle
-                  cx="12"
-                  cy="7"
-                  r="4"
-                /></svg
-              >
-              Your profile
-            </a>
-            <a href="/new" class="um-item" onclick={() => (userOpen = false)}>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg
-              >
-              Publish
-            </a>
-            <div class="um-sep"></div>
-            <form method="POST" action="/auth/logout" class="um-form">
-              <button type="submit" class="um-item um-signout">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                  ><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline
-                    points="16 17 21 12 16 7"
-                  /><line x1="21" y1="12" x2="9" y2="12" /></svg
-                >
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      {:else}
-        <a href="/auth/login" class="top-btn">Sign in</a>
-        <a href="/new" class="top-btn" class:primary={!isArticlePage || !pg}>Publish</a>
-      {/if}
+      <User {user} showPublishWhenLoggedOut={!isArticlePage || !pg} onMenuToggle={closeMenus} />
     </div>
   </nav>
 </header>
-
-<!-- Share sheet (Reader_Doc.html — #shareModal) -->
-{#if shareOpen}
-  <div class="share-backdrop open" onclick={closeShare} role="presentation"></div>
-  <div class="share-modal open" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
-    <div class="share-head">
-      <div>
-        <h3 id="share-modal-title">Share this <em>page</em></h3>
-        <p>Readers don't need an account — the link just works.</p>
-      </div>
-      <button type="button" class="icon-btn" onclick={closeShare} aria-label="Close">✕</button>
-    </div>
-    <div class="copy-row">
-      <div class="copy-url">{shareUrl}</div>
-      <button
-        type="button"
-        class="copy-btn"
-        class:copied={copyState === 'copied'}
-        onclick={copyShareUrl}
-      >
-        {copyState === 'copied' ? 'Copied' : 'Copy'}
-      </button>
-    </div>
-    <div class="share-grid">
-      <button type="button" class="share-action" onclick={toggleShareQr}>
-        <span class="share-action-icon" aria-hidden="true"
-          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            ><rect x="3" y="3" width="7" height="7" /><rect
-              x="14"
-              y="3"
-              width="7"
-              height="7"
-            /><rect x="3" y="14" width="7" height="7" /><rect
-              x="14"
-              y="14"
-              width="7"
-              height="7"
-            /></svg
-          ></span
-        >
-        QR code
-      </button>
-      <a class="share-action" href={markdownExportHref} download={markdownDownloadName}>
-        <span class="share-action-icon" aria-hidden="true"
-          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path
-              d="M14 2v6h6"
-            /></svg
-          ></span
-        >
-        .md
-      </a>
-      <a
-        class="share-action"
-        href={printExportHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onclick={() => closeShare()}
-      >
-        <span class="share-action-icon" aria-hidden="true"
-          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path
-              d="M14 2v6h6"
-            /><path d="M9 15h6M9 11h6" /></svg
-          ></span
-        >
-        PDF
-      </a>
-      <a
-        class="share-action"
-        href={intentX}
-        target="_blank"
-        rel="noopener noreferrer"
-        onclick={() => closeShare()}
-      >
-        <span class="share-action-icon" aria-hidden="true"
-          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            ><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path
-              d="M15 3h6v6M10 14L21 3"
-            /></svg
-          ></span
-        >
-        X
-      </a>
-    </div>
-    {#if shareQrOpen && qrImgSrc}
-      <div class="share-qr-preview">
-        <img src={qrImgSrc} width="200" height="200" alt="QR code for this page" loading="lazy" />
-      </div>
-    {/if}
-    <p class="share-foot">Published · no login required to read</p>
-  </div>
-{/if}
 
 <style>
   .site-header {
     position: sticky;
     top: 0;
     z-index: 40;
+    isolation: isolate;
+  }
+
+  .site-header-blur {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
   }
 
   .topbar {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 56px;
     padding: 0 32px;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: transparent;
   }
 
   .top-left {

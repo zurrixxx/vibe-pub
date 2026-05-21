@@ -184,28 +184,118 @@ export async function startMcp() {
   );
 
   // --- create_collection ---
+  const readerGuideSchema = {
+    readers_guide: z
+      .string()
+      .optional()
+      .describe(
+        "Cover lede under «A reader's guide»: 1–3 sentences overview — scope, tone, how chapters fit together. Shown in large serif above the guide cards."
+      ),
+    what_its_about: z
+      .string()
+      .optional()
+      .describe(
+        "Cover card «What it's about»: 1–3 sentences on the collection's subject and thesis. Write for this specific collection, not generic platform copy."
+      ),
+    who_its_for: z
+      .string()
+      .optional()
+      .describe(
+        "Cover card «Who it's for»: who should read this (role, team, prior knowledge). Be concrete."
+      ),
+    how_to_read_it: z
+      .string()
+      .optional()
+      .describe(
+        'Cover card «How to read it»: how to navigate (sidebar, suggested starting chapter, optional vs sequential reading).'
+      ),
+  };
+
   server.tool(
     'create_collection',
-    'Create a new collection of pages. Returns id, slug, and URL.',
+    'Create a collection. Prefer `parts` for grouped sections; use `page_slugs` for ungrouped pages (after parts). Fill readers_guide, what_its_about, who_its_for, and how_to_read_it for the cover. Returns id, slug, url, parts, ungrouped_pages.',
     {
       title: z.string().describe('Collection title'),
       slug: z.string().optional().describe('Custom URL slug'),
-      page_slugs: z.array(z.string()).optional().describe('Ordered page slugs to include'),
+      page_slugs: z.array(z.string()).optional().describe('Ordered page slugs (ungrouped)'),
+      parts: z
+        .array(
+          z.object({
+            title: z.string(),
+            page_slugs: z.array(z.string()).optional(),
+          })
+        )
+        .optional()
+        .describe('Ordered parts with optional page slugs each'),
       access: z
         .enum(['public', 'unlisted', 'private'])
         .optional()
         .describe('Access level (default: unlisted)'),
-      description: z.string().optional().describe('Collection description'),
+      description: z
+        .string()
+        .optional()
+        .describe('Short subtitle under the title on the cover (one line or short paragraph)'),
+      ...readerGuideSchema,
       theme: z.string().optional().describe('Collection theme'),
     },
-    async ({ title, slug, page_slugs, access, description, theme }) => {
+    async ({
+      title,
+      slug,
+      page_slugs,
+      parts,
+      access,
+      description,
+      readers_guide,
+      what_its_about,
+      who_its_for,
+      how_to_read_it,
+      theme,
+    }) => {
       const result = await api.createCollection(title, {
         slug,
         slugs: page_slugs,
+        parts,
         access,
         description,
+        readers_guide,
+        what_its_about,
+        who_its_for,
+        how_to_read_it,
         theme,
       });
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    }
+  );
+
+  server.tool(
+    'update_collection',
+    "Update collection metadata (title, description, access, reader's guide fields).",
+    {
+      slug: z.string().describe('Collection slug'),
+      title: z.string().optional(),
+      description: z.string().optional(),
+      access: z.enum(['public', 'unlisted', 'private']).optional(),
+      ...readerGuideSchema,
+    },
+    async ({
+      slug,
+      title,
+      description,
+      access,
+      readers_guide,
+      what_its_about,
+      who_its_for,
+      how_to_read_it,
+    }) => {
+      const data = {};
+      if (title !== undefined) data.title = title;
+      if (description !== undefined) data.description = description;
+      if (access !== undefined) data.access = access;
+      if (readers_guide !== undefined) data.readers_guide = readers_guide;
+      if (what_its_about !== undefined) data.what_its_about = what_its_about;
+      if (who_its_for !== undefined) data.who_its_for = who_its_for;
+      if (how_to_read_it !== undefined) data.how_to_read_it = how_to_read_it;
+      const result = await api.updateCollection(slug, data);
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     }
   );
@@ -231,9 +321,71 @@ export async function startMcp() {
       collection_slug: z.string().describe('Collection slug'),
       page_slug: z.string().describe('Page slug to add'),
       label: z.string().optional().describe('Display label (overrides page title in nav)'),
+      part_id: z.string().optional().describe('Part id to add the page into'),
     },
-    async ({ collection_slug, page_slug, label }) => {
-      const result = await api.addToCollection(collection_slug, page_slug, { label });
+    async ({ collection_slug, page_slug, label, part_id }) => {
+      const result = await api.addToCollection(collection_slug, page_slug, { label, part_id });
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    }
+  );
+
+  // --- list_collection_parts ---
+  server.tool(
+    'list_collection_parts',
+    'List parts in a collection.',
+    {
+      collection_slug: z.string().describe('Collection slug'),
+    },
+    async ({ collection_slug }) => {
+      const result = await api.listCollectionParts(collection_slug);
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    }
+  );
+
+  // --- create_collection_part ---
+  server.tool(
+    'create_collection_part',
+    'Create a part (section) in a collection. Returns id and title.',
+    {
+      collection_slug: z.string().describe('Collection slug'),
+      title: z.string().describe('Part title'),
+      sort_order: z.number().int().optional().describe('Order among parts'),
+    },
+    async ({ collection_slug, title, sort_order }) => {
+      const result = await api.createCollectionPart(collection_slug, title, { sort_order });
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    }
+  );
+
+  // --- update_collection_part ---
+  server.tool(
+    'update_collection_part',
+    'Update a collection part title or sort order.',
+    {
+      collection_slug: z.string().describe('Collection slug'),
+      part_id: z.string().describe('Part id'),
+      title: z.string().optional().describe('New title'),
+      sort_order: z.number().int().optional().describe('New sort order'),
+    },
+    async ({ collection_slug, part_id, title, sort_order }) => {
+      const data = {};
+      if (title !== undefined) data.title = title;
+      if (sort_order !== undefined) data.sort_order = sort_order;
+      const result = await api.updateCollectionPart(collection_slug, part_id, data);
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    }
+  );
+
+  // --- delete_collection_part ---
+  server.tool(
+    'delete_collection_part',
+    'Delete a part. Pages in the part become ungrouped.',
+    {
+      collection_slug: z.string().describe('Collection slug'),
+      part_id: z.string().describe('Part id'),
+    },
+    async ({ collection_slug, part_id }) => {
+      const result = await api.deleteCollectionPart(collection_slug, part_id);
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     }
   );

@@ -29,6 +29,12 @@
     --warning: #f59e0b;
     --purple: #8b5cf6;
 
+    /* Search match highlight (high-contrast marker, not theme accent) */
+    --search-highlight: #fde047;
+    --search-highlight-active: #facc15;
+    --search-highlight-text: #1a1917;
+    --search-highlight-ring: rgba(234, 179, 8, 0.55);
+
     /* ── Kanban label colors ──────────────────── */
     --label-bug: #ef4444;
     --label-feature: #3b82f6;
@@ -81,7 +87,7 @@
     /* ── Reader doc prose (comfortable reading scale) ─ */
     --reader-font-size: 16px;
     --reader-line-height: 1.65;
-    --reader-measure: 680px;
+    --reader-measure: 780px;
     --reader-h1-size: 40px;
     --reader-h2-size: 28px;
     --reader-h3-size: 20px;
@@ -108,6 +114,10 @@
     --text-tertiary: #6b6963;
     --accent: #edeae5;
     --accent-hover: #d4d1cc;
+    --search-highlight: #eab308;
+    --search-highlight-active: #fbbf24;
+    --search-highlight-text: #1a1917;
+    --search-highlight-ring: rgba(251, 191, 36, 0.65);
     --shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.06);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.04);
     --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);

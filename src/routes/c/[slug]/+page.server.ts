@@ -1,137 +1,141 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDb, getCommentsByPage } from '$lib/server/db';
-import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
-import { buildCanonicalPath } from '$lib/server/slug';
-import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
+import { getDb, getUserById } from '$lib/server/db';
+import {
+  PAGES_ORDER_SQL,
+  type CollectionPageRow,
+  type CollectionPartRow,
+  type CollectionRow,
+  buildChapterNav,
+  buildCollectionSettings,
+  buildCoverParts,
+  buildNavStructure,
+  collectionMetaFromRow,
+  extractAllHeadings,
+  renderCollectionPageContent,
+} from '$lib/templates/collection/server';
 
-interface CollectionRow {
-  id: string;
-  slug: string;
-  title: string;
-  description: string | null;
-  user_id: string | null;
-  access: string;
-  theme: string;
-}
-
-interface CollectionPageRow {
-  page_id: string;
-  sort_order: number;
-  label: string | null;
-  id: string;
-  slug: string;
-  title: string | null;
-  markdown: string;
-  view: string;
-  updated: string;
-}
-
-export const load: PageServerLoad = async ({ params, url, platform, depends }) => {
-  // Re-run when ?page= query param changes
+export const load: PageServerLoad = async ({ params, url, platform, locals, depends }) => {
   depends(`collection:${params.slug}:${url.searchParams.get('page') ?? ''}`);
 
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
-  // Get collection
   const collection = await db
     .prepare('SELECT * FROM collections WHERE slug = ?')
     .bind(params.slug)
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
+  if (collection.access === 'private') throw error(403, 'This collection is private');
 
-  if (collection.access === 'private') {
-    throw error(403, 'This collection is private');
-  }
+  const partsResult = await db
+    .prepare(
+      'SELECT id, title, sort_order FROM collection_parts WHERE collection_id = ? ORDER BY sort_order ASC'
+    )
+    .bind(collection.id)
+    .all<CollectionPartRow>();
 
-  // Get pages in order
   const pagesResult = await db
     .prepare(
       `
-      SELECT cp.page_id, cp.sort_order, cp.label, p.id, p.slug, p.title, p.markdown, p.view, p.updated
+      SELECT cp.page_id, cp.sort_order, cp.label, cp.part_id,
+             p.id, p.slug, p.title, p.markdown, p.view, p.updated
       FROM collection_pages cp
       JOIN pages p ON cp.page_id = p.id
+      LEFT JOIN collection_parts pt ON pt.id = cp.part_id
       WHERE cp.collection_id = ?
-      ORDER BY cp.sort_order ASC
+      ${PAGES_ORDER_SQL}
     `
     )
     .bind(collection.id)
     .all<CollectionPageRow>();
 
   const pages = pagesResult.results;
+  const partsMeta = partsResult.results;
+  const isCollectionOwner = collection.user_id !== null && locals.user?.id === collection.user_id;
+  const { settingsChapters, settingsParts } = buildCollectionSettings(
+    pages,
+    partsMeta,
+    isCollectionOwner
+  );
 
-  // Empty collection — return minimal data so the page can render an empty state
+  const collectionMeta = collectionMetaFromRow(collection);
+  const pageParam = url.searchParams.get('page');
+  const showCover = !pageParam || pageParam === 'cover';
+  const coverParts = buildCoverParts(partsMeta, pages);
+  const firstPageHref = pages.length > 0 ? `/c/${collection.slug}?page=${pages[0].id}` : null;
+
+  let owner: { username: string } | null = null;
+  if (collection.user_id) {
+    const ownerUser = await getUserById(db, collection.user_id);
+    if (ownerUser) owner = { username: ownerUser.username };
+  }
+
+  const shared = {
+    collection: collectionMeta,
+    owner,
+    coverParts,
+    firstPageHref,
+    isCollectionOwner,
+    settingsChapters,
+    settingsParts,
+  };
+
   if (pages.length === 0) {
+    const { parts, ungroupedPages, flatPages } = buildNavStructure(pages, partsMeta, '');
     return {
-      collection: {
-        title: collection.title,
-        slug: collection.slug,
-        description: collection.description,
-        theme: collection.theme,
-      },
-      pages: [],
+      ...shared,
+      showCover: true,
+      parts,
+      ungroupedPages,
+      pages: flatPages,
+      activePart: null,
       activePage: null,
+      chapter: null,
       allHeadings: [],
     };
   }
 
-  // Determine active page (from ?page= query param, or first page).
-  // The query param accepts the page id (matches what serialize/links emit).
-  const activeKey = url.searchParams.get('page') ?? pages[0].id;
-  const activePage = pages.find((p) => p.id === activeKey) ?? pages[0];
-
-  // Render active page content
-  const { content, data: fm } = parseFrontmatter(activePage.markdown);
-  const isKanban = activePage.view === 'kanban';
-  const html = isKanban ? '' : await renderMarkdown(content);
-  const comments = await getCommentsByPage(db, activePage.page_id);
-
-  // Parse kanban data server-side if needed
-  let kanbanData = null;
-  if (isKanban) {
-    try {
-      const parsed = parseKanbanBlocks(activePage.markdown);
-      kanbanData = { columns: parsed.columns, labels: parsed.labels };
-    } catch {
-      kanbanData = { columns: [], labels: {} };
-    }
+  if (showCover) {
+    const { parts, ungroupedPages, flatPages } = buildNavStructure(pages, partsMeta, '');
+    return {
+      ...shared,
+      showCover: true,
+      parts,
+      ungroupedPages,
+      pages: flatPages,
+      activePart: null,
+      activePage: null,
+      chapter: null,
+      allHeadings: [],
+    };
   }
 
-  // Extract headings from all pages for collection outline
-  const allHeadings = pages.map((p) => {
-    const headings: { text: string; level: number; id: string }[] = [];
-    const hRegex = /^(#{1,3})\s+(.+)/gm;
-    const { content: c } = parseFrontmatter(p.markdown);
-    let m;
-    while ((m = hRegex.exec(c)) !== null) {
-      const text = m[2].trim();
-      headings.push({
-        level: m[1].length,
-        text,
-        id: text
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, ''),
-      });
-    }
-    return { id: p.id, title: p.label ?? p.title ?? p.id, headings };
-  });
+  const activeKey = pageParam!;
+  const activePage = pages.find((p) => p.id === activeKey);
+  if (!activePage) throw error(404, 'Page not found in collection');
+
+  const { parts, ungroupedPages, flatPages } = buildNavStructure(pages, partsMeta, activePage.id);
+  const { chapter, activePart } = buildChapterNav(
+    flatPages,
+    activePage,
+    collection.slug,
+    partsMeta,
+    parts
+  );
+
+  const { html, comments, frontmatter, kanbanData, sourceMarkdownHref } =
+    await renderCollectionPageContent(db, activePage);
 
   return {
-    collection: {
-      title: collection.title,
-      slug: collection.slug,
-      description: collection.description,
-      theme: collection.theme,
-    },
-    pages: pages.map((p) => ({
-      id: p.id,
-      title: p.label ?? p.title ?? p.id,
-      view: p.view,
-      active: p.id === activePage.id,
-    })),
+    ...shared,
+    showCover: false,
+    parts,
+    ungroupedPages,
+    pages: flatPages,
+    activePart,
+    chapter,
     activePage: {
       id: activePage.page_id,
       slug: activePage.slug,
@@ -141,15 +145,10 @@ export const load: PageServerLoad = async ({ params, url, platform, depends }) =
       updated: activePage.updated,
       html,
       comments,
-      frontmatter: fm,
+      frontmatter,
       kanbanData,
-      sourceMarkdownHref:
-        buildCanonicalPath({
-          id: activePage.page_id,
-          slug: activePage.slug,
-          title: activePage.title,
-        }) + '.md',
+      sourceMarkdownHref,
     },
-    allHeadings,
+    allHeadings: extractAllHeadings(pages),
   };
 };

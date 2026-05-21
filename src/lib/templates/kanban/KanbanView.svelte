@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import { tick } from 'svelte';
-  import { kanbanReaderBoardFullwidth } from '$lib/stores';
+  import { kanbanReaderBoardFullwidth } from '$lib/components/topbar';
   import type { Comment } from '$lib/types';
   import {
     serializeKanban,
