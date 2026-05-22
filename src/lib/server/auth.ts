@@ -72,7 +72,7 @@ export function validateCliAuthParams(state: string | null, port: string | null)
   if (!state || !port) {
     throw new Error('Missing state or port');
   }
-  if (!/^[a-f0-9]{32}$/i.test(state)) {
+  if (!/^[a-f0-9]{32}$/.test(state)) {
     throw new Error('Invalid state');
   }
   const portNum = Number.parseInt(port, 10);

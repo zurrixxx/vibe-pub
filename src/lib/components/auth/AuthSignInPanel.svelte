@@ -389,6 +389,7 @@
     margin: 20px 0 0 0;
   }
 
+  /* Shared with /auth/cli authorize button */
   :global(.authorize-btn) {
     font-size: 15px;
     padding: 13px 16px;

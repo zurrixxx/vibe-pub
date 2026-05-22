@@ -1,18 +1,17 @@
 import { createServer } from 'http';
 import { randomBytes } from 'crypto';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { saveConfig, getBaseUrl } from './config.js';
 
 const LOGIN_TIMEOUT_MS = 15 * 60 * 1000;
 
 function openBrowser(url) {
-  const platform = process.platform;
-  if (platform === 'darwin') {
-    exec(`open ${JSON.stringify(url)}`);
-  } else if (platform === 'win32') {
-    exec(`start "" ${JSON.stringify(url)}`);
+  if (process.platform === 'darwin') {
+    execFile('open', [url]);
+  } else if (process.platform === 'win32') {
+    execFile('cmd', ['/c', 'start', '', url]);
   } else {
-    exec(`xdg-open ${JSON.stringify(url)}`);
+    execFile('xdg-open', [url]);
   }
 }
 
@@ -22,9 +21,6 @@ const SUCCESS_HTML = `<!DOCTYPE html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CLI authorized — vibe.pub</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; }
     body {
@@ -35,7 +31,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
       padding: 24px;
       background: #edeae5;
       color: #1a1917;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     .card {
       width: 100%;
@@ -47,7 +43,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
       text-align: center;
     }
     .brand {
-      font-family: 'Playfair Display', Georgia, serif;
+      font-family: Georgia, 'Times New Roman', serif;
       font-size: 24px;
       letter-spacing: -0.02em;
       margin-bottom: 28px;
@@ -55,7 +51,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
     }
     .brand em { font-style: italic; }
     .title {
-      font-family: 'Playfair Display', Georgia, serif;
+      font-family: Georgia, 'Times New Roman', serif;
       font-size: 28px;
       font-weight: 400;
       line-height: 1.25;
@@ -73,7 +69,6 @@ const SUCCESS_HTML = `<!DOCTYPE html>
       margin: 28px 0 20px;
     }
     .footer { font-size: 13px; color: #6b6963; }
-    .footer a { color: #1a1917; }
   </style>
 </head>
 <body>
@@ -107,7 +102,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 
 /**
  * @param {{ onAuthUrl?: (url: string) => void }} [options]
- * @returns {Promise<{ token: string, authUrl: string }>}
+ * @returns {Promise<void>}
  */
 export function loginViaLocalhost(options = {}) {
   return new Promise((resolve, reject) => {
@@ -162,7 +157,7 @@ export function loginViaLocalhost(options = {}) {
 
         saveConfig({ token });
         respond(req, res, 200, SUCCESS_HTML, 'text/html; charset=utf-8');
-        finish(resolve, { token, authUrl: authUrl ?? '' });
+        finish(resolve);
       } catch (e) {
         respond(req, res, 500, 'Error', 'text/plain; charset=utf-8');
         finish(reject, e instanceof Error ? e : new Error(String(e)));

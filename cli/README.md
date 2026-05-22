@@ -28,10 +28,10 @@ Requires Node 18+.
 ## Usage
 
 ```bash
-# First time
-vibe-pub login                           # login on browser  
-vibe-pub logout                         
-# Advanced: vibe-pub config --token <token>
+# Auth
+vibe-pub login                           # sign in via browser
+vibe-pub logout                          # clear saved token
+# Or: vibe-pub config --token <token>
 
 # Publish
 vibe-pub publish notes.md                          # unlisted by default
