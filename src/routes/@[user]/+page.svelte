@@ -135,6 +135,7 @@
     const body: {
       title: string;
       slug: string;
+      agent_published: false;
       description?: string;
       readers_guide?: string;
       what_its_about?: string;
@@ -142,7 +143,7 @@
       how_to_read_it?: string;
       parts?: { title: string; page_slugs: string[] }[];
       page_slugs?: string[];
-    } = { title: newCollTitle.trim(), slug };
+    } = { title: newCollTitle.trim(), slug, agent_published: false };
 
     if (newCollDescription.trim()) body.description = newCollDescription.trim();
     if (newCollReadersGuide.trim()) body.readers_guide = newCollReadersGuide.trim();

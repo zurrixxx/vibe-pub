@@ -179,7 +179,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const pageMap = await resolvePageSlugs(db, allSlugs);
   const ownerId = locals.user?.id ?? null;
   const effectiveAccess = resolveCollectionAccess(access, ownerId);
-  const agentPublished = agent_published === true ? 1 : 0;
+  /** Omitted or true → agent (CLI/API default); only explicit false → manual (web form). */
+  const agentPublished = agent_published === false ? 0 : 1;
 
   await db
     .prepare(
