@@ -10,7 +10,13 @@
   import { closeMyPageSearchPanel, myPageSearchPanelOpen, openMyPageSearchPanel } from './stores';
 
   interface Props {
-    pages: { id: string; title?: string | null; slug?: string | null; canonicalPath: string; view?: string | null }[];
+    pages: {
+      id: string;
+      title?: string | null;
+      slug?: string | null;
+      canonicalPath: string;
+      view?: string | null;
+    }[];
     collections: { slug: string; title: string; description?: string | null }[];
   }
 
@@ -141,12 +147,7 @@
       <kbd class="c-search-kbd" aria-hidden="true">esc</kbd>
     </div>
 
-    <div
-      class="c-search-results"
-      bind:this={resultsEl}
-      role="listbox"
-      aria-label="Search results"
-    >
+    <div class="c-search-results" bind:this={resultsEl} role="listbox" aria-label="Search results">
       {#if !query.trim()}
         <p class="c-search-msg">Search page titles, slugs, and collection names.</p>
       {:else if hits.length === 0}

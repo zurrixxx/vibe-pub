@@ -19,7 +19,13 @@ function normalize(s: string): string {
 }
 
 export function buildMyPageSearchEntries(
-  pages: { id: string; title?: string | null; slug?: string | null; canonicalPath: string; view?: string | null }[],
+  pages: {
+    id: string;
+    title?: string | null;
+    slug?: string | null;
+    canonicalPath: string;
+    view?: string | null;
+  }[],
   collections: { slug: string; title: string; description?: string | null }[]
 ): MyPageSearchEntry[] {
   const pageEntries: MyPageSearchEntry[] = pages.map((p) => ({
