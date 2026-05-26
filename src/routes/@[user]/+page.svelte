@@ -1,5 +1,48 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
+  import MyPageSearchPanel from '$lib/components/mypage/SearchPanel.svelte';
   import type { PageData } from './$types';
+
+  type StatusFilter = 'all' | 'live' | 'drafts' | 'archived';
+  type SourceFilter = 'all' | 'agent' | 'manual';
+  type ViewFilter = 'all' | 'doc' | 'kanban' | 'collection';
+
+  type MyPageFilters = {
+    status: StatusFilter;
+    source: SourceFilter;
+    view: ViewFilter;
+  };
+
+  const STATUS_VALUES = ['all', 'live', 'drafts', 'archived'] as const;
+  const SOURCE_VALUES = ['all', 'agent', 'manual'] as const;
+  const VIEW_VALUES = ['all', 'doc', 'kanban', 'collection'] as const;
+
+  function myPageFilterKey(username: string) {
+    return `vibe-mypage-filters:${username}`;
+  }
+
+  function pickFilter<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+    return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+      ? (value as T)
+      : fallback;
+  }
+
+  function loadMyPageFilters(username: string): MyPageFilters {
+    const defaults: MyPageFilters = { status: 'all', source: 'all', view: 'all' };
+    if (!browser) return defaults;
+    try {
+      const raw = sessionStorage.getItem(myPageFilterKey(username));
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw) as Partial<MyPageFilters>;
+      return {
+        status: pickFilter(parsed.status, STATUS_VALUES, 'all'),
+        source: pickFilter(parsed.source, SOURCE_VALUES, 'all'),
+        view: pickFilter(parsed.view, VIEW_VALUES, 'all'),
+      };
+    } catch {
+      return defaults;
+    }
+  }
 
   interface Props {
     data: PageData;
@@ -21,6 +64,7 @@
   let newCollUseParts = $state(false);
   let nextPartKey = $state(1);
   let newCollParts = $state([{ key: 0, title: '', pageSlugs: '' }]);
+  let collectionsExpanded = $state(true);
 
   function resetNewCollectionForm() {
     newCollTitle = '';
@@ -47,10 +91,34 @@
     newCollParts = newCollParts.filter((p) => p.key !== key);
   }
 
-  // Sidebar filter state
-  let activeFilter = $state<'all' | 'live' | 'drafts' | 'archived'>('all');
-  let sourceFilter = $state<'all' | 'agent' | 'manual'>('all');
-  let viewFilter = $state<'all' | 'doc' | 'kanban'>('all');
+  // Sidebar filter state (restored from sessionStorage per user)
+  let activeFilter = $state<StatusFilter>('all');
+  let sourceFilter = $state<SourceFilter>('all');
+  let viewFilter = $state<ViewFilter>('all');
+  let loadedForUsername = '';
+
+  $effect(() => {
+    if (!isOwner) return;
+    const username = profileUser.username;
+    if (username === loadedForUsername) return;
+    loadedForUsername = username;
+    const stored = loadMyPageFilters(username);
+    activeFilter = stored.status;
+    sourceFilter = stored.source;
+    viewFilter = stored.view;
+  });
+
+  $effect(() => {
+    if (!isOwner || !browser) return;
+    sessionStorage.setItem(
+      myPageFilterKey(profileUser.username),
+      JSON.stringify({
+        status: activeFilter,
+        source: sourceFilter,
+        view: viewFilter,
+      } satisfies MyPageFilters)
+    );
+  });
 
   function autoSlug(title: string): string {
     return title
@@ -130,10 +198,12 @@
     return formatDate(dateStr);
   }
 
-  // Determine if a page was likely agent-published (heuristic: no title usually means CLI/agent)
-  // In reality this should come from a `source` column; for now use a simple heuristic
   function isAgentPublished(page: (typeof pages)[0]): boolean {
     return page.agent_published === 1;
+  }
+
+  function isAgentPublishedCollection(coll: (typeof collections)[0]): boolean {
+    return coll.agent_published === 1;
   }
 
   function getGreeting(): string {
@@ -161,10 +231,15 @@
     live: pages.filter((p) => p.access === 'public').length,
     drafts: pages.filter((p) => p.access === 'private').length,
     archived: 0, // no archive status yet, placeholder
-    agent: pages.filter((p) => isAgentPublished(p)).length,
-    manual: pages.filter((p) => !isAgentPublished(p)).length,
+    agent:
+      pages.filter((p) => isAgentPublished(p)).length +
+      collections.filter((c) => isAgentPublishedCollection(c)).length,
+    manual:
+      pages.filter((p) => !isAgentPublished(p)).length +
+      collections.filter((c) => !isAgentPublishedCollection(c)).length,
     doc: pages.filter((p) => pageView(p) === 'doc').length,
     kanban: pages.filter((p) => pageView(p) === 'kanban').length,
+    collection: collections.length,
   });
 
   // Filtered pages
@@ -191,6 +266,18 @@
       result = result.filter((p) => pageView(p) === 'doc');
     } else if (viewFilter === 'kanban') {
       result = result.filter((p) => pageView(p) === 'kanban');
+    }
+
+    return result;
+  });
+
+  let filteredCollections = $derived.by(() => {
+    let result = collections;
+
+    if (sourceFilter === 'agent') {
+      result = result.filter((c) => isAgentPublishedCollection(c));
+    } else if (sourceFilter === 'manual') {
+      result = result.filter((c) => !isAgentPublishedCollection(c));
     }
 
     return result;
@@ -294,6 +381,12 @@
         class:active={viewFilter === 'kanban'}
         onclick={() => (viewFilter = viewFilter === 'kanban' ? 'all' : 'kanban')}
         >Kanban <span class="n">{counts.kanban}</span></button
+      >
+      <button
+        class="nav-item"
+        class:active={viewFilter === 'collection'}
+        onclick={() => (viewFilter = viewFilter === 'collection' ? 'all' : 'collection')}
+        >Collection <span class="n">{counts.collection}</span></button
       >
 
       <div class="nav-h">Tools</div>
@@ -444,21 +537,74 @@
       {/if}
 
       <!-- Collections section -->
-      {#if collections.length > 0}
-        <h3 class="sec-h">Collections</h3>
-        <div class="collections-list">
-          {#each collections as coll}
-            <a href={`/c/${coll.slug}`} class="coll-row">
-              <span class="coll-title">{coll.title}</span>
-              <span class="coll-slug">/{coll.slug}</span>
-              <span class="coll-access badge-{coll.access}">{coll.access}</span>
-            </a>
-          {/each}
+      {#if (viewFilter === 'all' || viewFilter === 'collection') && filteredCollections.length > 0}
+        <h3 class="sec-h sec-h-coll">
+          <span>Collections</span>
+          <span aria-hidden="true"></span>
+          {#if viewFilter === 'all'}
+            <button
+              type="button"
+              class="sec-h-action"
+              onclick={() => (collectionsExpanded = !collectionsExpanded)}
+              aria-expanded={collectionsExpanded}
+            >
+              {collectionsExpanded ? 'Hide' : 'Show'}
+            </button>
+          {:else if filteredCollections.length !== collections.length}
+            <span class="sec-h-count">{filteredCollections.length} of {collections.length}</span>
+          {:else}
+            <span class="sec-h-count">{filteredCollections.length}</span>
+          {/if}
+        </h3>
+        {#if collectionsExpanded || viewFilter === 'collection'}
+          <div class="collections-list">
+            {#each filteredCollections as coll}
+              {@const isAgent = isAgentPublishedCollection(coll)}
+              <a href={`/c/${coll.slug}`} class="coll-row">
+                <span class="coll-title">
+                  <span
+                    class="coll-src"
+                    class:agent={isAgent}
+                    title={isAgent ? 'Agent-published' : 'Manual'}
+                  >
+                    {isAgent ? '\u2726' : '\u25C7'}
+                  </span>
+                  {coll.title}
+                </span>
+                <span class="coll-slug">/{coll.slug}</span>
+                <span class="coll-access badge-{coll.access}">{coll.access}</span>
+              </a>
+            {/each}
+          </div>
+        {/if}
+      {:else if viewFilter === 'collection'}
+        <div class="empty-state">
+          <p class="empty-title">
+            {#if collections.length > 0 && sourceFilter !== 'all'}
+              No collections match this filter
+            {:else}
+              No collections yet
+            {/if}
+          </p>
+          {#if collections.length === 0 && sourceFilter === 'all'}
+            <button class="empty-cta" onclick={() => (showNewCollection = true)}>
+              Create your first collection &rarr;
+            </button>
+          {:else if sourceFilter !== 'all'}
+            <button
+              class="empty-cta"
+              onclick={() => {
+                sourceFilter = 'all';
+              }}
+            >
+              Clear filters
+            </button>
+          {/if}
         </div>
       {/if}
 
       <!-- Pages list -->
-      {#if filteredPages.length > 0}
+      {#if viewFilter !== 'collection' && filteredPages.length > 0}
         <h3 class="sec-h">
           {#if activeFilter === 'all'}Recent pages{:else if activeFilter === 'live'}Live pages{:else if activeFilter === 'drafts'}Drafts{:else}Archived{/if}
           {#if filteredPages.length !== pages.length}
@@ -497,7 +643,7 @@
             </a>
           {/each}
         </div>
-      {:else}
+      {:else if viewFilter !== 'collection'}
         <div class="empty-state">
           <p class="empty-title">
             {#if activeFilter !== 'all' || sourceFilter !== 'all' || viewFilter !== 'all'}
@@ -575,6 +721,8 @@
     {/if}
   </main>
 {/if}
+
+<MyPageSearchPanel {pages} {collections} />
 
 <style>
   /* ════════════════════════════════════════════════════
@@ -786,6 +934,7 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     margin: 0 0 14px;
+    padding: 0 8px;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -795,6 +944,37 @@
     font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: none;
+  }
+
+  .sec-h-action {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--text-tertiary);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: color var(--ease-fast);
+  }
+
+  .sec-h-action:hover {
+    color: var(--text-primary);
+  }
+
+  .sec-h-coll {
+    display: grid;
+    grid-template-columns: 1fr 160px 80px;
+    gap: 16px;
+    align-items: baseline;
+  }
+
+  .sec-h-coll .sec-h-action,
+  .sec-h-coll .sec-h-count {
+    text-align: right;
+    justify-self: end;
   }
 
   /* ── Collections list ── */
@@ -822,6 +1002,22 @@
     font-family: var(--font-serif);
     font-size: 17px;
     color: var(--text-primary);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .coll-src {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  .coll-src.agent {
+    color: var(--text-primary);
+    font-weight: 600;
   }
 
   .coll-slug {
@@ -1192,6 +1388,19 @@
 
     .coll-row {
       grid-template-columns: 1fr 80px;
+    }
+
+    .sec-h-coll {
+      grid-template-columns: 1fr 80px;
+    }
+
+    .sec-h-coll > :nth-child(2) {
+      display: none;
+    }
+
+    .sec-h-coll .sec-h-action,
+    .sec-h-coll .sec-h-count {
+      grid-column: 2;
     }
 
     .coll-slug {

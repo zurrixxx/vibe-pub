@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
   // Load user's collections
   const collectionsResult = await db
     .prepare(
-      'SELECT id, slug, title, description, access, updated FROM collections WHERE user_id = ? ORDER BY updated DESC'
+      'SELECT id, slug, title, description, access, updated, agent_published FROM collections WHERE user_id = ? ORDER BY updated DESC'
     )
     .bind(user.id)
     .all<{
@@ -27,6 +27,7 @@ export const load: PageServerLoad = async ({ params, platform, locals }) => {
       description: string | null;
       access: string;
       updated: string;
+      agent_published: number;
     }>();
   const collections = isOwner
     ? collectionsResult.results

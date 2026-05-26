@@ -17,6 +17,7 @@
   } from '$lib/components/topbar';
   import Share from '$lib/components/topbar/Share.svelte';
   import User from '$lib/components/topbar/User.svelte';
+  import { openMyPageSearchPanel } from '$lib/components/mypage/stores';
 
   interface Props {
     user?: { id: string; email: string; username: string } | null;
@@ -92,6 +93,8 @@
 
   let isKanbanArticle = $derived(isArticlePage && pg?.view === 'kanban');
 
+  let isMyPage = $derived(/^\/@[^/]+$/.test(pathname));
+
   let isPageOwner = $derived(pdata?.isOwner === true);
 
   let moreOpen = $state(false);
@@ -129,6 +132,13 @@
     } else {
       openReaderAppearancePanel();
     }
+  }
+
+  function openMyPageSearch(e: MouseEvent) {
+    e.stopPropagation();
+    closeMenus();
+    closeReaderAppearancePanel();
+    openMyPageSearchPanel();
   }
 
   async function deletePublishedPage(e: MouseEvent) {
@@ -551,6 +561,23 @@
             closeReaderAppearancePanel();
           }}
         />
+      {/if}
+
+      {#if isMyPage}
+        <button
+          type="button"
+          class="top-btn icon-only"
+          title="Search pages and collections (⌘K)"
+          onclick={openMyPageSearch}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg
+          >
+        </button>
       {/if}
 
       <User {user} showPublishWhenLoggedOut={!isArticlePage || !pg} onMenuToggle={closeMenus} />

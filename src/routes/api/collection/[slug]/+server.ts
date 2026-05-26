@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
   const collection = await db
     .prepare(
       `SELECT id, slug, title, description, readers_guide, what_its_about, who_its_for,
-              how_to_read_it, user_id, access, theme, created, updated FROM collections WHERE slug = ?`
+              how_to_read_it, user_id, access, theme, created, updated, agent_published FROM collections WHERE slug = ?`
     )
     .bind(params.slug)
     .first<{
@@ -36,6 +36,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
       theme: string;
       created: string;
       updated: string;
+      agent_published: number;
     }>();
 
   if (!collection) throw error(404, 'Collection not found');
@@ -73,6 +74,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
     theme: collection.theme,
     created: collection.created,
     updated: collection.updated,
+    agent_published: collection.agent_published === 1,
     parts: parts.results,
     pages: pages.results,
   });
@@ -155,7 +157,7 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   const updated = await db
     .prepare(
       `SELECT id, slug, title, description, readers_guide, what_its_about, who_its_for,
-              how_to_read_it, access, theme, created, updated FROM collections WHERE id = ?`
+              how_to_read_it, access, theme, created, updated, agent_published FROM collections WHERE id = ?`
     )
     .bind(collection.id)
     .first();

@@ -31,6 +31,7 @@ export interface CollectionRow {
   access: string;
   theme: string;
   updated: string;
+  agent_published: number;
 }
 
 export interface CollectionPageRow {
@@ -290,7 +291,7 @@ export async function loadCollectionReaderContext(
 }> {
   const collection = await db
     .prepare(
-      'SELECT id, slug, title, user_id, access, description, readers_guide, what_its_about, who_its_for, how_to_read_it, theme, updated FROM collections WHERE slug = ?'
+      'SELECT id, slug, title, user_id, access, description, readers_guide, what_its_about, who_its_for, how_to_read_it, theme, updated, agent_published FROM collections WHERE slug = ?'
     )
     .bind(collectionSlug)
     .first<CollectionRow>();

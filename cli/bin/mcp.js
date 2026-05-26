@@ -237,6 +237,12 @@ export async function startMcp() {
         .describe('Short subtitle under the title on the cover (one line or short paragraph)'),
       ...readerGuideSchema,
       theme: z.string().optional().describe('Collection theme'),
+      agent_published: z
+        .boolean()
+        .optional()
+        .describe(
+          'If false, collection is not tagged as agent-published. Defaults to true for MCP.'
+        ),
     },
     async ({
       title,
@@ -250,6 +256,7 @@ export async function startMcp() {
       who_its_for,
       how_to_read_it,
       theme,
+      agent_published,
     }) => {
       const result = await api.createCollection(title, {
         slug,
@@ -262,6 +269,7 @@ export async function startMcp() {
         who_its_for,
         how_to_read_it,
         theme,
+        agentPublished: agent_published !== false,
       });
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     }

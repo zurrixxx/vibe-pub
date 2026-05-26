@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
   const collections = await db
     .prepare(
       `SELECT id, slug, title, description, readers_guide, what_its_about, who_its_for,
-              how_to_read_it, access, theme, created, updated
+              how_to_read_it, access, theme, created, updated, agent_published
        FROM collections WHERE user_id = ? ORDER BY updated DESC`
     )
     .bind(locals.user.id)
@@ -33,12 +33,14 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
       theme: string;
       created: string;
       updated: string;
+      agent_published: number;
     }>();
 
   const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
   return json(
     collections.results.map((c) => ({
       ...c,
+      agent_published: c.agent_published === 1,
       url: `${baseUrl}/c/${c.slug}`,
     }))
   );
@@ -122,6 +124,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     parts,
     access,
     theme,
+    agent_published,
   } = body as {
     title: string;
     slug?: string;
@@ -134,6 +137,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     parts?: CreatePartInput[];
     access?: string;
     theme?: string;
+    agent_published?: boolean;
   };
 
   const readerGuide = readerGuideFromBody({
@@ -175,13 +179,14 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   const pageMap = await resolvePageSlugs(db, allSlugs);
   const ownerId = locals.user?.id ?? null;
   const effectiveAccess = resolveCollectionAccess(access, ownerId);
+  const agentPublished = agent_published === true ? 1 : 0;
 
   await db
     .prepare(
       `INSERT INTO collections (
          id, slug, title, description, readers_guide, what_its_about, who_its_for,
-         how_to_read_it, user_id, access, theme
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         how_to_read_it, user_id, access, theme, agent_published
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -194,7 +199,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       readerGuide.how_to_read_it ?? null,
       ownerId,
       effectiveAccess,
-      theme ?? 'default'
+      theme ?? 'default',
+      agentPublished
     )
     .run();
 
@@ -244,6 +250,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       id,
       slug: collectionSlug,
       url: `${baseUrl}/c/${collectionSlug}`,
+      agent_published: agentPublished === 1,
       parts: createdParts,
       ungrouped_pages: ungroupedPages,
     },

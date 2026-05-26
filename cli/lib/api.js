@@ -121,6 +121,7 @@ export async function createCollection(title, options = {}) {
   if (options.who_its_for) body.who_its_for = options.who_its_for;
   if (options.how_to_read_it) body.how_to_read_it = options.how_to_read_it;
   if (options.theme) body.theme = options.theme;
+  if (options.agentPublished !== false) body.agent_published = true;
   return request('POST', '/api/collection', body);
 }
 

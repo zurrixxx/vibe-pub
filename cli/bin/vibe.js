@@ -119,17 +119,18 @@ Resolve options:
 
 Collection create options:
   --slug <slug>              Custom collection slug
-  --description <text>         Cover subtitle under the title
-  --readers-guide <text>       Cover lede under «A reader's guide»
-  --what-its-about <text>      Cover card: what this collection is about
-  --who-its-for <text>         Cover card: intended audience
-  --how-to-read-it <text>      Cover card: how to navigate / where to start
+  --description <text>       Cover subtitle under the title
+  --readers-guide <text>     Cover lede under «A reader's guide»
+  --what-its-about <text>    Cover card: what this collection is about
+  --who-its-for <text>       Cover card: intended audience
+  --how-to-read-it <text>    Cover card: how to navigate / where to start
   --slugs <p1,p2,...>        Ungrouped page slugs (shown after all parts)
   --part <spec>              Part spec, repeatable: "Title" or "Title:p1,p2"
   --parts <json>             Parts as JSON array [{ "title", "page_slugs"? }]
   --parts-file <path>        JSON file with parts array
   --access <level>           public, unlisted (default), or private
   --theme <theme>            Collection theme
+  --no-agent-published       if you are agent, miss it
 
 Collection add options:
   --label <label>            Display label (overrides page title in nav)
@@ -217,7 +218,7 @@ async function main() {
         view: flags.view,
         access: flags.access,
         theme: flags.theme,
-        agentPublished: flags['no-agent-published'] ? false : undefined,
+        agentPublished: flags['no-agent-published'] ? false : true,
       });
       out(result, format);
     } catch (e) {
@@ -462,6 +463,7 @@ async function main() {
         who_its_for: flags['who-its-for'],
         how_to_read_it: flags['how-to-read-it'],
         theme: flags.theme,
+        agentPublished: flags['no-agent-published'] ? false : true,
       };
       if (parts.length) options.parts = parts;
       if (flags.slugs)

@@ -76,6 +76,21 @@ export interface CollectionPart {
   sort_order: number;
 }
 
+/** Row from `collections` (dashboard list or API). */
+export interface Collection {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  user_id: string | null;
+  access: ResourceAccess;
+  theme: string;
+  /** 1 = created via agent tooling (CLI/MCP/API `agent_published`); 0 = web / omitted */
+  agent_published: number;
+  created: string;
+  updated: string;
+}
+
 export interface PageFrontmatter {
   view?: PageView;
   theme?: PageTheme;
