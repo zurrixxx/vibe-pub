@@ -1,10 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getUserById } from '$lib/server/db';
-import {
-  assertCanReadCollection,
-  toAccessViewer,
-} from '$lib/server/access';
+import { assertCanReadCollection, toAccessViewer } from '$lib/server/access';
 import {
   buildCollectionPagesSelectQuery,
   type CollectionPageRow,
