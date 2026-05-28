@@ -534,8 +534,8 @@ export async function addGroupMember(
   if (!user) throw error(404, 'User not found — they must sign in once before being added');
 
   if (group.domain) {
-    const memberDomain = email.split('@')[1]?.toLowerCase();
-    if (memberDomain !== group.domain) {
+    const memberDomain = parseEmailDomain(email);
+    if (!memberDomain || memberDomain !== group.domain) {
       throw error(400, `Member email must be @${group.domain}`);
     }
   }
