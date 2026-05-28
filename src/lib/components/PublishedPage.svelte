@@ -32,8 +32,18 @@
   }
   let { data }: Props = $props();
 
-  let { page, canonicalPath, html, seoHtml, blocks, comments, frontmatter, isOwner, canClaim } =
-    $derived(data);
+  let {
+    page,
+    canonicalPath,
+    html,
+    seoHtml,
+    blocks,
+    comments,
+    frontmatter,
+    isOwner,
+    canEdit,
+    canClaim,
+  } = $derived(data);
 
   type VersionRow = {
     version: number;
@@ -1132,7 +1142,7 @@
             </nav>
           </div>
         {/if}
-        {#if isOwner}
+        {#if canEdit}
           <div class="page-toolbar">
             {#if editing}
               <button class="toolbar-btn toolbar-save" onclick={saveEdit} disabled={saving}>
@@ -1240,7 +1250,7 @@
       docHtml={effectiveDocHtml}
       bind:comments={localComments}
       slugifyHeading={slugifyHeadingText}
-      enableBlockRevise={isOwner}
+      enableBlockRevise={canEdit}
       snapshotReadonly={docCommentsSnapshotReadonly}
       hidden={editing}
     />

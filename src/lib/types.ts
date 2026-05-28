@@ -123,5 +123,6 @@ export interface PublishedPageData {
   slidesData: { slides: Slide[] } | null;
   dashboardData: { sections: DashboardSection[] } | null;
   isOwner: boolean;
+  canEdit: boolean;
   canClaim: boolean;
 }

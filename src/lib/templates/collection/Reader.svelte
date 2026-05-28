@@ -4,7 +4,8 @@
   import { buildCanonicalPath } from '$lib/slug-path';
   import { readerReadingMode, readerThemeIsDark, readerThemePreview } from '$lib/components/topbar';
   import { closeDocCommentsPanel } from '$lib/stores';
-  import type { PageFrontmatter, PageTheme } from '$lib/types';
+  import type { PageFrontmatter, PageTheme, ResourceAccess } from '$lib/types';
+  import { isResourceAccess } from '$lib/constants/page';
   import type { Comment } from '$lib/types';
   import { page } from '$app/state';
   import DocChapter from './chapter/Doc.svelte';
@@ -145,7 +146,7 @@
   />
 {/if}
 
-{#if !data.showCover}
+{#if !data.showCover && data.activePage}
   <Panel
     pageId={data.activePage?.id ?? ''}
     docHtml={chapterDocHtml}
@@ -164,6 +165,13 @@
   showSpineToggle={showSidebarNav}
   showSearch={data.pages.length > 0}
   isCollectionOwner={data.isCollectionOwner}
+  manageAccess={data.isCollectionOwner && isResourceAccess(data.collection.access)
+    ? {
+        resourceType: 'collection',
+        resourceKey: data.collection.slug,
+        access: data.collection.access as ResourceAccess,
+      }
+    : null}
   onSpineToggle={() => (spineOpen = !spineOpen)}
 />
 
@@ -212,6 +220,7 @@
         ownerProfileHref={data.owner ? `/@${data.owner.username}` : null}
       />
     {:else if data.activePage && chapterProps}
+      {@const activePage = data.activePage}
       <div class="collection-page">
         {#if continuousMode && entryPageId && data.pages.length > 0}
           <ScrollReader
@@ -222,28 +231,29 @@
               scrollActivePageId = id;
             }}
           />
-        {:else if data.activePage.view === 'kanban'}
+        {:else if activePage.view === 'kanban'}
           <KanbanChapter
             {...chapterProps}
-            pageId={data.activePage.id}
-            markdown={data.activePage.markdown}
-            comments={data.activePage.comments}
-            initialColumns={data.activePage.kanbanData?.columns ?? []}
-            initialLabels={data.activePage.kanbanData?.labels ?? {}}
+            updated={chapterProps.updated ?? ''}
+            pageId={activePage.id}
+            markdown={activePage.markdown ?? ''}
+            comments={activePage.comments ?? []}
+            initialColumns={activePage.kanbanData?.columns ?? []}
+            initialLabels={activePage.kanbanData?.labels ?? {}}
             {searchQuery}
           />
         {:else}
           <DocChapter
             title={chapterProps.title}
-            html={data.activePage.html}
+            html={activePage.html ?? ''}
             lede={chapterProps.lede}
             partEyebrow={chapterProps.partEyebrow}
             chapterNum={chapterProps.chapterNum}
             totalChapters={chapterProps.totalChapters}
             authorUsername={chapterProps.authorUsername}
-            updated={chapterProps.updated}
+            updated={activePage.updated ?? ''}
             bind:comments={chapterComments}
-            pageId={data.activePage.id}
+            pageId={activePage.id}
             pageHref={chapterProps.pageHref}
             prev={chapterProps.prev}
             next={chapterProps.next}

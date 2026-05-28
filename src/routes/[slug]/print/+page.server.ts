@@ -1,17 +1,18 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getPageByUrlSegment } from '$lib/server/db';
+import { assertCanReadPage, toAccessViewer } from '$lib/server/access';
 import { buildCanonicalPath } from '$lib/server/slug';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 
-export const load: PageServerLoad = async ({ params, platform, url }) => {
+export const load: PageServerLoad = async ({ params, platform, url, locals }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
   const page = await getPageByUrlSegment(db, params.slug);
 
   if (!page) throw error(404, 'Page not found');
-  if (page.access === 'private') throw error(403, 'Private');
+  await assertCanReadPage(db, page, toAccessViewer(locals.user));
 
   const canonicalPath = buildCanonicalPath(page) + '/print';
   if (url.pathname !== canonicalPath) {

@@ -18,6 +18,7 @@
   import Share from '$lib/components/topbar/Share.svelte';
   import User from '$lib/components/topbar/User.svelte';
   import { openMyPageSearchPanel } from '$lib/components/mypage/stores';
+  import { isResourceAccess, type ResourceAccess } from '$lib/constants/page';
 
   interface Props {
     user?: { id: string; email: string; username: string } | null;
@@ -31,6 +32,7 @@
       user_id: string | null;
       view?: string | null;
       title?: string | null;
+      access?: string;
     };
     canonicalPath?: string;
     comments?: unknown[];
@@ -96,6 +98,16 @@
   let isMyPage = $derived(/^\/@[^/]+$/.test(pathname));
 
   let isPageOwner = $derived(pdata?.isOwner === true);
+
+  let pageManageAccess = $derived.by(() => {
+    if (!isPageOwner || !pg?.id || !pg.access) return null;
+    if (!isResourceAccess(pg.access)) return null;
+    return {
+      resourceType: 'page' as const,
+      resourceKey: pg.id,
+      access: pg.access as ResourceAccess,
+    };
+  });
 
   let moreOpen = $state(false);
   let docCommentsOpen = $state(false);
@@ -548,6 +560,7 @@
         <Share
           {shareUrl}
           subject="page"
+          manageAccess={pageManageAccess}
           exports={{
             markdownExportHref,
             markdownDownloadName,

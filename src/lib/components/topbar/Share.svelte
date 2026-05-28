@@ -1,6 +1,10 @@
 <script lang="ts">
   import { browser } from '$app/environment';
 
+  import ShareAccessPanel, {
+    type ManageAccessConfig,
+  } from '$lib/components/topbar/ShareAccessPanel.svelte';
+
   export interface ShareExports {
     markdownExportHref?: string;
     markdownDownloadName?: string;
@@ -15,13 +19,17 @@
     subject?: 'page' | 'collection';
     exports?: ShareExports | null;
     onOpen?: () => void;
+    manageAccess?: ManageAccessConfig | null;
   }
 
-  let { shareUrl, subject = 'page', exports = null, onOpen }: Props = $props();
+  let { shareUrl, subject = 'page', exports = null, onOpen, manageAccess = null }: Props = $props();
 
   let shareOpen = $state(false);
   let copyState = $state<'idle' | 'copied'>('idle');
   let shareQrOpen = $state(false);
+  let saveToast = $state<{ message: string; kind: 'success' | 'error' } | null>(null);
+  let toastLeaving = $state(false);
+  let saveToastTimer: ReturnType<typeof setTimeout> | undefined;
 
   const hasExports = $derived(
     Boolean(
@@ -43,6 +51,34 @@
   function closeShare() {
     shareOpen = false;
     shareQrOpen = false;
+  }
+
+  function dismissToast() {
+    if (!saveToast || toastLeaving) return;
+    toastLeaving = true;
+  }
+
+  function onToastAnimationEnd(e: AnimationEvent) {
+    if (toastLeaving && e.animationName === 'share-toast-out') {
+      saveToast = null;
+      toastLeaving = false;
+    }
+  }
+
+  function showToast(message: string, kind: 'success' | 'error') {
+    if (saveToastTimer) clearTimeout(saveToastTimer);
+    toastLeaving = false;
+    saveToast = { message, kind };
+    saveToastTimer = setTimeout(dismissToast, 1200);
+  }
+
+  function onAccessSaved() {
+    closeShare();
+    showToast('Access settings saved', 'success');
+  }
+
+  function onAccessSaveError(message: string) {
+    showToast(message, 'error');
   }
 
   function toggleShareQr(e: MouseEvent) {
@@ -192,7 +228,33 @@
         </div>
       {/if}
     {/if}
-    <p class="share-foot">Published · no login required to read</p>
+    {#if manageAccess}
+      <ShareAccessPanel
+        config={manageAccess}
+        open={shareOpen}
+        onSaveSuccess={onAccessSaved}
+        onSaveError={onAccessSaveError}
+      />
+    {/if}
+    <p class="share-foot">
+      {manageAccess?.access === 'private'
+        ? 'Private · sign in with a shared domain email or as a shared member to read'
+        : 'Published · no login required to read'}
+    </p>
+  </div>
+{/if}
+
+{#if saveToast}
+  <div
+    class="share-toast"
+    class:share-toast--success={saveToast.kind === 'success'}
+    class:share-toast--error={saveToast.kind === 'error'}
+    class:share-toast--leaving={toastLeaving}
+    role="status"
+    aria-live="polite"
+    onanimationend={onToastAnimationEnd}
+  >
+    {saveToast.message}
   </div>
 {/if}
 
@@ -249,8 +311,10 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 440px;
+    width: 480px;
     max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
     background: color-mix(in srgb, #ebeae4 88%, var(--bg));
     border-radius: 24px;
     box-shadow:
@@ -392,5 +456,56 @@
     text-align: center;
     margin: 0;
     padding-top: 8px;
+  }
+
+  .share-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 70;
+    padding: 12px 20px;
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    animation: share-toast-in 0.28s ease-out forwards;
+  }
+
+  .share-toast--leaving {
+    animation: share-toast-out 0.24s ease-in forwards;
+  }
+
+  .share-toast--success {
+    background: var(--success, #22c55e);
+  }
+
+  .share-toast--error {
+    background: #dc2626;
+  }
+
+  @keyframes share-toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  @keyframes share-toast-out {
+    from {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-16px);
+    }
   }
 </style>

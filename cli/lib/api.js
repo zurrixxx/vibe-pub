@@ -183,3 +183,86 @@ export async function removeFromCollection(collectionSlug, pageSlug) {
     `/api/collection/${encodeURIComponent(collectionSlug)}/pages/${encodeURIComponent(pageSlug)}`
   );
 }
+
+// --- Access control ---
+
+export async function listAccessDomains() {
+  return request('GET', '/api/access/domains');
+}
+
+export async function createAccessDomain(data) {
+  return request('POST', '/api/access/domains', data);
+}
+
+export async function updateAccessDomain(id, data) {
+  return request('PUT', `/api/access/domains/${encodeURIComponent(id)}`, data);
+}
+
+export async function deleteAccessDomain(id) {
+  return request('DELETE', `/api/access/domains/${encodeURIComponent(id)}`);
+}
+
+export async function listAccessGroups() {
+  return request('GET', '/api/access/groups');
+}
+
+export async function createAccessGroup(data) {
+  return request('POST', '/api/access/groups', data);
+}
+
+export async function updateAccessGroup(id, data) {
+  return request('PUT', `/api/access/groups/${encodeURIComponent(id)}`, data);
+}
+
+export async function deleteAccessGroup(id) {
+  return request('DELETE', `/api/access/groups/${encodeURIComponent(id)}`);
+}
+
+export async function listAccessGroupMembers(groupId) {
+  return request('GET', `/api/access/groups/${encodeURIComponent(groupId)}/members`);
+}
+
+export async function addAccessGroupMember(groupId, data) {
+  return request('POST', `/api/access/groups/${encodeURIComponent(groupId)}/members`, data);
+}
+
+export async function updateAccessGroupMember(groupId, userId, data) {
+  return request(
+    'PUT',
+    `/api/access/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`,
+    data
+  );
+}
+
+export async function removeAccessGroupMember(groupId, userId) {
+  return request(
+    'DELETE',
+    `/api/access/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`
+  );
+}
+
+export async function listPageShares(pageId) {
+  return request('GET', `/api/pub/${encodeURIComponent(pageId)}/shares`);
+}
+
+export async function addPageShare(pageId, data) {
+  return request('POST', `/api/pub/${encodeURIComponent(pageId)}/shares`, data);
+}
+
+export async function removePageShare(pageId, data) {
+  return request('DELETE', `/api/pub/${encodeURIComponent(pageId)}/shares`, data);
+}
+
+export async function listCollectionShares(collectionSlug) {
+  return request('GET', `/api/collection/${encodeURIComponent(collectionSlug)}/shares`);
+}
+
+export async function addCollectionShare(collectionSlug, data) {
+  return request('POST', `/api/collection/${encodeURIComponent(collectionSlug)}/shares`, data);
+}
+
+export async function removeCollectionShare(collectionSlug, data) {
+  return request('DELETE', `/api/collection/${encodeURIComponent(collectionSlug)}/shares`, data);
+}
+
+export { ApiError };

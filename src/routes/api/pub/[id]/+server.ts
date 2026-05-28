@@ -9,17 +9,20 @@ import {
   updateCommentAnchor,
   appendPageVersionSnapshot,
 } from '$lib/server/db';
+import { assertCanReadPage, assertCanWritePage, toAccessViewer } from '$lib/server/access';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { reconcileComments } from '$lib/templates/reconcile';
 import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 import { parseDocBlocks } from '$lib/templates/doc/parser';
 
-export const GET: RequestHandler = async ({ params, platform }) => {
+export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
   const page = await getPageById(db, params.id);
   if (!page) throw error(404, 'Page not found');
+
+  await assertCanReadPage(db, page, toAccessViewer(locals.user));
 
   return json(page);
 };
@@ -30,13 +33,6 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
 
   const page = await getPageById(db, params.id);
   if (!page) throw error(404, 'Page not found');
-
-  // Owner check — only the owner (or anon pages if no user) can update
-  if (page.user_id !== null) {
-    if (!locals.user || locals.user.id !== page.user_id) {
-      throw error(403, 'Forbidden');
-    }
-  }
 
   const contentType = request.headers.get('content-type') ?? '';
   let markdown: string | undefined;
@@ -62,6 +58,22 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     markdown = (await request.text()) || undefined;
   }
 
+  // Owner or shared editor can update; anon pages remain open to anyone.
+  let isOwner = page.user_id === null;
+  if (page.user_id !== null) {
+    const role = await assertCanWritePage(db, page, toAccessViewer(locals.user));
+    isOwner = role === 'owner';
+    if (
+      !isOwner &&
+      (accessOverride !== undefined ||
+        viewOverride !== undefined ||
+        titleOverride !== undefined ||
+        themeOverride !== undefined)
+    ) {
+      throw error(403, 'Not authorized');
+    }
+  }
+
   // Re-parse frontmatter if markdown is being updated
   let oldBlocks: import('$lib/templates/types').Block[] = [];
   let newBlocks: import('$lib/templates/types').Block[] = [];
@@ -74,9 +86,11 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
 
   if (markdown) {
     const { data: fm } = parseFrontmatter(markdown);
-    viewOverride = viewOverride ?? fm.view;
-    accessOverride = accessOverride ?? fm.access;
-    titleOverride = titleOverride ?? fm.title;
+    if (isOwner) {
+      viewOverride = viewOverride ?? fm.view;
+      accessOverride = accessOverride ?? fm.access;
+      titleOverride = titleOverride ?? fm.title;
+    }
 
     // Capture old blocks for reconciliation (before update)
     const oldMarkdown = page.markdown;
@@ -90,13 +104,19 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     }
   }
 
-  await updatePage(db, params.id, {
-    markdown,
-    view: viewOverride,
-    access: accessOverride,
-    title: titleOverride,
-    theme: themeOverride,
-  });
+  await updatePage(
+    db,
+    params.id,
+    isOwner
+      ? {
+          markdown,
+          view: viewOverride,
+          access: accessOverride,
+          title: titleOverride,
+          theme: themeOverride,
+        }
+      : { markdown }
+  );
 
   // Reconcile comment anchors if markdown changed and we have block info
   if (markdown && (oldBlocks.length > 0 || newBlocks.length > 0)) {

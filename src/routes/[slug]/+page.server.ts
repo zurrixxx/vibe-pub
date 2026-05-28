@@ -2,6 +2,12 @@
 import { error, isHttpError, redirect, isRedirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getCommentsByPage, getPageByUrlSegment } from '$lib/server/db';
+import {
+  assertCanReadPage,
+  canWrite,
+  getEffectiveRoleForPage,
+  toAccessViewer,
+} from '$lib/server/access';
 import { buildCanonicalPath } from '$lib/server/slug';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 import { parseBlocks } from '$lib/templates';
@@ -25,11 +31,7 @@ export const load: PageServerLoad = async ({ params, platform, locals, url }) =>
       throw redirect(301, canonicalPath + url.search);
     }
 
-    if (page.access === 'private') {
-      if (!page.user_id || locals.user?.id !== page.user_id) {
-        throw error(403, 'This page is private');
-      }
-    }
+    await assertCanReadPage(db, page, toAccessViewer(locals.user));
 
     // Strip frontmatter before rendering
     const { content, data: fm } = parseFrontmatter(page.markdown);
@@ -143,6 +145,8 @@ export const load: PageServerLoad = async ({ params, platform, locals, url }) =>
     }
 
     const isOwner = !!page.user_id && locals.user?.id === page.user_id;
+    const effectiveRole = await getEffectiveRoleForPage(db, page, toAccessViewer(locals.user));
+    const canEdit = canWrite(effectiveRole);
     const canClaim = !page.user_id && !!locals.user;
 
     return {
@@ -160,6 +164,7 @@ export const load: PageServerLoad = async ({ params, platform, locals, url }) =>
       slidesData,
       dashboardData,
       isOwner,
+      canEdit,
       canClaim,
     };
   } catch (e: unknown) {

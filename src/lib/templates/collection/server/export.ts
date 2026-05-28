@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { slugifyTitle } from '$lib/server/slug';
+import type { AccessViewer } from '$lib/server/access';
 import { loadCollectionReaderContext } from './load';
 import { loadAllReaderChapters } from './reader-chapter';
 import { strToU8, zipSync } from 'fflate';
@@ -28,9 +29,9 @@ function mdFilename(index: number, title: string, slug: string | null, id: strin
 export async function loadMarkdownFiles(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<{ collectionTitle: string; files: MdFile[] }> {
-  const ctx = await loadCollectionReaderContext(db, collectionSlug, viewerUserId);
+  const ctx = await loadCollectionReaderContext(db, collectionSlug, viewer);
   const collection = await db
     .prepare('SELECT title FROM collections WHERE slug = ?')
     .bind(collectionSlug)
@@ -48,9 +49,9 @@ export async function loadMarkdownFiles(
 export async function buildMarkdownZip(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<{ filename: string; bytes: Uint8Array }> {
-  const { files } = await loadMarkdownFiles(db, collectionSlug, viewerUserId);
+  const { files } = await loadMarkdownFiles(db, collectionSlug, viewer);
   const zipBytes = zipSync(Object.fromEntries(files.map((f) => [f.filename, strToU8(f.markdown)])));
   const safeSlug =
     collectionSlug.replace(/[^a-z0-9-]+/gi, '-').replace(/^-|-$/g, '') || 'collection';
@@ -63,14 +64,14 @@ export async function buildMarkdownZip(
 export async function loadPrintChapters(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<{
   collectionTitle: string;
   ownerUsername: string | null;
   chapters: CollectionPrintChapter[];
   returnHref: string;
 }> {
-  const ctx = await loadCollectionReaderContext(db, collectionSlug, viewerUserId);
+  const ctx = await loadCollectionReaderContext(db, collectionSlug, viewer);
   const collection = await db
     .prepare('SELECT title FROM collections WHERE slug = ?')
     .bind(collectionSlug)
@@ -78,7 +79,7 @@ export async function loadPrintChapters(
 
   if (!collection) throw error(404, 'Collection not found');
 
-  const loaded = await loadAllReaderChapters(db, collectionSlug, viewerUserId);
+  const loaded = await loadAllReaderChapters(db, collectionSlug, viewer);
   const chapters: PrintChapter[] = loaded.map((ch) => ({
     title: ch.title,
     partEyebrow: ch.partEyebrow,

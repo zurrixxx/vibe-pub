@@ -1,7 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getDb, getUserById } from '$lib/server/db';
-import { assertCollectionReadable } from '$lib/templates/collection/server/db';
+import {
+  assertCanReadCollection,
+  assertCanReadPageInCollection,
+  getPageAccessResource,
+  toAccessViewer,
+} from '$lib/server/access';
 import {
   buildCollectionPagesSelectQuery,
   type CollectionPageRow,
@@ -28,7 +33,8 @@ export const load: PageServerLoad = async ({ params, url, platform, locals, depe
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  assertCollectionReadable(collection, locals.user?.id);
+  const viewer = toAccessViewer(locals.user);
+  await assertCanReadCollection(db, collection, viewer);
 
   const partsResult = await db
     .prepare(
@@ -108,6 +114,10 @@ export const load: PageServerLoad = async ({ params, url, platform, locals, depe
   const activeKey = pageParam!;
   const activePage = pages.find((p) => p.id === activeKey);
   if (!activePage) throw error(404, 'Page not found in collection');
+
+  const pageAccess = await getPageAccessResource(db, activePage.page_id);
+  if (!pageAccess) throw error(404, 'Page not found');
+  await assertCanReadPageInCollection(db, pageAccess, collection.id, viewer);
 
   const { parts, ungroupedPages, flatPages } = buildNavStructure(pages, partsMeta, activePage.id);
   const { chapter, activePart } = buildChapterNav(

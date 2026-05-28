@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getCommentsByPage, getPageById } from '$lib/server/db';
+import { assertCanWritePage, toAccessViewer } from '$lib/server/access';
 import { geminiSuggestBlockRevise } from '$lib/server/gemini';
 
 function blockIdFromAnchor(anchor: string | null): string | null {
@@ -24,7 +25,9 @@ export const POST: RequestHandler = async ({ params, request, platform, locals }
   const db = platform.env.DB;
   const page = await getPageById(db, params.id);
   if (!page) throw error(404, 'Page not found');
-  if (page.user_id !== locals.user.id) throw error(403, 'Only the page owner can use this');
+  if (page.user_id !== null) {
+    await assertCanWritePage(db, page, toAccessViewer(locals.user));
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     block_id?: string;

@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb, getPageById, getPageVersionsByPageId, getUserById } from '$lib/server/db';
+import { assertCanReadPage, toAccessViewer } from '$lib/server/access';
 import { deltaStat } from '$lib/version-delta';
 
 export const GET: RequestHandler = async ({ params, platform, locals }) => {
@@ -10,11 +11,7 @@ export const GET: RequestHandler = async ({ params, platform, locals }) => {
   const page = await getPageById(db, params.id);
   if (!page) throw error(404, 'Page not found');
 
-  if (page.access === 'private') {
-    if (!page.user_id || locals.user?.id !== page.user_id) {
-      throw error(403, 'Not authorized');
-    }
-  }
+  await assertCanReadPage(db, page, toAccessViewer(locals.user));
 
   const rows = await getPageVersionsByPageId(db, params.id);
   let authorUsername: string | null = null;

@@ -1,11 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { getCommentsByPage, getUserById } from '$lib/server/db';
-import {
-  assertCollectionReadable,
-  buildCollectionPagesSelectQuery,
-  readerGuideFromRow,
-} from './db';
+import { assertCanReadCollection, type AccessViewer } from '$lib/server/access';
+import { buildCollectionPagesSelectQuery, readerGuideFromRow } from './db';
 import { renderMarkdown, parseFrontmatter } from '$lib/server/markdown';
 import { buildCanonicalPath } from '$lib/server/slug';
 import { toRoman } from '$lib/roman';
@@ -120,6 +117,7 @@ export function collectionMetaFromRow(collection: CollectionRow) {
     description: collection.description,
     theme: collection.theme,
     updated: collection.updated,
+    access: collection.access,
     ...readerGuideFromRow(collection),
   };
 }
@@ -132,17 +130,6 @@ function toNavPage(p: CollectionPageRow, activeId: string, num: number): NavPage
     active: p.id === activeId,
     num,
   };
-}
-
-export function buildCoverParts(
-  partsMeta: CollectionPartRow[],
-  pages: CollectionPageRow[]
-): CoverPartMeta[] {
-  return partsMeta.map((part, i) => ({
-    partNum: toRoman(i + 1),
-    title: part.title,
-    pageCount: pages.filter((p) => p.part_id === part.id).length,
-  }));
 }
 
 export function buildNavStructure(
@@ -164,6 +151,17 @@ export function buildNavStructure(
     .map((p) => toNavPage(p, activeId, ++chapterNum));
   const flatPages = pages.map((p, i) => toNavPage(p, activeId, i + 1));
   return { parts, ungroupedPages, flatPages };
+}
+
+export function buildCoverParts(
+  partsMeta: CollectionPartRow[],
+  pages: CollectionPageRow[]
+): CoverPartMeta[] {
+  return partsMeta.map((part, i) => ({
+    partNum: toRoman(i + 1),
+    title: part.title,
+    pageCount: pages.filter((p) => p.part_id === part.id).length,
+  }));
 }
 
 export function partEyebrowForPage(
@@ -281,7 +279,7 @@ export function extractAllHeadings(pages: CollectionPageRow[]) {
 export async function loadCollectionReaderContext(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<{
   collection: CollectionRow;
   pages: CollectionPageRow[];
@@ -297,7 +295,7 @@ export async function loadCollectionReaderContext(
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  assertCollectionReadable(collection, viewerUserId);
+  await assertCanReadCollection(db, collection, viewer ?? null);
 
   const partsResult = await db
     .prepare(

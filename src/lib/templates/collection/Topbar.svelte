@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
   import Share from '$lib/components/topbar/Share.svelte';
+  import type { ManageAccessConfig } from '$lib/components/topbar/ShareAccessPanel.svelte';
   import User from '$lib/components/topbar/User.svelte';
   import {
     closeReaderAppearancePanel,
@@ -18,6 +19,7 @@
     showSpineToggle?: boolean;
     showSearch?: boolean;
     isCollectionOwner?: boolean;
+    manageAccess?: ManageAccessConfig | null;
     onSpineToggle?: () => void;
   }
 
@@ -29,6 +31,7 @@
     showSpineToggle = false,
     showSearch = false,
     isCollectionOwner = false,
+    manageAccess = null,
     onSpineToggle,
   }: Props = $props();
 
@@ -253,7 +256,7 @@
         </div>
       </div>
 
-      <Share {shareUrl} subject="collection" onOpen={closeMenus} />
+      <Share {shareUrl} subject="collection" {manageAccess} onOpen={closeMenus} />
       <User {user} onMenuToggle={closeMenus} />
     </div>
   </nav>

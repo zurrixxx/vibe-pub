@@ -8,7 +8,6 @@ export {
   getCollectionBySlug,
   assertCollectionOwner,
   assertCollectionAccessForOwner,
-  assertCollectionReadable,
   resolveCollectionAccess,
   touchCollectionUpdated,
   getPartInCollection,
@@ -46,17 +45,10 @@ export {
   type ReaderChapterPayload,
   loadAllReaderChapters,
   loadReaderChapter,
-  loadAllCollectionReaderChapters,
-  loadCollectionReaderChapter,
   type CollectionReaderChapterPayload,
 } from './reader-chapter';
 
-export {
-  type SearchEntry,
-  loadSearchIndex,
-  loadCollectionSearchIndex,
-  type CollectionSearchEntry,
-} from './search-index';
+export { type SearchEntry, loadSearchIndex, type CollectionSearchEntry } from './search-index';
 
 export {
   type MdFile,

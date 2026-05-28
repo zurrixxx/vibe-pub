@@ -1,7 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { toRoman } from '$lib/roman';
-import { assertCollectionReadable, buildCollectionPagesSelectQuery } from './db';
+import { assertCanReadCollection, type AccessViewer } from '$lib/server/access';
+import { buildCollectionPagesSelectQuery } from './db';
 import { markdownToPlainSearchText } from '$lib/templates/collection/search/plaintext';
 
 export type SearchEntry = {
@@ -44,7 +45,7 @@ export { markdownToPlainSearchText } from '$lib/templates/collection/search/plai
 export async function loadSearchIndex(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<SearchEntry[]> {
   const collection = await db
     .prepare('SELECT id, slug, access, user_id FROM collections WHERE slug = ?')
@@ -52,7 +53,7 @@ export async function loadSearchIndex(
     .first<CollectionRow>();
 
   if (!collection) throw error(404, 'Collection not found');
-  assertCollectionReadable(collection, viewerUserId);
+  await assertCanReadCollection(db, collection, viewer ?? null);
 
   const partsResult = await db
     .prepare(
@@ -93,6 +94,3 @@ export async function loadSearchIndex(
     };
   });
 }
-
-/** @deprecated Use loadSearchIndex */
-export const loadCollectionSearchIndex = loadSearchIndex;

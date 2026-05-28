@@ -2,6 +2,11 @@ import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { buildCanonicalPath } from '$lib/server/slug';
 import {
+  assertCanReadPageInCollection,
+  getPageAccessResource,
+  type AccessViewer,
+} from '$lib/server/access';
+import {
   type CollectionPageRow,
   type CollectionPartRow,
   type CollectionRow,
@@ -93,34 +98,29 @@ async function buildChapterPayload(
 export async function loadAllReaderChapters(
   db: D1Database,
   collectionSlug: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<ReaderChapterPayload[]> {
-  const ctx = (await loadCollectionReaderContext(
-    db,
-    collectionSlug,
-    viewerUserId
-  )) as ReaderContext;
+  const ctx = (await loadCollectionReaderContext(db, collectionSlug, viewer)) as ReaderContext;
+  for (const page of ctx.pages) {
+    const access = await getPageAccessResource(db, page.page_id);
+    if (!access) throw error(404, 'Page not found');
+    await assertCanReadPageInCollection(db, access, ctx.collection.id, viewer ?? null);
+  }
   return Promise.all(ctx.pages.map((page, index) => buildChapterPayload(db, ctx, page, index)));
 }
-
-/** @deprecated Use loadAllReaderChapters */
-export const loadAllCollectionReaderChapters = loadAllReaderChapters;
 
 export async function loadReaderChapter(
   db: D1Database,
   collectionSlug: string,
   pageId: string,
-  viewerUserId?: string
+  viewer?: AccessViewer | null
 ): Promise<ReaderChapterPayload> {
-  const ctx = (await loadCollectionReaderContext(
-    db,
-    collectionSlug,
-    viewerUserId
-  )) as ReaderContext;
+  const ctx = (await loadCollectionReaderContext(db, collectionSlug, viewer)) as ReaderContext;
   const chapterIndex = ctx.pages.findIndex((p) => p.id === pageId || p.page_id === pageId);
   if (chapterIndex < 0) throw error(404, 'Page not found in collection');
-  return buildChapterPayload(db, ctx, ctx.pages[chapterIndex], chapterIndex);
+  const page = ctx.pages[chapterIndex];
+  const access = await getPageAccessResource(db, page.page_id);
+  if (!access) throw error(404, 'Page not found');
+  await assertCanReadPageInCollection(db, access, ctx.collection.id, viewer ?? null);
+  return buildChapterPayload(db, ctx, page, chapterIndex);
 }
-
-/** @deprecated Use loadReaderChapter */
-export const loadCollectionReaderChapter = loadReaderChapter;
