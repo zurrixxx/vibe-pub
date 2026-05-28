@@ -66,15 +66,18 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
     return json(await getResourceSharePayload(db, 'page', page.id, user.id), { status: 201 });
   }
 
-  if (body.grantee_type !== 'domain' && body.grantee_type !== 'group') {
-    throw error(400, 'grantee_type must be domain or group');
+  if (body.grantee_type === 'domain') {
+    throw error(400, 'Use the domain field to share by email domain');
+  }
+  if (body.grantee_type !== 'group') {
+    throw error(400, 'Provide email, domain, or grantee_type group with grantee_id');
   }
   if (!body.grantee_id) throw error(400, 'grantee_id is required');
 
   const accessRole =
     body.access_role && isAccessRole(body.access_role) ? body.access_role : 'viewer';
 
-  await addShare(db, 'page', page.id, body.grantee_type, body.grantee_id, user.id, accessRole);
+  await addShare(db, 'page', page.id, 'group', body.grantee_id, user.id, accessRole);
   return json(await getResourceSharePayload(db, 'page', page.id, user.id), { status: 201 });
 };
 

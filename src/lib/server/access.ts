@@ -341,23 +341,13 @@ export async function createResourceDomainGrantee(
   const domain = normalizeDomainInput(domainInput);
   assertValidDomain(domain);
 
-  await db
-    .prepare(
-      `INSERT INTO access_email_domains (domain, display_name, owner_user_id)
-       VALUES (?, NULL, ?)`
-    )
-    .bind(domain, ownerUserId)
-    .run();
-
   const row = await db
     .prepare(
-      `SELECT id, domain, display_name, created
-       FROM access_email_domains
-       WHERE owner_user_id = ?
-       ORDER BY created DESC
-       LIMIT 1`
+      `INSERT INTO access_email_domains (domain, display_name, owner_user_id)
+       VALUES (?, NULL, ?)
+       RETURNING id, domain, display_name, created`
     )
-    .bind(ownerUserId)
+    .bind(domain, ownerUserId)
     .first<EmailDomainRow>();
   if (!row) throw error(500, 'Failed to create domain grantee');
   return row;
@@ -435,25 +425,18 @@ export async function createGroup(
   if (!name) throw error(400, 'Group name is required');
   await assertDomainOwned(db, data.domain_id ?? null, ownerUserId);
 
-  await db
+  const domainId = data.domain_id ?? null;
+  const inserted = await db
     .prepare(
       `INSERT INTO access_groups (name, owner_user_id, domain_id)
-       VALUES (?, ?, ?)`
+       VALUES (?, ?, ?)
+       RETURNING id`
     )
-    .bind(name, ownerUserId, data.domain_id ?? null)
-    .run();
+    .bind(name, ownerUserId, domainId)
+    .first<{ id: string }>();
+  if (!inserted) throw error(500, 'Failed to create group');
 
-  const result = await db
-    .prepare(
-      `SELECT g.id, g.name, g.domain_id, g.created, d.domain
-       FROM access_groups g
-       LEFT JOIN access_email_domains d ON d.id = g.domain_id
-       WHERE g.owner_user_id = ? AND g.name = ?
-       ORDER BY g.created DESC
-       LIMIT 1`
-    )
-    .bind(ownerUserId, name)
-    .first<AccessGroupRow>();
+  const result = await getGroupOwnedByUser(db, inserted.id, ownerUserId);
   if (!result) throw error(500, 'Failed to create group');
   return result;
 }
