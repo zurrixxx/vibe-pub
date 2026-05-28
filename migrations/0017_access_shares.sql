@@ -78,11 +78,6 @@ BEGIN
 
   DELETE FROM shares
   WHERE resource_type = 'page' AND resource_id = OLD.id;
-
-  DELETE FROM access_email_domains
-  WHERE id NOT IN (
-    SELECT grantee_id FROM shares WHERE grantee_type = 'domain'
-  );
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_shares_after_collection_delete
@@ -114,11 +109,6 @@ BEGIN
 
   DELETE FROM shares
   WHERE resource_type = 'collection' AND resource_id = OLD.id;
-
-  DELETE FROM access_email_domains
-  WHERE id NOT IN (
-    SELECT grantee_id FROM shares WHERE grantee_type = 'domain'
-  );
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_shares_after_domain_delete
