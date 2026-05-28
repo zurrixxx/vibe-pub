@@ -4,10 +4,9 @@ import { getDb, getPageById } from '$lib/server/db';
 import { isAccessRole, requireUser } from '$lib/server/access';
 import {
   addShare,
-  getDefaultGroupIdForResource,
-  listSharedUsersForResource,
-  listSharesForResource,
+  getResourceSharePayload,
   removeShare,
+  shareDomainToResource,
   shareUserToResource,
 } from '$lib/server/share';
 
@@ -26,10 +25,7 @@ export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!page) throw error(404, 'Page not found');
   assertPageOwner(page, user.id);
 
-  const shares = await listSharesForResource(db, 'page', page.id);
-  const shared_users = await listSharedUsersForResource(db, 'page', page.id, user.id);
-  const default_group_id = await getDefaultGroupIdForResource(db, 'page', page.id, user.id);
-  return json({ shares, shared_users, default_group_id });
+  return json(await getResourceSharePayload(db, 'page', page.id, user.id));
 };
 
 export const POST: RequestHandler = async ({ params, platform, locals, request }) => {
@@ -44,6 +40,7 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
   const body = (await request.json()) as {
     grantee_type?: string;
     grantee_id?: string;
+    domain?: string;
     email?: string;
     access_role?: string;
   };
@@ -54,10 +51,19 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
       access_role:
         body.access_role && isAccessRole(body.access_role) ? body.access_role : undefined,
     });
-    const shares = await listSharesForResource(db, 'page', page.id);
-    const shared_users = await listSharedUsersForResource(db, 'page', page.id, user.id);
-    const default_group_id = await getDefaultGroupIdForResource(db, 'page', page.id, user.id);
-    return json({ member, shares, shared_users, default_group_id }, { status: 201 });
+    return json(
+      { member, ...(await getResourceSharePayload(db, 'page', page.id, user.id)) },
+      { status: 201 }
+    );
+  }
+
+  if (body.domain?.trim()) {
+    await shareDomainToResource(db, 'page', page.id, user.id, {
+      domain: body.domain,
+      access_role:
+        body.access_role && isAccessRole(body.access_role) ? body.access_role : undefined,
+    });
+    return json(await getResourceSharePayload(db, 'page', page.id, user.id), { status: 201 });
   }
 
   if (body.grantee_type !== 'domain' && body.grantee_type !== 'group') {
@@ -69,10 +75,7 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
     body.access_role && isAccessRole(body.access_role) ? body.access_role : 'viewer';
 
   await addShare(db, 'page', page.id, body.grantee_type, body.grantee_id, user.id, accessRole);
-  const shares = await listSharesForResource(db, 'page', page.id);
-  const shared_users = await listSharedUsersForResource(db, 'page', page.id, user.id);
-  const default_group_id = await getDefaultGroupIdForResource(db, 'page', page.id, user.id);
-  return json({ shares, shared_users, default_group_id }, { status: 201 });
+  return json(await getResourceSharePayload(db, 'page', page.id, user.id), { status: 201 });
 };
 
 export const DELETE: RequestHandler = async ({ params, platform, locals, request }) => {

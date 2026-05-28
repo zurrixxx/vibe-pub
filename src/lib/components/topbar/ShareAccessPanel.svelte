@@ -16,12 +16,6 @@
     member_count: number | null;
   }
 
-  interface DomainRow {
-    id: string;
-    domain: string;
-    display_name: string | null;
-  }
-
   interface MemberRow {
     user_id: string;
     email: string;
@@ -43,7 +37,6 @@
   let accessLevel = $state<ResourceAccess>(config.access);
 
   let shares = $state<ShareRow[]>([]);
-  let domains = $state<DomainRow[]>([]);
   let sharedUsers = $state<MemberRow[]>([]);
   let defaultGroupId = $state<string | null>(null);
 
@@ -88,18 +81,14 @@
     loading = true;
     errorMsg = null;
     try {
-      const [shareData, domainData] = await Promise.all([
-        apiJson<{
-          shares: ShareRow[];
-          shared_users: MemberRow[];
-          default_group_id: string | null;
-        }>(sharesApi),
-        apiJson<{ domains: DomainRow[] }>('/api/access/domains'),
-      ]);
+      const shareData = await apiJson<{
+        shares: ShareRow[];
+        shared_users: MemberRow[];
+        default_group_id: string | null;
+      }>(sharesApi);
       shares = shareData.shares;
       sharedUsers = shareData.shared_users ?? [];
       defaultGroupId = shareData.default_group_id ?? null;
-      domains = domainData.domains;
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : String(err);
     } finally {
@@ -134,25 +123,18 @@
     if (!shareToInput.trim()) return;
     errorMsg = null;
     try {
-      const { domain } = await apiJson<{ domain: DomainRow }>('/api/access/domains', {
+      const data = await apiJson<{
+        shares: ShareRow[];
+        shared_users: MemberRow[];
+        default_group_id: string | null;
+      }>(sharesApi, {
         method: 'POST',
-        body: JSON.stringify({ domain: shareToInput }),
+        body: JSON.stringify({ domain: shareToInput, access_role: shareToRole }),
       });
-      try {
-        await apiJson<{ shares: ShareRow[] }>(sharesApi, {
-          method: 'POST',
-          body: JSON.stringify({
-            grantee_type: 'domain',
-            grantee_id: domain.id,
-            access_role: shareToRole,
-          }),
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!/already exists|409/i.test(message)) throw err;
-      }
+      shares = data.shares;
+      sharedUsers = data.shared_users ?? [];
+      defaultGroupId = data.default_group_id ?? null;
       shareToInput = '';
-      await loadAll();
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : String(err);
     }

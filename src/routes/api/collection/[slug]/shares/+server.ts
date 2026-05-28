@@ -4,10 +4,9 @@ import { getDb } from '$lib/server/db';
 import { isAccessRole, requireUser } from '$lib/server/access';
 import {
   addShare,
-  getDefaultGroupIdForResource,
-  listSharedUsersForResource,
-  listSharesForResource,
+  getResourceSharePayload,
   removeShare,
+  shareDomainToResource,
   shareUserToResource,
 } from '$lib/server/share';
 import { assertCollectionOwner, getCollectionBySlug } from '$lib/templates/collection/server/db';
@@ -21,15 +20,7 @@ export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!collection) throw error(404, 'Collection not found');
   assertCollectionOwner(collection, user.id);
 
-  const shares = await listSharesForResource(db, 'collection', collection.id);
-  const shared_users = await listSharedUsersForResource(db, 'collection', collection.id, user.id);
-  const default_group_id = await getDefaultGroupIdForResource(
-    db,
-    'collection',
-    collection.id,
-    user.id
-  );
-  return json({ shares, shared_users, default_group_id });
+  return json(await getResourceSharePayload(db, 'collection', collection.id, user.id));
 };
 
 export const POST: RequestHandler = async ({ params, platform, locals, request }) => {
@@ -44,6 +35,7 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
   const body = (await request.json()) as {
     grantee_type?: string;
     grantee_id?: string;
+    domain?: string;
     email?: string;
     access_role?: string;
   };
@@ -54,15 +46,21 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
       access_role:
         body.access_role && isAccessRole(body.access_role) ? body.access_role : undefined,
     });
-    const shares = await listSharesForResource(db, 'collection', collection.id);
-    const shared_users = await listSharedUsersForResource(db, 'collection', collection.id, user.id);
-    const default_group_id = await getDefaultGroupIdForResource(
-      db,
-      'collection',
-      collection.id,
-      user.id
+    return json(
+      { member, ...(await getResourceSharePayload(db, 'collection', collection.id, user.id)) },
+      { status: 201 }
     );
-    return json({ member, shares, shared_users, default_group_id }, { status: 201 });
+  }
+
+  if (body.domain?.trim()) {
+    await shareDomainToResource(db, 'collection', collection.id, user.id, {
+      domain: body.domain,
+      access_role:
+        body.access_role && isAccessRole(body.access_role) ? body.access_role : undefined,
+    });
+    return json(await getResourceSharePayload(db, 'collection', collection.id, user.id), {
+      status: 201,
+    });
   }
 
   if (body.grantee_type !== 'domain' && body.grantee_type !== 'group') {
@@ -82,15 +80,9 @@ export const POST: RequestHandler = async ({ params, platform, locals, request }
     user.id,
     accessRole
   );
-  const shares = await listSharesForResource(db, 'collection', collection.id);
-  const shared_users = await listSharedUsersForResource(db, 'collection', collection.id, user.id);
-  const default_group_id = await getDefaultGroupIdForResource(
-    db,
-    'collection',
-    collection.id,
-    user.id
-  );
-  return json({ shares, shared_users, default_group_id }, { status: 201 });
+  return json(await getResourceSharePayload(db, 'collection', collection.id, user.id), {
+    status: 201,
+  });
 };
 
 export const DELETE: RequestHandler = async ({ params, platform, locals, request }) => {

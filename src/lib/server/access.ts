@@ -323,10 +323,11 @@ export async function listDomainsForOwner(
 ): Promise<EmailDomainRow[]> {
   const result = await db
     .prepare(
-      `SELECT id, domain, display_name, created
-       FROM access_email_domains
-       WHERE owner_user_id = ?
-       ORDER BY domain ASC`
+      `SELECT DISTINCT d.id, d.domain, d.display_name, d.created
+       FROM access_email_domains d
+       INNER JOIN shares s ON s.grantee_type = 'domain' AND s.grantee_id = d.id
+       WHERE d.owner_user_id = ?
+       ORDER BY d.domain ASC, d.created ASC`
     )
     .bind(ownerUserId)
     .all<EmailDomainRow>();
@@ -350,15 +351,69 @@ export async function getDomainOwnedByUser(
 
 export async function getDomainByName(
   db: D1Database,
-  domain: string
-): Promise<(EmailDomainRow & { owner_user_id: string }) | null> {
+  domain: string,
+  ownerUserId: string
+): Promise<EmailDomainRow | null> {
   return db
     .prepare(
-      `SELECT id, domain, display_name, created, owner_user_id
-       FROM access_email_domains WHERE domain = ?`
+      `SELECT id, domain, display_name, created
+       FROM access_email_domains WHERE domain = ? AND owner_user_id = ?
+       ORDER BY created DESC
+       LIMIT 1`
     )
-    .bind(domain)
-    .first<EmailDomainRow & { owner_user_id: string }>();
+    .bind(domain, ownerUserId)
+    .first<EmailDomainRow>();
+}
+
+/** Create a domain grantee row for a resource share (not a global catalog entry). */
+export async function createResourceDomainGrantee(
+  db: D1Database,
+  ownerUserId: string,
+  domainInput: string
+): Promise<EmailDomainRow> {
+  const domain = normalizeDomainInput(domainInput);
+  assertValidDomain(domain);
+
+  await db
+    .prepare(
+      `INSERT INTO access_email_domains (domain, display_name, owner_user_id)
+       VALUES (?, NULL, ?)`
+    )
+    .bind(domain, ownerUserId)
+    .run();
+
+  const row = await db
+    .prepare(
+      `SELECT id, domain, display_name, created
+       FROM access_email_domains
+       WHERE owner_user_id = ?
+       ORDER BY created DESC
+       LIMIT 1`
+    )
+    .bind(ownerUserId)
+    .first<EmailDomainRow>();
+  if (!row) throw error(500, 'Failed to create domain grantee');
+  return row;
+}
+
+export async function getDomainGranteeIdForResource(
+  db: D1Database,
+  resourceType: ShareResourceType,
+  resourceId: string,
+  domain: string
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT d.id
+       FROM shares s
+       INNER JOIN access_email_domains d
+         ON s.grantee_type = 'domain' AND s.grantee_id = d.id
+       WHERE s.resource_type = ? AND s.resource_id = ? AND d.domain = ?
+       LIMIT 1`
+    )
+    .bind(resourceType, resourceId, domain)
+    .first<{ id: string }>();
+  return row?.id ?? null;
 }
 
 export async function createDomain(
@@ -366,33 +421,7 @@ export async function createDomain(
   ownerUserId: string,
   data: { domain: string; display_name?: string | null }
 ): Promise<EmailDomainRow> {
-  const domain = normalizeDomainInput(data.domain);
-  assertValidDomain(domain);
-
-  const existing = await getDomainByName(db, domain);
-  if (existing) {
-    if (existing.owner_user_id !== ownerUserId) {
-      throw error(409, 'Domain already registered');
-    }
-    if (data.display_name !== undefined) {
-      return updateDomain(db, existing.id, ownerUserId, {
-        display_name: data.display_name,
-      });
-    }
-    return existing;
-  }
-
-  await db
-    .prepare(
-      `INSERT INTO access_email_domains (domain, display_name, owner_user_id)
-       VALUES (?, ?, ?)`
-    )
-    .bind(domain, data.display_name?.trim() || null, ownerUserId)
-    .run();
-
-  const row = await getDomainByName(db, domain);
-  if (!row) throw error(500, 'Failed to create domain');
-  return row;
+  return createResourceDomainGrantee(db, ownerUserId, data.domain);
 }
 
 export async function updateDomain(

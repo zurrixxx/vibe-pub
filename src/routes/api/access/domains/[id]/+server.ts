@@ -1,12 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import {
-  deleteDomain,
-  getDomainOwnedByUser,
-  requireUser,
-  updateDomain,
-} from '$lib/server/access';
+import { deleteDomain, getDomainOwnedByUser, requireUser, updateDomain } from '$lib/server/access';
 
 export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');

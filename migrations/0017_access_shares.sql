@@ -1,11 +1,11 @@
 -- Access control: email domains, groups, members, and resource shares.
--- Shares grant page/collection visibility to domains or groups (not individual users).
--- DELETE triggers on pages/collections clean up resource shares, exclusive group grantees,
--- and unreferenced domains. DELETE triggers on domains/groups clean up grantee shares.
+-- Domain and group grantees are linked to pages/collections via shares (not global catalogs).
+-- DELETE triggers on pages/collections clean up resource shares and exclusive grantees.
+-- DELETE triggers on domains/groups/shares clean up the paired rows.
 
 CREATE TABLE IF NOT EXISTS access_email_domains (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
-  domain TEXT NOT NULL UNIQUE,
+  domain TEXT NOT NULL,
   display_name TEXT,
   owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -50,6 +50,16 @@ CREATE INDEX IF NOT EXISTS idx_shares_grantee ON shares(grantee_type, grantee_id
 CREATE TRIGGER IF NOT EXISTS trg_shares_after_page_delete
 AFTER DELETE ON pages
 BEGIN
+  -- Drop domain grantees for this page (share rows cascade via trg_shares_after_domain_delete).
+  DELETE FROM access_email_domains
+  WHERE id IN (
+    SELECT s.grantee_id
+    FROM shares s
+    WHERE s.resource_type = 'page'
+      AND s.resource_id = OLD.id
+      AND s.grantee_type = 'domain'
+  );
+
   -- Drop groups used only by this page (members cascade via FK).
   DELETE FROM access_groups
   WHERE id IN (
@@ -69,7 +79,6 @@ BEGIN
   DELETE FROM shares
   WHERE resource_type = 'page' AND resource_id = OLD.id;
 
-  -- Drop domain catalog rows no longer referenced by any share.
   DELETE FROM access_email_domains
   WHERE id NOT IN (
     SELECT grantee_id FROM shares WHERE grantee_type = 'domain'
@@ -79,6 +88,15 @@ END;
 CREATE TRIGGER IF NOT EXISTS trg_shares_after_collection_delete
 AFTER DELETE ON collections
 BEGIN
+  DELETE FROM access_email_domains
+  WHERE id IN (
+    SELECT s.grantee_id
+    FROM shares s
+    WHERE s.resource_type = 'collection'
+      AND s.resource_id = OLD.id
+      AND s.grantee_type = 'domain'
+  );
+
   DELETE FROM access_groups
   WHERE id IN (
     SELECT s.grantee_id
@@ -115,4 +133,15 @@ AFTER DELETE ON access_groups
 BEGIN
   DELETE FROM shares
   WHERE grantee_type = 'group' AND grantee_id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_shares_after_share_delete
+AFTER DELETE ON shares
+WHEN OLD.grantee_type = 'domain'
+BEGIN
+  DELETE FROM access_email_domains
+  WHERE id = OLD.grantee_id
+    AND id NOT IN (
+      SELECT grantee_id FROM shares WHERE grantee_type = 'domain'
+    );
 END;

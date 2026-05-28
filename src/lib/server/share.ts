@@ -3,11 +3,15 @@ import type { D1Database } from '@cloudflare/workers-types';
 import {
   addGroupMember,
   assertGranteeOwnedByUser,
+  assertValidDomain,
   createGroup,
+  createResourceDomainGrantee,
+  getDomainGranteeIdForResource,
   getGroupOwnedByUser,
   isAccessRole,
   listGroupMembers,
   maxAccessRole,
+  normalizeDomainInput,
   type AccessRole,
   type GroupMemberRow,
   type ShareResourceType,
@@ -70,6 +74,26 @@ export async function listSharesForResource(
     .all<ResourceShareRow>();
 
   return result.results.filter((row) => row.label);
+}
+
+export interface ResourceSharePayload {
+  shares: ResourceShareRow[];
+  shared_users: GroupMemberRow[];
+  default_group_id: string | null;
+}
+
+export async function getResourceSharePayload(
+  db: D1Database,
+  resourceType: ShareResourceType,
+  resourceId: string,
+  ownerUserId: string
+): Promise<ResourceSharePayload> {
+  const [shares, shared_users, default_group_id] = await Promise.all([
+    listSharesForResource(db, resourceType, resourceId),
+    listSharedUsersForResource(db, resourceType, resourceId, ownerUserId),
+    getDefaultGroupIdForResource(db, resourceType, resourceId, ownerUserId),
+  ]);
+  return { shares, shared_users, default_group_id };
 }
 
 export async function addShare(
@@ -197,6 +221,28 @@ export async function shareUserToResource(
     email: data.email,
     access_role: accessRole,
   });
+}
+
+export async function shareDomainToResource(
+  db: D1Database,
+  resourceType: ShareResourceType,
+  resourceId: string,
+  ownerUserId: string,
+  data: { domain: string; access_role?: AccessRole }
+): Promise<void> {
+  const domain = normalizeDomainInput(data.domain);
+  assertValidDomain(domain);
+
+  const accessRole = data.access_role ?? 'viewer';
+  if (!isAccessRole(accessRole)) throw error(400, 'Invalid access role');
+
+  let granteeId = await getDomainGranteeIdForResource(db, resourceType, resourceId, domain);
+  if (!granteeId) {
+    const row = await createResourceDomainGrantee(db, ownerUserId, domain);
+    granteeId = row.id;
+  }
+
+  await addShare(db, resourceType, resourceId, 'domain', granteeId, ownerUserId, accessRole);
 }
 
 export async function removeShare(
