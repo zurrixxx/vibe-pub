@@ -317,23 +317,6 @@ export function assertValidDomain(domain: string): void {
   }
 }
 
-export async function listDomainsForOwner(
-  db: D1Database,
-  ownerUserId: string
-): Promise<EmailDomainRow[]> {
-  const result = await db
-    .prepare(
-      `SELECT DISTINCT d.id, d.domain, d.display_name, d.created
-       FROM access_email_domains d
-       INNER JOIN shares s ON s.grantee_type = 'domain' AND s.grantee_id = d.id
-       WHERE d.owner_user_id = ?
-       ORDER BY d.domain ASC, d.created ASC`
-    )
-    .bind(ownerUserId)
-    .all<EmailDomainRow>();
-  return result.results;
-}
-
 export async function getDomainOwnedByUser(
   db: D1Database,
   domainId: string,
@@ -349,23 +332,7 @@ export async function getDomainOwnedByUser(
     .first<EmailDomainRow>();
 }
 
-export async function getDomainByName(
-  db: D1Database,
-  domain: string,
-  ownerUserId: string
-): Promise<EmailDomainRow | null> {
-  return db
-    .prepare(
-      `SELECT id, domain, display_name, created
-       FROM access_email_domains WHERE domain = ? AND owner_user_id = ?
-       ORDER BY created DESC
-       LIMIT 1`
-    )
-    .bind(domain, ownerUserId)
-    .first<EmailDomainRow>();
-}
-
-/** Create a domain grantee row for a resource share (not a global catalog entry). */
+/** Create a domain grantee row for a resource share. */
 export async function createResourceDomainGrantee(
   db: D1Database,
   ownerUserId: string,
@@ -414,50 +381,6 @@ export async function getDomainGranteeIdForResource(
     .bind(resourceType, resourceId, domain)
     .first<{ id: string }>();
   return row?.id ?? null;
-}
-
-export async function createDomain(
-  db: D1Database,
-  ownerUserId: string,
-  data: { domain: string; display_name?: string | null }
-): Promise<EmailDomainRow> {
-  return createResourceDomainGrantee(db, ownerUserId, data.domain);
-}
-
-export async function updateDomain(
-  db: D1Database,
-  domainId: string,
-  ownerUserId: string,
-  data: { display_name?: string | null }
-): Promise<EmailDomainRow> {
-  const existing = await getDomainOwnedByUser(db, domainId, ownerUserId);
-  if (!existing) throw error(404, 'Domain not found');
-
-  const displayName =
-    data.display_name !== undefined ? data.display_name?.trim() || null : existing.display_name;
-
-  await db
-    .prepare(
-      `UPDATE access_email_domains
-       SET display_name = ?
-       WHERE id = ? AND owner_user_id = ?`
-    )
-    .bind(displayName, domainId, ownerUserId)
-    .run();
-
-  return (await getDomainOwnedByUser(db, domainId, ownerUserId))!;
-}
-
-export async function deleteDomain(
-  db: D1Database,
-  domainId: string,
-  ownerUserId: string
-): Promise<void> {
-  const result = await db
-    .prepare('DELETE FROM access_email_domains WHERE id = ? AND owner_user_id = ?')
-    .bind(domainId, ownerUserId)
-    .run();
-  if (!result.meta.changes) throw error(404, 'Domain not found');
 }
 
 export async function listGroupsForOwner(

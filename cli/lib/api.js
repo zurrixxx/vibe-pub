@@ -186,22 +186,6 @@ export async function removeFromCollection(collectionSlug, pageSlug) {
 
 // --- Access control ---
 
-export async function listAccessDomains() {
-  return request('GET', '/api/access/domains');
-}
-
-export async function createAccessDomain(data) {
-  return request('POST', '/api/access/domains', data);
-}
-
-export async function updateAccessDomain(id, data) {
-  return request('PUT', `/api/access/domains/${encodeURIComponent(id)}`, data);
-}
-
-export async function deleteAccessDomain(id) {
-  return request('DELETE', `/api/access/domains/${encodeURIComponent(id)}`);
-}
-
 export async function listAccessGroups() {
   return request('GET', '/api/access/groups');
 }
