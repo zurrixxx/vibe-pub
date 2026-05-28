@@ -1,11 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { buildCanonicalPath } from '$lib/server/slug';
-import {
-  assertCanReadPageInCollection,
-  getPageAccessResource,
-  type AccessViewer,
-} from '$lib/server/access';
+import { type AccessViewer } from '$lib/server/access';
 import {
   type CollectionPageRow,
   type CollectionPartRow,
@@ -101,11 +97,6 @@ export async function loadAllReaderChapters(
   viewer?: AccessViewer | null
 ): Promise<ReaderChapterPayload[]> {
   const ctx = (await loadCollectionReaderContext(db, collectionSlug, viewer)) as ReaderContext;
-  for (const page of ctx.pages) {
-    const access = await getPageAccessResource(db, page.page_id);
-    if (!access) throw error(404, 'Page not found');
-    await assertCanReadPageInCollection(db, access, ctx.collection.id, viewer ?? null);
-  }
   return Promise.all(ctx.pages.map((page, index) => buildChapterPayload(db, ctx, page, index)));
 }
 
@@ -119,8 +110,5 @@ export async function loadReaderChapter(
   const chapterIndex = ctx.pages.findIndex((p) => p.id === pageId || p.page_id === pageId);
   if (chapterIndex < 0) throw error(404, 'Page not found in collection');
   const page = ctx.pages[chapterIndex];
-  const access = await getPageAccessResource(db, page.page_id);
-  if (!access) throw error(404, 'Page not found');
-  await assertCanReadPageInCollection(db, access, ctx.collection.id, viewer ?? null);
   return buildChapterPayload(db, ctx, page, chapterIndex);
 }
