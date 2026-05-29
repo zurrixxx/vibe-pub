@@ -360,7 +360,9 @@ async function main() {
     const flags = parseFlags(flagArgs);
 
     let markdown = readMarkdown(fileArg);
-    if (!markdown && !flags.access) markdown = await readStdin();
+    // Skip stdin only for interactive metadata-only updates (--access, no file).
+    // When stdin is piped, still read it so content + --access can apply together.
+    if (!markdown && (!flags.access || !process.stdin.isTTY)) markdown = await readStdin();
 
     const page = await resolveSlug(slug);
 
