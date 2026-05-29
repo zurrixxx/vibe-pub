@@ -10,6 +10,7 @@ export {
   assertCollectionAccessForOwner,
   resolveCollectionAccess,
   touchCollectionUpdated,
+  deleteCollectionById,
   getPartInCollection,
   nextPartSortOrder,
   nextPageSortOrderInPart,

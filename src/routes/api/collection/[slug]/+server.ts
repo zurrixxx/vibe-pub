@@ -6,6 +6,7 @@ import {
   assertCollectionAccessForOwner,
   assertCollectionOwner,
   buildCollectionPagesSelectQuery,
+  deleteCollectionById,
   getCollectionBySlug,
   readerGuideFromBody,
   readerGuideFromRow,
@@ -173,6 +174,6 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
   if (!collection) throw error(404, 'Collection not found');
   assertCollectionOwner(collection, locals.user?.id);
 
-  await db.prepare('DELETE FROM collections WHERE id = ?').bind(collection.id).run();
+  await deleteCollectionById(db, collection.id);
   return new Response(null, { status: 204 });
 };

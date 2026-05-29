@@ -64,6 +64,11 @@ export async function touchCollectionUpdated(db: D1Database, collectionId: strin
     .run();
 }
 
+/** Deletes a collection; junction rows and shares cascade via FK/triggers. Pages are not deleted. */
+export async function deleteCollectionById(db: D1Database, collectionId: string): Promise<void> {
+  await db.prepare('DELETE FROM collections WHERE id = ?').bind(collectionId).run();
+}
+
 export async function getPartInCollection(
   db: D1Database,
   partId: string,
