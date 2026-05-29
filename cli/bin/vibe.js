@@ -66,6 +66,86 @@ async function resolveSlug(slug) {
   }
 }
 
+function requireToken() {
+  if (!getToken()) err('Not logged in. Run: vibe-pub login');
+}
+
+function parseAccessRole(flags) {
+  const role = flags.role;
+  if (!role) return undefined;
+  if (role !== 'viewer' && role !== 'editor') err('--role must be viewer or editor');
+  return role;
+}
+
+function buildShareBody(flags) {
+  const email = flags.email;
+  const domain = flags.domain;
+  if (!email && !domain) err('Provide --email or --domain');
+  if (email && domain) err('Provide only one of --email or --domain');
+  const body = email ? { email } : { domain };
+  const role = parseAccessRole(flags);
+  if (role) body.access_role = role;
+  return body;
+}
+
+function normalizeDomainInput(input) {
+  return String(input).replace(/^@+/, '').trim().toLowerCase();
+}
+
+function parseUnshareTarget(flags) {
+  const email = flags.email;
+  const domain = flags.domain;
+  if (!email && !domain) err('Provide --email or --domain');
+  if (email && domain) err('Provide only one of --email or --domain');
+  return {
+    email: email ? String(email).trim().toLowerCase() : undefined,
+    domain: domain ? normalizeDomainInput(domain) : undefined,
+  };
+}
+
+async function revokeResourceShare(payload, target, removeDomainShare, removeUserShare) {
+  if (target.domain) {
+    const shares = Array.isArray(payload?.shares) ? payload.shares : [];
+    const row = shares.find(
+      (s) =>
+        s.grantee_type === 'domain' &&
+        normalizeDomainInput(s.label ?? '') === target.domain
+    );
+    if (!row) err(`No domain share found for: ${target.domain}`);
+    await removeDomainShare(row.grantee_id);
+    return;
+  }
+
+  const users = Array.isArray(payload?.shared_users) ? payload.shared_users : [];
+  const user = users.find((u) => String(u.email ?? '').trim().toLowerCase() === target.email);
+  if (!user) err(`No user share found for: ${target.email}`);
+  const groupId = payload.default_group_id;
+  if (!groupId) err('Could not resolve access group for this resource');
+  await removeUserShare(groupId, user.user_id);
+}
+
+/** Web-shaped access view: domains + users only (groups are internal). */
+function formatAccessStatus(access, payload) {
+  const shares = Array.isArray(payload?.shares) ? payload.shares : [];
+  const sharedUsers = Array.isArray(payload?.shared_users) ? payload.shared_users : [];
+  return {
+    access,
+    domains: shares
+      .filter((s) => s.grantee_type === 'domain')
+      .map((s) => ({
+        domain: s.label ?? s.grantee_id,
+        grantee_id: s.grantee_id,
+        access_role: s.access_role ?? 'viewer',
+      })),
+    users: sharedUsers.map((u) => ({
+      email: u.email,
+      username: u.username,
+      user_id: u.user_id,
+      access_role: u.access_role,
+    })),
+  };
+}
+
 function help() {
   const text = `vibe-pub -- publish markdown to vibe.pub
 
@@ -88,8 +168,15 @@ Commands:
   collection get <slug>      Get collection details + pages
   collection add <c> <p>     Add page to collection
   collection remove <c> <p>  Remove page from collection
+  collection delete <slug>   Delete a collection
   collection update <slug>   Update collection metadata
   collection part <sub>      Manage collection parts (list|add|update|remove)
+  access page <slug>         Page access status (visibility + shares)
+  access page share <slug>   Share a private page (--email or --domain)
+  access page unshare <slug> Remove a page share (--email or --domain)
+  access collection <slug>   Collection access status
+  access collection share <slug>  Share a private collection
+  access collection unshare <slug>  Remove a collection share
   whoami                     Show current auth info
   login                      Sign in via browser
   logout                     Sign out
@@ -151,6 +238,14 @@ Collection update options:
   --who-its-for <text>       Cover card: who it's for
   --how-to-read-it <text>    Cover card: how to read it
   --access <level>           New access level
+
+Update options:
+  --access <level>           public, unlisted, or private
+
+Access share options:
+  --email <email>            Share with / remove share for a user by email
+  --domain <domain>          Share with / remove share for an email domain (e.g. @company.com)
+  --role <viewer|editor>     Permission when sharing (default: viewer)
 
 Config options:
   --token <token>            Save session token
@@ -255,15 +350,31 @@ async function main() {
   // --- update ---
   if (cmd === 'update') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub update <slug> [file]');
+    if (!slug) err('Usage: vibe-pub update <slug> [file] [--access <level>]');
 
     const fileArg = cleanArgs[2] && !cleanArgs[2].startsWith('--') ? cleanArgs[2] : null;
-    const markdown = readMarkdown(fileArg) ?? (await readStdin());
-    if (!markdown || !markdown.trim()) err('No markdown content');
+    const flagArgs = fileArg ? cleanArgs.slice(3) : cleanArgs.slice(2);
+    const flags = parseFlags(flagArgs);
+
+    let markdown = readMarkdown(fileArg);
+    if (!markdown && !flags.access) markdown = await readStdin();
 
     const page = await resolveSlug(slug);
+
+    if ((!markdown || !markdown.trim()) && flags.access) {
+      try {
+        const result = await api.updatePage(page.id, { access: flags.access });
+        out(result, format);
+      } catch (e) {
+        err(e.message, e.status);
+      }
+      return;
+    }
+
+    if (!markdown || !markdown.trim()) err('No markdown content (or pass --access for metadata-only)');
+
     try {
-      const result = await api.update(page.id, markdown);
+      const result = await api.update(page.id, markdown, { access: flags.access });
       out(result, format);
     } catch (e) {
       err(e.message, e.status);
@@ -436,6 +547,124 @@ async function main() {
     return;
   }
 
+  // --- access ---
+  if (cmd === 'access') {
+    requireToken();
+    const resource = cleanArgs[1];
+    const sub = cleanArgs[2];
+
+    if (resource === 'page') {
+      if (sub === 'share') {
+        const slug = cleanArgs[3];
+        if (!slug)
+          err('Usage: vibe-pub access page share <slug> (--email e | --domain d) [--role viewer|editor]');
+        const flags = parseFlags(cleanArgs.slice(4));
+        const body = buildShareBody(flags);
+        const page = await resolveSlug(slug);
+        try {
+          const payload = await api.addPageShare(page.id, body);
+          out(formatAccessStatus(page.access, payload), format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      if (sub === 'unshare') {
+        const slug = cleanArgs[3];
+        if (!slug) err('Usage: vibe-pub access page unshare <slug> (--email e | --domain d)');
+        const flags = parseFlags(cleanArgs.slice(4));
+        const target = parseUnshareTarget(flags);
+        const page = await resolveSlug(slug);
+        try {
+          const payload = await api.listPageShares(page.id);
+          await revokeResourceShare(
+            payload,
+            target,
+            (granteeId) =>
+              api.removePageShare(page.id, { grantee_type: 'domain', grantee_id: granteeId }),
+            (groupId, userId) => api.removeAccessGroupMember(groupId, userId)
+          );
+          const updated = await api.listPageShares(page.id);
+          out(formatAccessStatus(page.access, updated), format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      const slug = sub;
+      if (!slug)
+        err('Usage: vibe-pub access page <slug> | access page share|unshare <slug> ...');
+      const page = await resolveSlug(slug);
+      try {
+        const payload = await api.listPageShares(page.id);
+        out(formatAccessStatus(page.access, payload), format);
+      } catch (e) {
+        err(e.message, e.status);
+      }
+      return;
+    }
+
+    if (resource === 'collection' || resource === 'coll') {
+      if (sub === 'share') {
+        const slug = cleanArgs[3];
+        if (!slug)
+          err(
+            'Usage: vibe-pub access collection share <slug> (--email e | --domain d) [--role viewer|editor]'
+          );
+        const flags = parseFlags(cleanArgs.slice(4));
+        const body = buildShareBody(flags);
+        try {
+          const collection = await api.getCollection(slug);
+          const payload = await api.addCollectionShare(slug, body);
+          out(formatAccessStatus(collection.access, payload), format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      if (sub === 'unshare') {
+        const slug = cleanArgs[3];
+        if (!slug) err('Usage: vibe-pub access collection unshare <slug> (--email e | --domain d)');
+        const flags = parseFlags(cleanArgs.slice(4));
+        const target = parseUnshareTarget(flags);
+        try {
+          const collection = await api.getCollection(slug);
+          const payload = await api.listCollectionShares(slug);
+          await revokeResourceShare(
+            payload,
+            target,
+            (granteeId) =>
+              api.removeCollectionShare(slug, { grantee_type: 'domain', grantee_id: granteeId }),
+            (groupId, userId) => api.removeAccessGroupMember(groupId, userId)
+          );
+          const updated = await api.listCollectionShares(slug);
+          out(formatAccessStatus(collection.access, updated), format);
+        } catch (e) {
+          err(e.message, e.status);
+        }
+        return;
+      }
+
+      const slug = sub;
+      if (!slug)
+        err('Usage: vibe-pub access collection <slug> | access collection share|unshare <slug> ...');
+      try {
+        const collection = await api.getCollection(slug);
+        const payload = await api.listCollectionShares(slug);
+        out(formatAccessStatus(collection.access, payload), format);
+      } catch (e) {
+        err(e.message, e.status);
+      }
+      return;
+    }
+
+    err('Usage: vibe-pub access <page|collection> <slug> | access <page|collection> share|unshare <slug> ...');
+    return;
+  }
+
   // --- collection ---
   if (cmd === 'collection' || cmd === 'coll') {
     const sub = cleanArgs[1];
@@ -532,6 +761,18 @@ async function main() {
       try {
         const result = await api.removeFromCollection(collSlug, pageSlug);
         out(result, format);
+      } catch (e) {
+        err(e.message, e.status);
+      }
+      return;
+    }
+
+    if (sub === 'delete') {
+      const slug = cleanArgs[2];
+      if (!slug) err('Usage: vibe-pub collection delete <slug>');
+      try {
+        await api.deleteCollection(slug);
+        out({ deleted: true, slug }, format);
       } catch (e) {
         err(e.message, e.status);
       }
@@ -635,7 +876,7 @@ async function main() {
       return;
     }
 
-    err('Usage: vibe-pub collection <create|list|get|add|remove|update|part>');
+    err('Usage: vibe-pub collection <create|list|get|add|remove|delete|update|part>');
     return;
   }
 

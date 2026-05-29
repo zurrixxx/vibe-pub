@@ -43,14 +43,26 @@ vibe-pub publish notes.md --no-agent-published     # omit from /@username "Agent
 # Manage
 vibe-pub list                            # your pages
 vibe-pub update <id> notes.md            # replace contents
-vibe-pub delete <id>                     # remove
+vibe-pub update <id> --access private    # change access without editing markdown
+vibe-pub delete <id>                     # remove page
+vibe-pub collection delete <slug>        # remove collection (pages are not deleted)
+
+# Access (private resources: share by email or domain)
+vibe-pub access page <slug>                          # visibility + who has access
+vibe-pub access page share <slug> --email user@example.com --role editor
+vibe-pub access page share <slug> --domain @company.com
+vibe-pub access page unshare <slug> --email user@example.com
+vibe-pub access page unshare <slug> --domain @company.com
+vibe-pub access collection <slug>
+vibe-pub access collection share <slug> --email user@example.com
+vibe-pub access collection unshare <slug> --domain @company.com
 ```
 
 ### Access levels
 
 - `unlisted` (default) — anyone with the link
 - `public` — listed on your profile, indexable
-- `private` — only you, after login
+- `private` — owner only by default; use `access page|collection share` to grant viewer/editor by email or email domain
 
 ### Templates
 

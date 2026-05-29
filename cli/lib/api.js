@@ -68,8 +68,14 @@ export async function getById(id) {
   return request('GET', `/api/pub/${encodeURIComponent(id)}`);
 }
 
-export async function update(id, markdown) {
-  return request('PUT', `/api/pub/${encodeURIComponent(id)}`, { markdown });
+export async function updatePage(id, data) {
+  return request('PUT', `/api/pub/${encodeURIComponent(id)}`, data);
+}
+
+export async function update(id, markdown, options = {}) {
+  const data = { markdown };
+  if (options.access) data.access = options.access;
+  return updatePage(id, data);
 }
 
 export async function remove(id) {
@@ -135,6 +141,10 @@ export async function getCollection(slug) {
 
 export async function updateCollection(slug, data) {
   return request('PUT', `/api/collection/${encodeURIComponent(slug)}`, data);
+}
+
+export async function deleteCollection(slug) {
+  return request('DELETE', `/api/collection/${encodeURIComponent(slug)}`);
 }
 
 export async function addToCollection(collectionSlug, pageSlug, options = {}) {

@@ -164,3 +164,15 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
 
   return json(updated);
 };
+
+export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
+  if (!platform) throw error(500, 'No platform');
+  const db = getDb(platform);
+
+  const collection = await getCollectionBySlug(db, params.slug);
+  if (!collection) throw error(404, 'Collection not found');
+  assertCollectionOwner(collection, locals.user?.id);
+
+  await db.prepare('DELETE FROM collections WHERE id = ?').bind(collection.id).run();
+  return new Response(null, { status: 204 });
+};
