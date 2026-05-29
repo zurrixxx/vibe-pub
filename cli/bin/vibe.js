@@ -107,9 +107,7 @@ async function revokeResourceShare(payload, target, removeDomainShare, removeUse
   if (target.domain) {
     const shares = Array.isArray(payload?.shares) ? payload.shares : [];
     const row = shares.find(
-      (s) =>
-        s.grantee_type === 'domain' &&
-        normalizeDomainInput(s.label ?? '') === target.domain
+      (s) => s.grantee_type === 'domain' && normalizeDomainInput(s.label ?? '') === target.domain
     );
     if (!row) err(`No domain share found for: ${target.domain}`);
     await removeDomainShare(row.grantee_id);
@@ -117,7 +115,12 @@ async function revokeResourceShare(payload, target, removeDomainShare, removeUse
   }
 
   const users = Array.isArray(payload?.shared_users) ? payload.shared_users : [];
-  const user = users.find((u) => String(u.email ?? '').trim().toLowerCase() === target.email);
+  const user = users.find(
+    (u) =>
+      String(u.email ?? '')
+        .trim()
+        .toLowerCase() === target.email
+  );
   if (!user) err(`No user share found for: ${target.email}`);
   const groupId = payload.default_group_id;
   if (!groupId) err('Could not resolve access group for this resource');
@@ -371,7 +374,8 @@ async function main() {
       return;
     }
 
-    if (!markdown || !markdown.trim()) err('No markdown content (or pass --access for metadata-only)');
+    if (!markdown || !markdown.trim())
+      err('No markdown content (or pass --access for metadata-only)');
 
     try {
       const result = await api.update(page.id, markdown, { access: flags.access });
@@ -557,7 +561,9 @@ async function main() {
       if (sub === 'share') {
         const slug = cleanArgs[3];
         if (!slug)
-          err('Usage: vibe-pub access page share <slug> (--email e | --domain d) [--role viewer|editor]');
+          err(
+            'Usage: vibe-pub access page share <slug> (--email e | --domain d) [--role viewer|editor]'
+          );
         const flags = parseFlags(cleanArgs.slice(4));
         const body = buildShareBody(flags);
         const page = await resolveSlug(slug);
@@ -594,8 +600,7 @@ async function main() {
       }
 
       const slug = sub;
-      if (!slug)
-        err('Usage: vibe-pub access page <slug> | access page share|unshare <slug> ...');
+      if (!slug) err('Usage: vibe-pub access page <slug> | access page share|unshare <slug> ...');
       const page = await resolveSlug(slug);
       try {
         const payload = await api.listPageShares(page.id);
@@ -650,7 +655,9 @@ async function main() {
 
       const slug = sub;
       if (!slug)
-        err('Usage: vibe-pub access collection <slug> | access collection share|unshare <slug> ...');
+        err(
+          'Usage: vibe-pub access collection <slug> | access collection share|unshare <slug> ...'
+        );
       try {
         const collection = await api.getCollection(slug);
         const payload = await api.listCollectionShares(slug);
@@ -661,7 +668,9 @@ async function main() {
       return;
     }
 
-    err('Usage: vibe-pub access <page|collection> <slug> | access <page|collection> share|unshare <slug> ...');
+    err(
+      'Usage: vibe-pub access <page|collection> <slug> | access <page|collection> share|unshare <slug> ...'
+    );
     return;
   }
 
