@@ -1,6 +1,11 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
-  import { RESOURCE_ACCESS_TPYE, type ResourceAccess } from '$lib/constants/page';
+  import {
+    RESOURCE_ACCESS_PANEL_LEVELS,
+    accessForSharePanel,
+    type ResourceAccess,
+    type ResourceAccessPanelLevel,
+  } from '$lib/constants/page';
 
   export interface ManageAccessConfig {
     resourceType: 'page' | 'collection';
@@ -34,7 +39,7 @@
 
   let loading = $state(false);
   let errorMsg = $state<string | null>(null);
-  let accessLevel = $state<ResourceAccess>(config.access);
+  let accessLevel = $state<ResourceAccessPanelLevel>(accessForSharePanel(config.access));
 
   let shares = $state<ShareRow[]>([]);
   let sharedUsers = $state<MemberRow[]>([]);
@@ -98,7 +103,7 @@
 
   $effect(() => {
     if (open) {
-      accessLevel = config.access;
+      accessLevel = accessForSharePanel(config.access);
       void loadAll();
     }
   });
@@ -225,7 +230,7 @@
     <span>Visibility</span>
     <div class="access-row">
       <select bind:value={accessLevel} disabled={loading}>
-        {#each RESOURCE_ACCESS_TPYE as level}
+        {#each RESOURCE_ACCESS_PANEL_LEVELS as level}
           <option value={level}>{level}</option>
         {/each}
       </select>
