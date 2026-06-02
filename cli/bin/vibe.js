@@ -197,7 +197,7 @@ Format reference:
 Publish options:
   --slug <slug>              Custom URL slug
   --view <view>              Page view (doc, kanban, changelog, ...)
-  --access <level>           public, unlisted (default), or private
+  --access <level>           public (default), or private
   --theme <theme>            Page theme
 
 Comment options:
@@ -218,7 +218,7 @@ Collection create options:
   --part <spec>              Part spec, repeatable: "Title" or "Title:p1,p2"
   --parts <json>             Parts as JSON array [{ "title", "page_slugs"? }]
   --parts-file <path>        JSON file with parts array
-  --access <level>           public, unlisted (default), or private
+  --access <level>           public (default), or private
   --theme <theme>            Collection theme
   --no-agent-published       if you are agent, miss it
 
@@ -243,7 +243,7 @@ Collection update options:
   --access <level>           New access level
 
 Update options:
-  --access <level>           public, unlisted, or private
+  --access <level>           public (default), or private
 
 Access share options:
   --email <email>            Share with / remove share for a user by email

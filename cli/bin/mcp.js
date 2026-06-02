@@ -30,7 +30,7 @@ export async function startMcp() {
         .enum(pageViewEnum)
         .optional()
         .describe('Page view: doc, kanban, changelog, timeline, slides, dashboard'),
-      access: z.enum(resourceAccessEnum).optional().describe('Access level (default: unlisted)'),
+      access: z.enum(resourceAccessEnum).optional().describe('Access level (default: public)'),
       theme: z.string().optional().describe('Page theme'),
       agent_published: z
         .boolean()
@@ -230,7 +230,7 @@ export async function startMcp() {
         )
         .optional()
         .describe('Ordered parts with optional page slugs each'),
-      access: z.enum(resourceAccessEnum).optional().describe('Access level (default: unlisted)'),
+      access: z.enum(resourceAccessEnum).optional().describe('Access level (default: public)'),
       description: z
         .string()
         .optional()

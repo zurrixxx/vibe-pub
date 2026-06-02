@@ -143,7 +143,7 @@ test.describe('Authenticated user flows', () => {
     // Go to workspace
     await page.goto(`/@${username}`);
 
-    // Should see badges (doc + unlisted)
+    // Should see badges (doc + public)
     const badges = page.locator('.page-card').first().locator('.badge');
     await expect(badges.first()).toBeVisible();
   });

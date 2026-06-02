@@ -4,6 +4,7 @@ import { getDb, createPage } from '$lib/server/db';
 import { buildCanonicalPath } from '$lib/server/slug';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { detectView } from '$lib/templates/detect';
+import { DEFAULT_RESOURCE_ACCESS } from '$lib/constants/page';
 
 export const load: PageServerLoad = async () => {
   return {};
@@ -26,7 +27,7 @@ export const actions: Actions = {
     // PageView: frontmatter wins; detectView never returns slides/dashboard
     const view = fm.view ?? detectView(markdown);
     const theme = fm.theme ?? 'default';
-    const access = fm.access ?? 'unlisted';
+    const access = fm.access ?? DEFAULT_RESOURCE_ACCESS;
 
     // Extract title: frontmatter > first # heading > undefined
     let title = fm.title as string | undefined;

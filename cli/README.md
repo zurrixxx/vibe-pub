@@ -34,7 +34,7 @@ vibe-pub logout                          # clear saved token
 # Or: vibe-pub config --token <token>
 
 # Publish
-vibe-pub publish notes.md                          # unlisted by default
+vibe-pub publish notes.md                          # public by default
 vibe-pub publish report.md --slug q1 --access public
 vibe-pub publish notes.md --theme stripe
 cat README.md | vibe-pub publish                   # from stdin
@@ -60,8 +60,7 @@ vibe-pub access collection unshare <slug> --domain @company.com
 
 ### Access levels
 
-- `unlisted` (default) — anyone with the link
-- `public` — listed on your profile, indexable
+- `public` (default) — listed on your profile, indexable
 - `private` — owner only by default; use `access page|collection share` to grant viewer/editor by email or email domain
 
 ### Templates
@@ -86,7 +85,7 @@ Drop this into your agent's system prompt:
 For **kanban** pages, use `vibe-pub format kanban` or `vibe-pub --format json format kanban` (JSON includes `documentation`). For **doc** pages (title, lede, sections), use `vibe-pub format doc` or `--format json format doc`.
 
 The CLI is designed to be safe for non-interactive use:
-- `--access` defaults to `unlisted` (no accidental public posts)
+- `--access` defaults to `public`
 - Idempotent `update <id>` for revisions
 - JSON output via `--json` for programmatic chaining (coming)
 

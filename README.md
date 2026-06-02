@@ -33,7 +33,7 @@ vibe-pub login you@example.com           # magic link → email
 vibe-pub config --token <token>          # paste token from email
 
 # Publish
-vibe-pub publish notes.md                          # unlisted by default
+vibe-pub publish notes.md                          # public by default
 vibe-pub publish report.md --slug q1 --access public
 vibe-pub publish notes.md --theme stripe
 cat README.md | vibe-pub publish                   # from stdin
@@ -46,8 +46,7 @@ vibe-pub delete <id>                     # remove
 
 ### Access levels
 
-- `unlisted` (default) — anyone with the link
-- `public` — listed on your profile, indexable
+- `public` (default) — listed on your profile
 - `private` — only you, after login
 
 ### Templates
@@ -95,7 +94,7 @@ vibe-pub format kanban   # kanban: columns, cards, labels, ids
 
 ### CLI safety
 
-- `--access` defaults to `unlisted` (no accidental public posts)
+- `--access` defaults to `public`
 - Idempotent `update <id>` for revisions
 - JSON output via `--json` for programmatic chaining (coming)
 

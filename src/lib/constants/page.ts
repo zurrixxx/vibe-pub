@@ -14,7 +14,7 @@ export type ResourceAccessPanelLevel = (typeof RESOURCE_ACCESS_PANEL_LEVELS)[num
 /** @deprecated Use ResourceAccess — pages and collections share the same access enum. */
 export type PageAccess = ResourceAccess;
 
-export const DEFAULT_RESOURCE_ACCESS: ResourceAccess = 'unlisted';
+export const DEFAULT_RESOURCE_ACCESS: ResourceAccess = 'public';
 
 /** Map stored access to a panel dropdown value (unlisted → public). */
 export function accessForSharePanel(access: ResourceAccess): ResourceAccessPanelLevel {

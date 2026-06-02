@@ -19,7 +19,7 @@ Shape:
   view: doc
   title: My page
   theme: paper
-  access: unlisted
+  access: public
   ---
 
   First paragraph of the article…

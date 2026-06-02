@@ -12,7 +12,7 @@ describe('resolveCollectionAccess', () => {
 
   it('honors requested access when owner exists', () => {
     expect(resolveCollectionAccess('private', 'user-1')).toBe('private');
-    expect(resolveCollectionAccess(undefined, 'user-1')).toBe('unlisted');
+    expect(resolveCollectionAccess(undefined, 'user-1')).toBe('public');
     expect(resolveCollectionAccess(undefined, 'user-1', 'public')).toBe('public');
   });
 });
