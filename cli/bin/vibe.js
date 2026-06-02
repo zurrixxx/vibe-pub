@@ -7,6 +7,7 @@ import { KANBAN_FORMAT_DOC } from '../lib/format-kanban.js';
 import { DOC_FORMAT_DOC } from '../lib/format-doc.js';
 import { out, err } from '../lib/output.js';
 import { parseCollectionCreateArgv } from '../lib/parse-collection-parts.js';
+import { coerceLegacyAccess, resolveCliAccessFlag } from '../lib/constants.js';
 
 const args = process.argv.slice(2);
 
@@ -26,6 +27,10 @@ for (let i = 0; i < args.length; i++) {
 }
 
 const cmd = cleanArgs[0];
+
+function accessFromFlags(flags) {
+  return resolveCliAccessFlag(flags.access, err);
+}
 
 function parseFlags(argv) {
   const flags = {};
@@ -314,7 +319,7 @@ async function main() {
       const result = await api.publish(markdown, {
         slug: flags.slug,
         view: flags.view,
-        access: flags.access,
+        access: accessFromFlags(flags),
         theme: flags.theme,
         agentPublished: flags['no-agent-published'] ? false : true,
       });
@@ -368,7 +373,7 @@ async function main() {
 
     if ((!markdown || !markdown.trim()) && flags.access) {
       try {
-        const result = await api.updatePage(page.id, { access: flags.access });
+        const result = await api.updatePage(page.id, { access: accessFromFlags(flags) });
         out(result, format);
       } catch (e) {
         err(e.message, e.status);
@@ -380,7 +385,7 @@ async function main() {
       err('No markdown content (or pass --access for metadata-only)');
 
     try {
-      const result = await api.update(page.id, markdown, { access: flags.access });
+      const result = await api.update(page.id, markdown, { access: accessFromFlags(flags) });
       out(result, format);
     } catch (e) {
       err(e.message, e.status);
@@ -696,7 +701,7 @@ async function main() {
       }
       const options = {
         slug: flags.slug,
-        access: flags.access,
+        access: accessFromFlags(flags),
         description: flags.description,
         readers_guide: flags['readers-guide'],
         what_its_about: flags['what-its-about'],
@@ -805,7 +810,7 @@ async function main() {
       if (flags['what-its-about']) data.what_its_about = flags['what-its-about'];
       if (flags['who-its-for']) data.who_its_for = flags['who-its-for'];
       if (flags['how-to-read-it']) data.how_to_read_it = flags['how-to-read-it'];
-      if (flags.access) data.access = flags.access;
+      if (flags.access) data.access = accessFromFlags(flags);
       if (!Object.keys(data).length)
         err(
           'Provide at least one of --title, --description, --readers-guide, --what-its-about, --who-its-for, --how-to-read-it, --access'

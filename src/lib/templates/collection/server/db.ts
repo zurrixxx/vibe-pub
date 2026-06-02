@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import {
   DEFAULT_RESOURCE_ACCESS,
-  isResourceAccess,
+  resolveAssignableAccess,
   type ResourceAccess,
 } from '$lib/constants/page';
 
@@ -42,9 +42,7 @@ export function resolveCollectionAccess(
   defaultAccess: ResourceAccess = DEFAULT_RESOURCE_ACCESS
 ): ResourceAccess {
   if (!ownerUserId) return 'public';
-  if (access === undefined) return defaultAccess;
-  if (isResourceAccess(access)) return access;
-  return defaultAccess;
+  return resolveAssignableAccess(access, defaultAccess);
 }
 
 /** Reject non-public access when the collection has no owner. */

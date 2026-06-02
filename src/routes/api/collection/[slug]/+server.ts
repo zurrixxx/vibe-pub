@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import { isResourceAccess, RESOURCE_ACCESS_VALIDATION_MESSAGE } from '$lib/constants/page';
+import { parseAssignableAccess, RESOURCE_ACCESS_VALIDATION_MESSAGE } from '$lib/constants/page';
 import {
   assertCollectionAccessForOwner,
   assertCollectionOwner,
@@ -137,12 +137,13 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     values.push(readerGuide.how_to_read_it);
   }
   if (access !== undefined) {
-    if (!isResourceAccess(access)) {
+    const normalized = parseAssignableAccess(access);
+    if (normalized === null) {
       throw error(400, RESOURCE_ACCESS_VALIDATION_MESSAGE);
     }
-    assertCollectionAccessForOwner(access, collection.user_id);
+    assertCollectionAccessForOwner(normalized, collection.user_id);
     sets.push('access = ?');
-    values.push(access);
+    values.push(normalized);
   }
 
   if (sets.length === 0) throw error(400, 'No fields to update');

@@ -11,6 +11,7 @@ import {
 } from '$lib/server/db';
 import { assertCanReadPage, assertCanWritePage, toAccessViewer } from '$lib/server/access';
 import { parseFrontmatter } from '$lib/server/markdown';
+import { parseAssignableAccess, RESOURCE_ACCESS_VALIDATION_MESSAGE } from '$lib/constants/page';
 import { reconcileComments } from '$lib/templates/reconcile';
 import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 import { parseDocBlocks } from '$lib/templates/doc/parser';
@@ -102,6 +103,14 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
       oldBlocks = parseDocBlocks(oldMarkdown);
       newBlocks = parseDocBlocks(markdown);
     }
+  }
+
+  if (isOwner && accessOverride !== undefined) {
+    const normalized = parseAssignableAccess(accessOverride);
+    if (normalized === null) {
+      throw error(400, RESOURCE_ACCESS_VALIDATION_MESSAGE);
+    }
+    accessOverride = normalized;
   }
 
   await updatePage(

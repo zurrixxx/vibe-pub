@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  coerceLegacyAccess,
+  resolveAssignableAccess,
+  parseAssignableAccess,
   isResourceAccess,
   isPageView,
   isPageTheme,
@@ -28,5 +31,13 @@ describe('page constants', () => {
       expect(isPageTheme(theme)).toBe(true);
     }
     expect(isPageTheme('neon')).toBe(false);
+  });
+
+  it('resolveAssignableAccess coerces legacy unlisted to public', () => {
+    expect(resolveAssignableAccess(undefined)).toBe('public');
+    expect(resolveAssignableAccess('unlisted')).toBe('public');
+    expect(resolveAssignableAccess('private')).toBe('private');
+    expect(parseAssignableAccess('unlisted')).toBe('public');
+    expect(parseAssignableAccess('secret')).toBeNull();
   });
 });

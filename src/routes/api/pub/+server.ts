@@ -4,7 +4,7 @@ import { getDb, createPage, getPagesByUser, appendPageVersionSnapshot } from '$l
 import { isValidSlug, buildCanonicalPath } from '$lib/server/slug';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { detectView } from '$lib/templates/detect';
-import { DEFAULT_RESOURCE_ACCESS, type PageView, type ResourceAccess } from '$lib/constants/page';
+import { resolveAssignableAccess, type PageView, type ResourceAccess } from '$lib/constants/page';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!platform) throw error(500, 'No platform');
@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   // PageView: explicit override → frontmatter → heuristic (never yields slides/dashboard)
   const view = viewOverride ?? fm.view ?? detectView(markdown);
   const theme = themeOverride ?? fm.theme ?? 'default';
-  const access = accessOverride ?? fm.access ?? DEFAULT_RESOURCE_ACCESS;
+  const access = resolveAssignableAccess(accessOverride ?? (fm.access as string | undefined));
 
   // Extract title: frontmatter > first # heading > null
   let title: string | null = (fm.title as string) ?? null;
