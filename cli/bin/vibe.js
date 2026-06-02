@@ -115,7 +115,7 @@ Collection update options:
   --access <level>           New access level
 
 Update options:
-  --access <level>           public (default), or private
+  --access <level>           public (default), or private; Change visibility only (ignores file/stdin)
 
 Access share options:
   --email <email>            Share with / remove share for a user by email
