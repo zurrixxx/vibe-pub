@@ -327,7 +327,7 @@ export async function startMcp() {
     'Add a page to an existing collection.',
     {
       collection_slug: z.string().describe('Collection slug'),
-      page_slug: z.string().describe('Page slug to add'),
+      page_slug: z.string().describe('Page id or slug-id URL segment (same as get)'),
       label: z.string().optional().describe('Display label (overrides page title in nav)'),
       part_id: z.string().optional().describe('Part id to add the page into'),
     },
@@ -404,7 +404,7 @@ export async function startMcp() {
     'Remove a page from a collection.',
     {
       collection_slug: z.string().describe('Collection slug'),
-      page_slug: z.string().describe('Page slug to remove'),
+      page_slug: z.string().describe('Page id or slug-id URL segment (same as get)'),
     },
     async ({ collection_slug, page_slug }) => {
       const result = await api.removeFromCollection(collection_slug, page_slug);

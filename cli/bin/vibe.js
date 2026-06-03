@@ -162,26 +162,26 @@ Usage: vibe-pub <command> [options]
 Commands:
   publish [file] [options]   Publish markdown (file or stdin); counts as agent-published unless --no-agent-published
   format kanban|doc          Get markdown format reference for agents before publishing
-  get <slug>                 Get page details
+  get <slug-id>              Get page (id or slug-id, e.g. my-doc-Ab12cd34)
   list, ls                   List your pages
-  update <slug> [file]       Update a page (file or stdin)
-  delete, rm <slug>          Delete a page
-  comments <slug> [-a]       List open comments (-a / --all: include resolved comments)
-  comment <slug> "body"      Add a comment
-  resolve <slug> [options]   Resolve comments
-  versions <slug>            List version history
-  version <slug> <num>       Get a specific version
+  update <slug-id> [file]    Update a page (file or stdin)
+  delete, rm <slug-id>       Delete a page
+  comments <slug-id> [-a]    List open comments (-a / --all: include resolved)
+  comment <slug-id> "body"   Add a comment
+  resolve <slug-id> [opts]   Resolve comments
+  versions <slug-id>         List version history
+  version <slug-id> <num>    Get a specific version
   collection create <title>  Create a collection (--part / reader's guide flags)
   collection list, ls        List your collections
   collection get <slug>      Get collection details + pages
-  collection add <c> <p>     Add page to collection
+  collection add <c> <p>     Add page (same <slug-id> as get)
   collection remove <c> <p>  Remove page from collection
   collection delete <slug>   Delete a collection
   collection update <slug>   Update collection metadata
   collection part <sub>      Manage collection parts (list|add|update|remove)
-  access page <slug>         Page access status (visibility + shares)
-  access page share <slug>   Share a private page (--email or --domain)
-  access page unshare <slug> Remove a page share (--email or --domain)
+  access page <slug-id>      Page access status (visibility + shares)
+  access page share <slug-id>   Share a private page (--email or --domain)
+  access page unshare <slug-id> Remove a page share (--email or --domain)
   access collection <slug>   Collection access status
   access collection share <slug>  Share a private collection
   access collection unshare <slug>  Remove a collection share
@@ -219,8 +219,8 @@ Collection create options:
   --what-its-about <text>    Cover card: what this collection is about
   --who-its-for <text>       Cover card: intended audience
   --how-to-read-it <text>    Cover card: how to navigate / where to start
-  --slugs <p1,p2,...>        Ungrouped page slugs (shown after all parts)
-  --part <spec>              Part spec, repeatable: "Title" or "Title:p1,p2"
+  --slugs <s1,s2,...>        Ungrouped page segments (id or slug-id, after all parts)
+  --part <spec>              Part spec: "Title" or "Title:seg1,seg2" (page segments)
   --parts <json>             Parts as JSON array [{ "title", "page_slugs"? }]
   --parts-file <path>        JSON file with parts array
   --access <level>           public (default), or private
@@ -333,7 +333,7 @@ async function main() {
   // --- get ---
   if (cmd === 'get') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub get <slug>');
+    if (!slug) err('Usage: vibe-pub get <segment>');
     try {
       const page = await api.getBySlug(slug);
       out(page, format);
@@ -358,7 +358,7 @@ async function main() {
   // --- update ---
   if (cmd === 'update') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub update <slug> [file] [--access <level>]');
+    if (!slug) err('Usage: vibe-pub update <segment> [file] [--access <level>]');
 
     const fileArg = cleanArgs[2] && !cleanArgs[2].startsWith('--') ? cleanArgs[2] : null;
     const flagArgs = fileArg ? cleanArgs.slice(3) : cleanArgs.slice(2);
@@ -396,7 +396,7 @@ async function main() {
   // --- delete ---
   if (cmd === 'delete' || cmd === 'rm') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub delete <slug>');
+    if (!slug) err('Usage: vibe-pub delete <segment>');
 
     const page = await resolveSlug(slug);
     try {
@@ -411,13 +411,13 @@ async function main() {
   // --- comments ---
   if (cmd === 'comments') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub comments <slug> [-a|--all]');
+    if (!slug) err('Usage: vibe-pub comments <segment> [-a|--all]');
 
     const flagArgs = cleanArgs.slice(2);
     let includeAll = false;
     for (const a of flagArgs) {
       if (a === '-a' || a === '--all') includeAll = true;
-      else err(`Unknown argument: ${a}. Usage: vibe-pub comments <slug> [-a|--all]`);
+      else err(`Unknown argument: ${a}. Usage: vibe-pub comments <segment> [-a|--all]`);
     }
 
     const page = await resolveSlug(slug);
@@ -434,7 +434,7 @@ async function main() {
   if (cmd === 'comment') {
     const slug = cleanArgs[1];
     const body = cleanArgs[2];
-    if (!slug || !body) err('Usage: vibe-pub comment <slug> "body" [--anchor blockId]');
+    if (!slug || !body) err('Usage: vibe-pub comment <segment> "body" [--anchor blockId]');
 
     const flagArgs = cleanArgs.slice(3);
     const flags = parseFlags(flagArgs);
@@ -454,7 +454,7 @@ async function main() {
   // --- resolve ---
   if (cmd === 'resolve') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub resolve <slug> [--all] [--ids id1,id2]');
+    if (!slug) err('Usage: vibe-pub resolve <segment> [--all] [--ids id1,id2]');
 
     const flagArgs = cleanArgs.slice(2);
     const flags = parseFlags(flagArgs);
@@ -480,7 +480,7 @@ async function main() {
   // --- versions ---
   if (cmd === 'versions') {
     const slug = cleanArgs[1];
-    if (!slug) err('Usage: vibe-pub versions <slug>');
+    if (!slug) err('Usage: vibe-pub versions <segment>');
 
     const page = await resolveSlug(slug);
     try {
@@ -496,7 +496,7 @@ async function main() {
   if (cmd === 'version') {
     const slug = cleanArgs[1];
     const num = cleanArgs[2];
-    if (!slug || !num) err('Usage: vibe-pub version <slug> <num>');
+    if (!slug || !num) err('Usage: vibe-pub version <segment> <num>');
 
     const page = await resolveSlug(slug);
     try {
@@ -569,7 +569,7 @@ async function main() {
         const slug = cleanArgs[3];
         if (!slug)
           err(
-            'Usage: vibe-pub access page share <slug> (--email e | --domain d) [--role viewer|editor]'
+            'Usage: vibe-pub access page share <segment> (--email e | --domain d) [--role viewer|editor]'
           );
         const flags = parseFlags(cleanArgs.slice(4));
         const body = buildShareBody(flags);
@@ -585,7 +585,7 @@ async function main() {
 
       if (sub === 'unshare') {
         const slug = cleanArgs[3];
-        if (!slug) err('Usage: vibe-pub access page unshare <slug> (--email e | --domain d)');
+        if (!slug) err('Usage: vibe-pub access page unshare <segment> (--email e | --domain d)');
         const flags = parseFlags(cleanArgs.slice(4));
         const target = parseUnshareTarget(flags);
         const page = await resolveSlug(slug);
@@ -607,7 +607,8 @@ async function main() {
       }
 
       const slug = sub;
-      if (!slug) err('Usage: vibe-pub access page <slug> | access page share|unshare <slug> ...');
+      if (!slug)
+        err('Usage: vibe-pub access page <segment> | access page share|unshare <segment> ...');
       const page = await resolveSlug(slug);
       try {
         const payload = await api.listPageShares(page.id);
@@ -753,7 +754,7 @@ async function main() {
       const pageSlug = cleanArgs[3];
       if (!collSlug || !pageSlug)
         err(
-          'Usage: vibe-pub collection add <collection-slug> <page-slug> [--label "Name"] [--part-id id]'
+          'Usage: vibe-pub collection add <collection-slug> <segment> [--label "Name"] [--part-id id]'
         );
       const flagArgs = cleanArgs.slice(4);
       const flags = parseFlags(flagArgs);
@@ -773,7 +774,7 @@ async function main() {
       const collSlug = cleanArgs[2];
       const pageSlug = cleanArgs[3];
       if (!collSlug || !pageSlug)
-        err('Usage: vibe-pub collection remove <collection-slug> <page-slug>');
+        err('Usage: vibe-pub collection remove <collection-slug> <segment>');
       try {
         const result = await api.removeFromCollection(collSlug, pageSlug);
         out(result, format);

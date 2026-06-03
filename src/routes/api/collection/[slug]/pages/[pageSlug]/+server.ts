@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDb } from '$lib/server/db';
+import { getDb, getPageByUrlSegment } from '$lib/server/db';
 import {
   assertCollectionOwner,
   getCollectionBySlug,
@@ -17,12 +17,9 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   if (!collection) throw error(404, 'Collection not found');
   assertCollectionOwner(collection, locals.user?.id);
 
-  const page = await db
-    .prepare('SELECT id FROM pages WHERE slug = ?')
-    .bind(params.pageSlug)
-    .first<{ id: string }>();
-
-  if (!page) throw error(404, `Page not found: ${params.pageSlug}`);
+  const pageRow = await getPageByUrlSegment(db, params.pageSlug);
+  if (!pageRow) throw error(404, `Page not found: ${params.pageSlug}`);
+  const page = { id: pageRow.id };
 
   const membership = await db
     .prepare(
@@ -95,12 +92,9 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
   if (!collection) throw error(404, 'Collection not found');
   assertCollectionOwner(collection, locals.user?.id);
 
-  const page = await db
-    .prepare('SELECT id FROM pages WHERE slug = ?')
-    .bind(params.pageSlug)
-    .first<{ id: string }>();
-
-  if (!page) throw error(404, `Page not found: ${params.pageSlug}`);
+  const pageRow = await getPageByUrlSegment(db, params.pageSlug);
+  if (!pageRow) throw error(404, `Page not found: ${params.pageSlug}`);
+  const page = { id: pageRow.id };
 
   const result = await db
     .prepare('DELETE FROM collection_pages WHERE collection_id = ? AND page_id = ?')

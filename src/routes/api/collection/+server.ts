@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDb } from '$lib/server/db';
+import { getDb, getPageByUrlSegment } from '$lib/server/db';
 import {
   newCollectionEntityId,
   readerGuideFromBody,
@@ -65,19 +65,12 @@ interface CreatedPart {
 
 async function resolvePageSlugs(
   db: ReturnType<typeof getDb>,
-  slugs: string[]
+  segments: string[]
 ): Promise<Map<string, string>> {
   const pageMap = new Map<string, string>();
-  if (slugs.length === 0) return pageMap;
-
-  const unique = [...new Set(slugs)];
-  const placeholders = unique.map(() => '?').join(',');
-  const pages = await db
-    .prepare(`SELECT id, slug FROM pages WHERE slug IN (${placeholders})`)
-    .bind(...unique)
-    .all<{ id: string; slug: string }>();
-  for (const p of pages.results) {
-    pageMap.set(p.slug, p.id);
+  for (const segment of segments) {
+    const page = await getPageByUrlSegment(db, segment);
+    if (page) pageMap.set(segment, page.id);
   }
   return pageMap;
 }
