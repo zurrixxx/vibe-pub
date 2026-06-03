@@ -174,8 +174,8 @@ Commands:
   collection create <title>  Create a collection (--part / reader's guide flags)
   collection list, ls        List your collections
   collection get <slug>      Get collection details + pages
-  collection add <c> <p>     Add page (same <slug-id> as get)
-  collection remove <c> <p>  Remove page from collection
+  collection add <collection-slug> <page-id>  Add page to collection (use page id from list)
+  collection remove <collection-slug> <page-id>  Remove page from collection
   collection delete <slug>   Delete a collection
   collection update <slug>   Update collection metadata
   collection part <sub>      Manage collection parts (list|add|update|remove)
@@ -754,7 +754,7 @@ async function main() {
       const pageSlug = cleanArgs[3];
       if (!collSlug || !pageSlug)
         err(
-          'Usage: vibe-pub collection add <collection-slug> <segment> [--label "Name"] [--part-id id]'
+          'Usage: vibe-pub collection add <collection-slug> <page-id> [--label "Name"] [--part-id id]'
         );
       const flagArgs = cleanArgs.slice(4);
       const flags = parseFlags(flagArgs);
@@ -774,7 +774,7 @@ async function main() {
       const collSlug = cleanArgs[2];
       const pageSlug = cleanArgs[3];
       if (!collSlug || !pageSlug)
-        err('Usage: vibe-pub collection remove <collection-slug> <segment>');
+        err('Usage: vibe-pub collection remove <collection-slug> <page-id>');
       try {
         const result = await api.removeFromCollection(collSlug, pageSlug);
         out(result, format);
