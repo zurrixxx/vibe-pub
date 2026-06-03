@@ -1,9 +1,7 @@
 import { getToken, getBaseUrl } from '../config.js';
-import { out } from '../output.js';
+import { out } from '../cli-helpers.js';
 
-/** @typedef {import('./helpers.js').CliContext} CliContext */
-
-/** @param {CliContext} ctx */
+/** @param {{ format: string }} ctx */
 export async function whoamiHandler({ format }) {
   out({ authenticated: !!getToken(), base_url: getBaseUrl() }, format);
 }

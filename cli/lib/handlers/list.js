@@ -1,10 +1,8 @@
 import * as api from '../api.js';
 import { getToken } from '../config.js';
-import { out, err } from '../output.js';
+import { out, err } from '../cli-helpers.js';
 
-/** @typedef {import('./helpers.js').CliContext} CliContext */
-
-/** @param {CliContext} ctx */
+/** @param {{ format: string }} ctx */
 export async function listHandler({ format }) {
   if (!getToken()) err('Not logged in. Run: vibe-pub login');
   try {

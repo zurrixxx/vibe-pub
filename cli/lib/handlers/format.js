@@ -1,11 +1,8 @@
 import { KANBAN_FORMAT_DOC, DOC_FORMAT_DOC } from './format-text/index.js';
-import { out, err } from '../output.js';
+import { out, err } from '../cli-helpers.js';
 
-/** @typedef {import('./helpers.js').CliContext} CliContext */
-
-/** @param {CliContext} ctx */
-export async function formatHandler({ cleanArgs, format }) {
-  const name = cleanArgs[1];
+/** @param {{ name?: string, format: string }} ctx */
+export async function formatHandler({ name, format }) {
   if (!name) {
     if (format === 'human') {
       out('Format references:\n\n  vibe-pub format kanban\n  vibe-pub format doc', 'human');

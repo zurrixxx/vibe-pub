@@ -1,30 +1,19 @@
 import { readFileSync } from 'fs';
 import * as api from '../api.js';
 import { getToken } from '../config.js';
-import { err } from '../output.js';
+import { err } from '../cli-helpers.js';
 import { RESOURCE_ACCESS, LEGACY_RESOURCE_ACCESS } from '../constants.js';
 
-/** @typedef {{ cleanArgs: string[], format: string }} CliContext */
+/** @typedef {{ format: string }} HandlerCtx */
 
-export function accessFromFlags(flags) {
-  const access = flags.access;
-  if (access === undefined || access === true) return undefined;
+/** @param {string | undefined} access */
+export function accessFromOption(access) {
+  if (access === undefined) return undefined;
   if (access === LEGACY_RESOURCE_ACCESS) return 'public';
   if (RESOURCE_ACCESS.includes(access)) return access;
   err(
     `Invalid --access "${access}". Use "public" or "private". ("unlisted" is no longer supported; use "public".)`
   );
-}
-
-export function parseFlags(argv) {
-  const flags = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith('--')) {
-      flags[argv[i].slice(2)] = argv[i + 1] ?? true;
-      i++;
-    }
-  }
-  return flags;
 }
 
 export async function readStdin() {
@@ -59,20 +48,20 @@ export function requireToken() {
   if (!getToken()) err('Not logged in. Run: vibe-pub login');
 }
 
-function parseAccessRole(flags) {
-  const role = flags.role;
+function parseAccessRole(role) {
   if (!role) return undefined;
   if (role !== 'viewer' && role !== 'editor') err('--role must be viewer or editor');
   return role;
 }
 
-export function buildShareBody(flags) {
-  const email = flags.email;
-  const domain = flags.domain;
+/** @param {{ email?: string, domain?: string, role?: string }} opts */
+export function buildShareBody(opts) {
+  const email = opts.email;
+  const domain = opts.domain;
   if (!email && !domain) err('Provide --email or --domain');
   if (email && domain) err('Provide only one of --email or --domain');
   const body = email ? { email } : { domain };
-  const role = parseAccessRole(flags);
+  const role = parseAccessRole(opts.role);
   if (role) body.access_role = role;
   return body;
 }
@@ -81,9 +70,10 @@ function normalizeDomainInput(input) {
   return String(input).replace(/^@+/, '').trim().toLowerCase();
 }
 
-export function parseUnshareTarget(flags) {
-  const email = flags.email;
-  const domain = flags.domain;
+/** @param {{ email?: string, domain?: string }} opts */
+export function parseUnshareTarget(opts) {
+  const email = opts.email;
+  const domain = opts.domain;
   if (!email && !domain) err('Provide --email or --domain');
   if (email && domain) err('Provide only one of --email or --domain');
   return {

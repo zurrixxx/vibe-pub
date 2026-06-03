@@ -13,7 +13,26 @@ export { whoamiHandler } from './whoami.js';
 export { loginHandler } from './login.js';
 export { logoutHandler } from './logout.js';
 export { configHandler } from './config.js';
-export { accessHandler } from './access.js';
-export { collectionHandler } from './collection.js';
+export {
+  accessPageStatusHandler,
+  accessPageShareHandler,
+  accessPageUnshareHandler,
+  accessCollectionStatusHandler,
+  accessCollectionShareHandler,
+  accessCollectionUnshareHandler,
+} from './access.js';
+export {
+  collectionCreateHandler,
+  collectionListHandler,
+  collectionGetHandler,
+  collectionAddHandler,
+  collectionRemoveHandler,
+  collectionDeleteHandler,
+  collectionUpdateHandler,
+  collectionPartListHandler,
+  collectionPartAddHandler,
+  collectionPartUpdateHandler,
+  collectionPartRemoveHandler,
+} from './collection.js';
 
-/** @typedef {import('./helpers.js').CliContext} CliContext */
+/** @typedef {import('./helpers.js').HandlerCtx} HandlerCtx */

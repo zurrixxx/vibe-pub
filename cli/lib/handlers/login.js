@@ -1,7 +1,8 @@
 import { createServer } from 'http';
 import { randomBytes } from 'crypto';
 import { execFile } from 'child_process';
-import { saveConfig, getBaseUrl } from './config.js';
+import { saveConfig, getBaseUrl } from '../config.js';
+import { err } from '../cli-helpers.js';
 
 const LOGIN_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -100,19 +101,13 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-/**
- * @param {{ onAuthUrl?: (url: string) => void }} [options]
- * @returns {Promise<void>}
- */
-export function loginViaLocalhost(options = {}) {
+function loginViaLocalhost() {
   return new Promise((resolve, reject) => {
     const state = randomBytes(16).toString('hex');
     let settled = false;
     let timeoutId;
     /** @type {import('http').Server | null} */
     let server = null;
-    /** @type {string | undefined} */
-    let authUrl;
 
     const shutdown = (fn, value) => {
       if (!server) {
@@ -175,8 +170,9 @@ export function loginViaLocalhost(options = {}) {
       }
 
       const baseUrl = getBaseUrl().replace(/\/$/, '');
-      authUrl = `${baseUrl}/auth/cli?state=${state}&port=${port}`;
-      options.onAuthUrl?.(authUrl);
+      const authUrl = `${baseUrl}/auth/cli?state=${state}&port=${port}`;
+      process.stderr.write(`Open this URL to authorize CLI:\n${authUrl}\n`);
+      process.stderr.write('(Browser should open automatically. Approve within 15 min.)\n');
       openBrowser(authUrl);
 
       timeoutId = setTimeout(() => {
@@ -184,4 +180,13 @@ export function loginViaLocalhost(options = {}) {
       }, LOGIN_TIMEOUT_MS);
     });
   });
+}
+
+export async function loginHandler() {
+  try {
+    await loginViaLocalhost();
+    process.stderr.write('Successfully logged in.\n');
+  } catch (e) {
+    err(e instanceof Error ? e.message : 'Login failed, please try again.');
+  }
 }
