@@ -1,7 +1,5 @@
 /** Keep in sync with src/lib/constants/page.ts (CLI package cannot import SvelteKit src). */
 
-export { CLI_COMMANDS, resolveCliCommand } from './cli-command.js';
-
 export const RESOURCE_ACCESS = ['public', 'private'];
 
 /** Legacy scripts/MCP may still pass `unlisted`; coerced to `public` before API calls. */

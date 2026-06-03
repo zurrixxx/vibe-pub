@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { out, err } from '../lib/output.js';
-import { resolveCliCommand } from '../lib/constants.js';
+import { resolveCliCommand } from '../lib/cli-command.js';
 
 const args = process.argv.slice(2);
 

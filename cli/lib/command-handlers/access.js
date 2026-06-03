@@ -23,7 +23,7 @@ export async function accessHandler({ cleanArgs, format }) {
       const slug = cleanArgs[3];
       if (!slug)
         err(
-          'Usage: vibe-pub access page share <slug> (--email e | --domain d) [--role viewer|editor]'
+          'Usage: vibe-pub access page share <slug-id> (--email e | --domain d) [--role viewer|editor]'
         );
       const body = buildShareBody(parseFlags(cleanArgs.slice(4)));
       const page = await resolveSlug(slug);
@@ -38,7 +38,7 @@ export async function accessHandler({ cleanArgs, format }) {
 
     if (sub === 'unshare') {
       const slug = cleanArgs[3];
-      if (!slug) err('Usage: vibe-pub access page unshare <slug> (--email e | --domain d)');
+      if (!slug) err('Usage: vibe-pub access page unshare <slug-id> (--email e | --domain d)');
       const target = parseUnshareTarget(parseFlags(cleanArgs.slice(4)));
       const page = await resolveSlug(slug);
       try {
@@ -59,7 +59,8 @@ export async function accessHandler({ cleanArgs, format }) {
     }
 
     const slug = sub;
-    if (!slug) err('Usage: vibe-pub access page <slug> | access page share|unshare <slug> ...');
+    if (!slug)
+      err('Usage: vibe-pub access page <slug-id> | access page share|unshare <slug-id> ...');
     const page = await resolveSlug(slug);
     try {
       const payload = await api.listPageShares(page.id);
@@ -124,6 +125,6 @@ export async function accessHandler({ cleanArgs, format }) {
   }
 
   err(
-    'Usage: vibe-pub access <page|collection> <slug> | access <page|collection> share|unshare <slug> ...'
+    'Usage: vibe-pub access page <slug-id> | access page share|unshare <slug-id> ... | access collection <slug> | access collection share|unshare <slug> ...'
   );
 }
