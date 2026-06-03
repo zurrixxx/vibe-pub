@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { out, err, bindAction, collectOption } from './cli-helpers.js';
 import { HELP_TEXT } from './constants.js';
+import { out, err, bindAction, collectOption } from './cli-helpers.js';
 import { registerCollectionCommands } from './sub-commands/collection.js';
 import { registerAccessCommands } from './sub-commands/access.js';
 import {
@@ -21,6 +21,18 @@ import {
   whoamiHandler,
 } from './handlers/index.js';
 
+function showHelp() {
+  out(HELP_TEXT, 'human');
+  process.exit(0);
+}
+
+/** Route all `-h` / `--help` output to HELP_TEXT (constants.js). */
+function configureHandwrittenHelp(cmd) {
+  cmd.configureHelp({ formatHelp: () => HELP_TEXT });
+  cmd.addHelpCommand(false);
+  for (const sub of cmd.commands) configureHandwrittenHelp(sub);
+}
+
 export function createProgram() {
   const program = new Command();
 
@@ -36,7 +48,7 @@ export function createProgram() {
     if (e.code === 'commander.unknownCommand') {
       const match = e.message.match(/unknown command '([^']+)'/i);
       const name = match?.[1] ?? e.message.replace(/^error:\s*/i, '');
-      err(`Unknown command: ${name}. Run: vibe-pub help`);
+      err(`Unknown command: ${name}. Run: vibe-pub --help`);
     }
     if (
       e.code === 'commander.missingArgument' ||
@@ -47,13 +59,6 @@ export function createProgram() {
     }
     throw e;
   });
-
-  program
-    .command('help')
-    .description('Show full command reference')
-    .action(() => {
-      out(HELP_TEXT, 'human');
-    });
 
   program
     .command('format [name]')
@@ -179,5 +184,17 @@ export function createProgram() {
   registerCollectionCommands(program);
   registerAccessCommands(program);
 
+  program.command('help').description('Show full command reference').action(showHelp);
+
+  configureHandwrittenHelp(program);
+
   return program;
+}
+
+/** Parse argv; empty invocation shows HELP_TEXT. */
+export async function runProgram(processArgv) {
+  const argv = processArgv.slice(2);
+  const program = createProgram();
+  if (argv.length === 0) showHelp();
+  await program.parseAsync(processArgv);
 }

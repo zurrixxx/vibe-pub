@@ -28,6 +28,11 @@ export function registerAccessCommands(program) {
   const page = access.command('page').description('Page access');
 
   page
+    .command('status <slug-id>')
+    .description('Show page access status')
+    .action(bindAction(accessPageStatusHandler, (slug) => ({ slug })));
+
+  page
     .command('share <slug-id>')
     .description('Share a private page')
     .option('--email <email>', 'Share with a user by email')
@@ -42,11 +47,12 @@ export function registerAccessCommands(program) {
     .option('--domain <domain>', 'Remove share for an email domain')
     .action(bindAction(accessPageUnshareHandler, unshareOpts));
 
-  page
-    .argument('<slug-id>', 'Page slug-id for access status')
-    .action(bindAction(accessPageStatusHandler, (slug) => ({ slug })));
-
   const collection = access.command('collection').alias('coll').description('Collection access');
+
+  collection
+    .command('status <slug>')
+    .description('Show collection access status')
+    .action(bindAction(accessCollectionStatusHandler, (slug) => ({ slug })));
 
   collection
     .command('share <slug>')
@@ -62,8 +68,4 @@ export function registerAccessCommands(program) {
     .option('--email <email>', 'Remove share for a user by email')
     .option('--domain <domain>', 'Remove share for an email domain')
     .action(bindAction(accessCollectionUnshareHandler, unshareOpts));
-
-  collection
-    .argument('<slug>', 'Collection slug for access status')
-    .action(bindAction(accessCollectionStatusHandler, (slug) => ({ slug })));
 }

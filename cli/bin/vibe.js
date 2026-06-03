@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { err } from '../lib/cli-helpers.js';
-import { createProgram } from '../lib/program.js';
 import { parseGlobalFlags } from '../lib/cli-helpers.js';
+import { runProgram } from '../lib/program.js';
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -13,8 +13,7 @@ async function main() {
     return;
   }
 
-  const program = createProgram();
-  await program.parseAsync(process.argv);
+  await runProgram(process.argv);
 }
 
 main().catch((e) => {

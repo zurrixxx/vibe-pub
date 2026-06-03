@@ -48,12 +48,12 @@ vibe-pub delete <id>                     # remove page
 vibe-pub collection delete <slug>        # remove collection (pages are not deleted)
 
 # Access (private resources: share by email or domain)
-vibe-pub access page <slug>                          # visibility + who has access
+vibe-pub access page status <slug>                   # visibility + who has access
 vibe-pub access page share <slug> --email user@example.com --role editor
 vibe-pub access page share <slug> --domain @company.com
 vibe-pub access page unshare <slug> --email user@example.com
 vibe-pub access page unshare <slug> --domain @company.com
-vibe-pub access collection <slug>
+vibe-pub access collection status <slug>
 vibe-pub access collection share <slug> --email user@example.com
 vibe-pub access collection unshare <slug> --domain @company.com
 ```

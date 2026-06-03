@@ -47,7 +47,7 @@ export const PAGE_THEME = [
   'github',
 ];
 
-/** Full CLI reference for `vibe-pub help`. */
+/** Full CLI reference — single source for `help`, `--help`, and subcommand `--help`. */
 export const HELP_TEXT = `vibe-pub -- publish markdown to vibe.pub
 
 Usage: vibe-pub <command> [options]
@@ -72,11 +72,11 @@ Commands:
   collection delete <slug>   Delete a collection
   collection update <slug>   Update collection metadata
   collection part <sub>      Manage collection parts (list|add|update|remove)
-  access page <slug-id>      Page access status (visibility + shares)
+  access page status <slug-id>  Page access status
   access page share <slug-id>   Share a private page (--email or --domain)
   access page unshare <slug-id> Remove a page share (--email or --domain)
-  access collection <slug>   Collection access status
-  access collection share <slug>  Share a private collection
+  access collection status <slug>   Collection access status
+  access collection share <slug>    Share a private collection
   access collection unshare <slug>  Remove a collection share
   whoami                     Show current auth info
   login                      Sign in via browser
