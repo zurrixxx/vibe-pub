@@ -29,8 +29,26 @@ export function handlerCtx(cmd, params = {}) {
 }
 
 /**
+ * Wrap a handler for Commander `.action()`.
+ *
+ * Commander calls the action as `(...positionals, opts, cmd)` — positionals first,
+ * then the parsed options object, then the Command instance last.
+ *
+ * `mapParams` receives only `(...positionals, opts)`; do not add `cmd` as a
+ * parameter. `bindAction` strips `cmd` and passes it to {@link handlerCtx} for
+ * globals such as `--format`.
+ *
+ * @example
+ * // update <slug-id> [file] --access <level>
+ * bindAction(updateHandler, (slug, file, opts) => ({
+ *   slug,
+ *   file,
+ *   access: opts.access,
+ * }))
+ *
  * @param {(ctx: object) => Promise<void>} handler
  * @param {(...args: unknown[]) => Record<string, unknown>} mapParams
+ *   Maps Commander positionals + opts to handler context fields (excluding cmd).
  */
 export function bindAction(handler, mapParams) {
   return (...allArgs) => {
