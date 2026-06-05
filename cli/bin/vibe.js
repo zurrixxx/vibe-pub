@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 import { err } from '../lib/cli-helpers.js';
 import { parseGlobalFlags } from '../lib/cli-helpers.js';
+import { checkForUpdate } from '../lib/check-update.js';
 import { runProgram } from '../lib/program.js';
 
 async function main() {
   const argv = process.argv.slice(2);
   const { mcpMode } = parseGlobalFlags(argv);
+
+  const forceUpdate = await checkForUpdate({ autoUpdate: !mcpMode });
+  if (forceUpdate) {
+    return;
+  }
 
   if (mcpMode) {
     const { startMcp } = await import('./mcp.js');
