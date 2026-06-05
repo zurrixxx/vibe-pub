@@ -8,8 +8,8 @@ async function main() {
   const argv = process.argv.slice(2);
   const { mcpMode } = parseGlobalFlags(argv);
 
-  const forceUpdate = await checkForUpdate({ autoUpdate: !mcpMode });
-  if (forceUpdate) {
+  const shouldAbortStartup = await checkForUpdate({ autoUpdate: !mcpMode });
+  if (shouldAbortStartup) {
     return;
   }
 

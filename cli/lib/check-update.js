@@ -76,15 +76,24 @@ function printManualUpdateHint() {
   console.error(`\nPlease update manually:\n  npm install -g ${PACKAGE_NAME}\n`);
 }
 
-function blockUntilUpdated() {
+function saveLastCheckTime() {
+  try {
+    saveConfig({ lastUpdateCheck: Date.now() });
+  } catch {
+    // Config write failed; skip caching but continue with the check result.
+  }
+}
+
+function exitWithUnsupportedVersion() {
   console.error('\nThis version is no longer supported. Please update before continuing.\n');
+  process.exit(1);
 }
 
 /**
  * Check npm registry; auto-update global installs when a newer version is available.
  * Patch-only drift: warn and continue if update fails. Major/minor drift: block CLI.
  * @param {{ autoUpdate?: boolean }} [options]
- * @returns {Promise<boolean>} true if update is available, false otherwise
+ * @returns {Promise<boolean>} true if startup should abort (e.g. auto-update succeeded)
  */
 export async function checkForUpdate({ autoUpdate = true } = {}) {
   const lastCheck = getConfig().lastUpdateCheck ?? 0;
@@ -94,7 +103,7 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
 
   try {
     const latest = await fetchLatestVersion();
-    saveConfig({ lastUpdateCheck: Date.now() });
+    saveLastCheckTime();
 
     const severity = getUpdateSeverity(CURRENT_VERSION, latest);
     if (severity === 'none') return false;
@@ -114,8 +123,7 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
     printManualUpdateHint();
 
     if (severity === 'required') {
-      blockUntilUpdated();
-      return true;
+      exitWithUnsupportedVersion();
     }
   } catch {
     // Ignore network/registry errors; do not block CLI usage.
