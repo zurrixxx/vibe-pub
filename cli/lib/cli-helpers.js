@@ -1,8 +1,11 @@
-/** @param {import('commander').Command} cmd */
+/** @typedef {import('commander').Command} Command */
+
+/** @param {Command} cmd */
 export function globalFormat(cmd) {
   return cmd.optsWithGlobals().format ?? 'json';
 }
 
+/** @param {unknown} data @param {string} [format] */
 export function out(data, format = 'json') {
   if (format === 'human') {
     if (typeof data === 'string') {
@@ -15,13 +18,14 @@ export function out(data, format = 'json') {
   }
 }
 
+/** @param {string} message @param {number} [status] */
 export function err(message, status = 1) {
   console.log(JSON.stringify({ error: message, status }));
   process.exit(1);
 }
 
 /**
- * @param {import('commander').Command} cmd
+ * @param {Command} cmd
  * @param {Record<string, unknown>} params
  */
 export function handlerCtx(cmd, params = {}) {
@@ -51,10 +55,12 @@ export function handlerCtx(cmd, params = {}) {
  *   Maps Commander positionals + opts to handler context fields (excluding cmd).
  */
 export function bindAction(handler, mapParams) {
-  return (...allArgs) => {
-    const cmd = allArgs[allArgs.length - 1];
-    return handler(handlerCtx(cmd, mapParams(...allArgs.slice(0, -1))));
-  };
+  /** @param {...unknown} args */
+  function action(...args) {
+    const cmd = /** @type {Command} */ (args.at(-1));
+    return handler(handlerCtx(cmd, mapParams(...args.slice(0, -1))));
+  }
+  return action;
 }
 
 /** @param {string} val @param {string[]} memo */
