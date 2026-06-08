@@ -21,9 +21,11 @@ function parseVersion(version) {
 
 /**
  * a.b.c — a: major, b: minor, c: patch.
+ * @param {string} current
+ * @param {string} latest
  * @returns {'none' | 'patch' | 'required'}
  */
-function getUpdateSeverity(current, latest) {
+export function getUpdateSeverity(current, latest) {
   const c = parseVersion(current);
   const l = parseVersion(latest);
 
@@ -65,6 +67,7 @@ function isGlobalInstall() {
   }
 }
 
+/** @param {string} latest */
 function runGlobalUpdate(latest) {
   return spawnSync(npmCommand(), ['install', '-g', `${PACKAGE_NAME}@${latest}`], {
     stdio: 'inherit',

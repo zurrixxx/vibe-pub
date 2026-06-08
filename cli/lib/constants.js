@@ -13,20 +13,6 @@ export function coerceLegacyAccess(access) {
   return access === LEGACY_RESOURCE_ACCESS ? 'public' : access;
 }
 
-/**
- * Resolve `--access` for CLI commands. Legacy `unlisted` → `public`.
- * @param {string | undefined} access
- * @param {(message: string) => never} onError
- */
-export function resolveCliAccessFlag(access, onError) {
-  if (access === undefined || access === true) return undefined;
-  if (access === LEGACY_RESOURCE_ACCESS) return 'public';
-  if (RESOURCE_ACCESS.includes(access)) return access;
-  onError(
-    `Invalid --access "${access}". Use "public" or "private". ("unlisted" is no longer supported; use "public".)`
-  );
-}
-
 /** All `pages.view` values (DB CHECK). detectView() only heuristically returns the first four. */
 export const PAGE_VIEW_TYPE = ['doc', 'kanban', 'changelog', 'timeline', 'slides', 'dashboard'];
 

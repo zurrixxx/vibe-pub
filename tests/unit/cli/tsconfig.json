@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "paths": {
+      "commander": ["../../../cli/node_modules/commander/typings/index.d.ts"]
+    }
+  },
+  "include": ["./**/*.ts"]
+}
