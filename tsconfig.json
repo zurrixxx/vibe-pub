@@ -15,5 +15,6 @@
       "$app/types": ["./.svelte-kit/types/index.d.ts"],
       "commander": ["./cli/node_modules/commander/typings/index.d.ts"]
     }
-  }
+  },
+  "exclude": ["cli/**", "tests/unit/cli/**"]
 }
