@@ -63,6 +63,8 @@ describe('checkForUpdate', () => {
     const { checkForUpdate } = await import('../../../cli/lib/check-update.js');
     await expect(checkForUpdate()).resolves.toBe(false);
 
+    expect(errSpy).toHaveBeenCalledWith('Error checking for update: network down');
+
     errSpy.mockRestore();
   });
 
@@ -137,6 +139,9 @@ describe('checkForUpdate', () => {
     await expect(checkForUpdate()).resolves.toBe(false);
 
     expect(errSpy).toHaveBeenCalledWith('\nAuto-update failed.');
+    expect(errSpy).toHaveBeenCalledWith(
+      'npm error code EACCES\nnpm error Error: EACCES: permission denied'
+    );
     expect(errSpy).toHaveBeenCalledWith(
       '\nPlease update manually:\n  sudo npm install -g vibe-pub\n'
     );

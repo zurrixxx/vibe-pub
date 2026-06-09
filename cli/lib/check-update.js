@@ -82,6 +82,12 @@ function isPermissionError(result) {
   return text.includes('eacces') || text.includes('permission denied');
 }
 
+/** @param {import('child_process').SpawnSyncReturns<string>} result */
+function printInstallOutput(result) {
+  const output = `${result.stderr ?? ''}${result.stdout ?? ''}`.trim();
+  if (output) console.error(output);
+}
+
 /** @param {{ sudo?: boolean }} [options] */
 function printManualUpdateHint({ sudo = false } = {}) {
   const cmd = sudo ? `sudo npm install -g ${PACKAGE_NAME}` : `npm install -g ${PACKAGE_NAME}`;
@@ -113,10 +119,8 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
     return false;
   }
 
-  console.error('Checking for update...');
   try {
     const latest = await fetchLatestVersion();
-    console.error(`Latest version: ${latest}`);
     saveLastCheckTime();
 
     const severity = getUpdateSeverity(CURRENT_VERSION, latest);
@@ -132,6 +136,7 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
         return true;
       }
       console.error('\nAuto-update failed.');
+      printInstallOutput(result);
       printManualUpdateHint({ sudo: isPermissionError(result) });
     } else {
       printManualUpdateHint();
@@ -141,7 +146,7 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
       exitWithUnsupportedVersion();
     }
   } catch (e) {
-    console.error('Error checking for update. error: ' + e.message);
+    console.error(`Error checking for update: ${e instanceof Error ? e.message : e}`);
   }
   return false;
 }
