@@ -93,8 +93,9 @@ export function createProgram() {
   program
     .command('list')
     .alias('ls')
-    .description('List your pages')
-    .action(bindAction(listHandler, () => ({})));
+    .description('List your pages (or pages shared with you via --shared-with-me)')
+    .option('--shared-with-me', 'List private pages others shared with you')
+    .action(bindAction(listHandler, (opts) => ({ sharedWithMe: opts.sharedWithMe })));
 
   program
     .command('update <slug-id> [file]')

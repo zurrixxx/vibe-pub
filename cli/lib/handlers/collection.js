@@ -104,11 +104,11 @@ export async function collectionCreateHandler(ctx) {
   }
 }
 
-/** @param {{ format: string }} ctx */
-export async function collectionListHandler({ format }) {
+/** @param {{ format: string, sharedWithMe?: boolean }} ctx */
+export async function collectionListHandler({ format, sharedWithMe }) {
   if (!getToken()) err('Not logged in. Run: vibe-pub login');
   try {
-    const collections = await api.listCollections();
+    const collections = await api.listCollections(sharedWithMe);
     out(collections, format);
   } catch (e) {
     err(e.message, e.status);

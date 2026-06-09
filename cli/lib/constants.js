@@ -42,7 +42,7 @@ Commands:
   publish [file] [options]   Publish markdown (file or stdin); counts as agent-published unless --no-agent-published
   format kanban|doc          Get markdown format reference for agents before publishing
   get <slug-id>              Get page (id or slug-id, e.g. my-doc-Ab12cd34)
-  list, ls                   List your pages
+  list, ls                   List your pages (--shared-with-me: pages others shared with you)
   update <slug-id> [file]    Update a page (file or stdin)
   delete, rm <slug-id>       Delete a page
   comments <slug-id> [-a]    List open comments (-a / --all: include resolved)
@@ -51,7 +51,7 @@ Commands:
   versions <slug-id>         List version history
   version <slug-id> <num>    Get a specific version
   collection create <title>  Create a collection (--part / reader's guide flags)
-  collection list, ls        List your collections
+  collection list, ls        List your collections (--shared-with-me: shared with you)
   collection get <slug>      Get collection details + pages
   collection add <collection-slug> <page-id>  Add page to collection (use page id from list)
   collection remove <collection-slug> <page-id>  Remove page from collection

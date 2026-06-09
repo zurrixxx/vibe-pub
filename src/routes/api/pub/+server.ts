@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb, createPage, getPagesByUser, appendPageVersionSnapshot } from '$lib/server/db';
+import { getPagesSharedWithUser, isSharedWithMeQuery, toAccessViewer } from '$lib/server/access';
 import { isValidSlug, buildCanonicalPath } from '$lib/server/slug';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { detectView } from '$lib/templates/detect';
@@ -95,13 +96,36 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   return json({ id: page.id, slug: page.slug, url }, { status: 201 });
 };
 
-export const GET: RequestHandler = async ({ locals, platform }) => {
+export const GET: RequestHandler = async ({ locals, platform, url }) => {
   if (!locals.user) throw error(401, 'Authentication required');
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
+  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
+
+  if (isSharedWithMeQuery(url)) {
+    const viewer = toAccessViewer(locals.user);
+    if (!viewer) throw error(401, 'Authentication required');
+
+    const shared = await getPagesSharedWithUser(db, viewer);
+    return json(
+      shared.map(({ page, shared_role, owner_username }) => ({
+        id: page.id,
+        slug: page.slug,
+        title: page.title,
+        view: page.view,
+        access: page.access,
+        agent_published: page.agent_published === 1,
+        created: page.created,
+        updated: page.updated,
+        url: `${baseUrl}${buildCanonicalPath(page)}`,
+        shared: true,
+        shared_role,
+        owner: owner_username ? `@${owner_username}` : null,
+      }))
+    );
+  }
 
   const pages = await getPagesByUser(db, locals.user.id);
-  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
 
   return json(
     pages.map((p) => ({
