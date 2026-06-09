@@ -10,7 +10,7 @@ const CURRENT_VERSION = pkg.version;
 const PACKAGE_NAME = pkg.name;
 
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
-const FETCH_TIMEOUT_MS = 3000;
+const FETCH_TIMEOUT_MS = 10000;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /** @param {string} version */
@@ -70,13 +70,22 @@ function isGlobalInstall() {
 /** @param {string} latest */
 function runGlobalUpdate(latest) {
   return spawnSync(npmCommand(), ['install', '-g', `${PACKAGE_NAME}@${latest}`], {
-    stdio: 'inherit',
+    encoding: 'utf8',
     shell: process.platform === 'win32',
   });
 }
 
-function printManualUpdateHint() {
-  console.error(`\nPlease update manually:\n  npm install -g ${PACKAGE_NAME}\n`);
+/** @param {import('child_process').SpawnSyncReturns<string>} result */
+function isPermissionError(result) {
+  if (result.status === 0) return false;
+  const text = `${result.stderr ?? ''}${result.stdout ?? ''}`.toLowerCase();
+  return text.includes('eacces') || text.includes('permission denied');
+}
+
+/** @param {{ sudo?: boolean }} [options] */
+function printManualUpdateHint({ sudo = false } = {}) {
+  const cmd = sudo ? `sudo npm install -g ${PACKAGE_NAME}` : `npm install -g ${PACKAGE_NAME}`;
+  console.error(`\nPlease update manually:\n  ${cmd}\n`);
 }
 
 function saveLastCheckTime() {
@@ -104,8 +113,10 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
     return false;
   }
 
+  console.error('Checking for update...');
   try {
     const latest = await fetchLatestVersion();
+    console.error(`Latest version: ${latest}`);
     saveLastCheckTime();
 
     const severity = getUpdateSeverity(CURRENT_VERSION, latest);
@@ -121,15 +132,16 @@ export async function checkForUpdate({ autoUpdate = true } = {}) {
         return true;
       }
       console.error('\nAuto-update failed.');
+      printManualUpdateHint({ sudo: isPermissionError(result) });
+    } else {
+      printManualUpdateHint();
     }
-
-    printManualUpdateHint();
 
     if (severity === 'required') {
       exitWithUnsupportedVersion();
     }
-  } catch {
-    // Ignore network/registry errors; do not block CLI usage.
+  } catch (e) {
+    console.error('Error checking for update. error: ' + e.message);
   }
   return false;
 }

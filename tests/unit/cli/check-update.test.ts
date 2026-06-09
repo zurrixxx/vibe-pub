@@ -89,4 +89,58 @@ describe('checkForUpdate', () => {
 
     errSpy.mockRestore();
   });
+
+  it('suggests sudo when auto-update fails with EACCES', async () => {
+    const latest = bumpedPatch(pkg.version);
+    const globalRoot = '/usr/lib/node_modules';
+
+    vi.doMock('../../../cli/lib/config.js', () => ({
+      getConfig: vi.fn(() => ({})),
+      saveConfig: vi.fn(),
+    }));
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: latest }),
+    } as Response);
+
+    vi.doMock('child_process', () => ({
+      spawnSync: vi.fn((_cmd, args) => {
+        if (args?.[0] === 'root') {
+          return { status: 0, stdout: globalRoot, stderr: '' };
+        }
+        return {
+          status: 243,
+          stdout: '',
+          stderr: 'npm error code EACCES\nnpm error Error: EACCES: permission denied\n',
+        };
+      }),
+    }));
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        realpathSync: vi.fn((path) => {
+          const p = String(path);
+          if (p.includes('check-update')) {
+            return `${globalRoot}/vibe-pub/lib/check-update.js`;
+          }
+          return p;
+        }),
+      };
+    });
+
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { checkForUpdate } = await import('../../../cli/lib/check-update.js');
+    await expect(checkForUpdate()).resolves.toBe(false);
+
+    expect(errSpy).toHaveBeenCalledWith('\nAuto-update failed.');
+    expect(errSpy).toHaveBeenCalledWith(
+      '\nPlease update manually:\n  sudo npm install -g vibe-pub\n'
+    );
+
+    errSpy.mockRestore();
+  });
 });
