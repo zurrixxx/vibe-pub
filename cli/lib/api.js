@@ -45,8 +45,9 @@ export async function publish(markdown, options = {}) {
   return request('POST', '/api/pub', body);
 }
 
-export async function list() {
-  return request('GET', '/api/pub');
+export async function list(sharedWithMe = false) {
+  const q = sharedWithMe ? '?shared_to_me=1' : '';
+  return request('GET', `/api/pub${q}`);
 }
 
 // Accepts a bare page id, a `slug-id` URL fragment, or a legacy slug.
@@ -131,8 +132,9 @@ export async function createCollection(title, options = {}) {
   return request('POST', '/api/collection', body);
 }
 
-export async function listCollections() {
-  return request('GET', '/api/collection');
+export async function listCollections(sharedWithMe = false) {
+  const q = sharedWithMe ? '?shared_to_me=1' : '';
+  return request('GET', `/api/collection${q}`);
 }
 
 export async function getCollection(slug) {

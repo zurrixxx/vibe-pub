@@ -55,8 +55,9 @@ export function registerCollectionCommands(program) {
   collection
     .command('list')
     .alias('ls')
-    .description('List your collections')
-    .action(bindAction(collectionListHandler, () => ({})));
+    .description('List your collections (or collections shared with you via --shared-with-me)')
+    .option('--shared-with-me', 'List private collections others shared with you')
+    .action(bindAction(collectionListHandler, (opts) => ({ sharedWithMe: opts.sharedWithMe })));
 
   collection
     .command('get <slug>')

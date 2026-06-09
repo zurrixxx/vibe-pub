@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { D1Database } from '@cloudflare/workers-types';
 import { isResourceAccess, type ResourceAccess } from '$lib/constants/page';
+import type { Page } from '$lib/types';
 import { getUserByEmail } from '$lib/server/db';
 
 /** Roles stored on shares and group members. */
@@ -115,6 +116,223 @@ async function queryShareGrantRoles(
   }
 
   return roles;
+}
+
+/** SQL fragment: direct group shares for a viewer (private pages they do not own). */
+export const SHARED_PAGES_VIA_GROUP_SQL = `SELECT s.resource_id AS page_id, s.access_role AS share_role, m.access_role AS member_role
+     FROM shares s
+     INNER JOIN access_group_members m
+       ON s.grantee_type = 'group' AND s.grantee_id = m.group_id
+     INNER JOIN pages p ON p.id = s.resource_id
+     WHERE s.resource_type = 'page'
+       AND m.user_id = ?
+       AND p.access = 'private'
+       AND (p.user_id IS NULL OR p.user_id != ?)`;
+
+/** SQL fragment: domain shares for a viewer (private pages they do not own). */
+export const SHARED_PAGES_VIA_DOMAIN_SQL = `SELECT s.resource_id AS page_id, s.access_role AS access_role
+     FROM shares s
+     INNER JOIN access_email_domains d
+       ON s.grantee_type = 'domain' AND s.grantee_id = d.id
+     INNER JOIN pages p ON p.id = s.resource_id
+     WHERE s.resource_type = 'page'
+       AND d.domain = ?
+       AND p.access = 'private'
+       AND (p.user_id IS NULL OR p.user_id != ?)`;
+
+export interface SharedPageListItem {
+  page: Page;
+  shared_role: AccessRole;
+  owner_username: string | null;
+}
+
+/** Page ids the viewer can access via explicit share grants (not owner). */
+export async function listSharedPageRolesForUser(
+  db: D1Database,
+  viewer: AccessViewer
+): Promise<Map<string, AccessRole>> {
+  const rolesByPageId = new Map<string, AccessRole>();
+
+  const addRole = (pageId: string, role: AccessRole) => {
+    const existing = rolesByPageId.get(pageId);
+    rolesByPageId.set(pageId, existing ? maxAccessRole(existing, role) : role);
+  };
+
+  const groupRows = await db
+    .prepare(SHARED_PAGES_VIA_GROUP_SQL)
+    .bind(viewer.id, viewer.id)
+    .all<{ page_id: string; share_role: string; member_role: string }>();
+
+  for (const row of groupRows.results) {
+    const shareRole = isAccessRole(row.share_role) ? row.share_role : 'viewer';
+    const memberRole = isAccessRole(row.member_role) ? row.member_role : 'viewer';
+    addRole(row.page_id, maxAccessRole(shareRole, memberRole));
+  }
+
+  const emailDomain = parseEmailDomain(viewer.email);
+  if (emailDomain) {
+    const domainRows = await db
+      .prepare(SHARED_PAGES_VIA_DOMAIN_SQL)
+      .bind(emailDomain, viewer.id)
+      .all<{ page_id: string; access_role: string }>();
+
+    for (const row of domainRows.results) {
+      if (isAccessRole(row.access_role)) addRole(row.page_id, row.access_role);
+    }
+  }
+
+  return rolesByPageId;
+}
+
+/** Private pages shared directly with the viewer (email group or domain grant). */
+export async function getPagesSharedWithUser(
+  db: D1Database,
+  viewer: AccessViewer
+): Promise<SharedPageListItem[]> {
+  const roleByPageId = await listSharedPageRolesForUser(db, viewer);
+  if (roleByPageId.size === 0) return [];
+
+  const pageIds = [...roleByPageId.keys()];
+  const placeholders = pageIds.map(() => '?').join(',');
+  const result = await db
+    .prepare(
+      `SELECT p.*, u.username AS owner_username
+       FROM pages p
+       LEFT JOIN users u ON u.id = p.user_id
+       WHERE p.id IN (${placeholders})
+       ORDER BY p.updated DESC`
+    )
+    .bind(...pageIds)
+    .all<Page & { owner_username: string | null }>();
+
+  return result.results.map((row) => {
+    const { owner_username, ...page } = row;
+    return {
+      page,
+      shared_role: roleByPageId.get(row.id)!,
+      owner_username,
+    };
+  });
+}
+
+/** SQL fragment: direct group shares for a viewer (private collections they do not own). */
+export const SHARED_COLLECTIONS_VIA_GROUP_SQL = `SELECT s.resource_id AS collection_id, s.access_role AS share_role, m.access_role AS member_role
+     FROM shares s
+     INNER JOIN access_group_members m
+       ON s.grantee_type = 'group' AND s.grantee_id = m.group_id
+     INNER JOIN collections c ON c.id = s.resource_id
+     WHERE s.resource_type = 'collection'
+       AND m.user_id = ?
+       AND c.access = 'private'
+       AND (c.user_id IS NULL OR c.user_id != ?)`;
+
+/** SQL fragment: domain shares for a viewer (private collections they do not own). */
+export const SHARED_COLLECTIONS_VIA_DOMAIN_SQL = `SELECT s.resource_id AS collection_id, s.access_role AS access_role
+     FROM shares s
+     INNER JOIN access_email_domains d
+       ON s.grantee_type = 'domain' AND s.grantee_id = d.id
+     INNER JOIN collections c ON c.id = s.resource_id
+     WHERE s.resource_type = 'collection'
+       AND d.domain = ?
+       AND c.access = 'private'
+       AND (c.user_id IS NULL OR c.user_id != ?)`;
+
+export interface SharedCollectionRow {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  readers_guide: string | null;
+  what_its_about: string | null;
+  who_its_for: string | null;
+  how_to_read_it: string | null;
+  access: string;
+  theme: string;
+  created: string;
+  updated: string;
+  agent_published: number;
+}
+
+export interface SharedCollectionListItem {
+  collection: SharedCollectionRow;
+  shared_role: AccessRole;
+  owner_username: string | null;
+}
+
+/** Collection ids the viewer can access via explicit share grants (not owner). */
+export async function listSharedCollectionRolesForUser(
+  db: D1Database,
+  viewer: AccessViewer
+): Promise<Map<string, AccessRole>> {
+  const rolesByCollectionId = new Map<string, AccessRole>();
+
+  const addRole = (collectionId: string, role: AccessRole) => {
+    const existing = rolesByCollectionId.get(collectionId);
+    rolesByCollectionId.set(collectionId, existing ? maxAccessRole(existing, role) : role);
+  };
+
+  const groupRows = await db
+    .prepare(SHARED_COLLECTIONS_VIA_GROUP_SQL)
+    .bind(viewer.id, viewer.id)
+    .all<{ collection_id: string; share_role: string; member_role: string }>();
+
+  for (const row of groupRows.results) {
+    const shareRole = isAccessRole(row.share_role) ? row.share_role : 'viewer';
+    const memberRole = isAccessRole(row.member_role) ? row.member_role : 'viewer';
+    addRole(row.collection_id, maxAccessRole(shareRole, memberRole));
+  }
+
+  const emailDomain = parseEmailDomain(viewer.email);
+  if (emailDomain) {
+    const domainRows = await db
+      .prepare(SHARED_COLLECTIONS_VIA_DOMAIN_SQL)
+      .bind(emailDomain, viewer.id)
+      .all<{ collection_id: string; access_role: string }>();
+
+    for (const row of domainRows.results) {
+      if (isAccessRole(row.access_role)) addRole(row.collection_id, row.access_role);
+    }
+  }
+
+  return rolesByCollectionId;
+}
+
+/** Private collections shared directly with the viewer (email group or domain grant). */
+export async function getCollectionsSharedWithUser(
+  db: D1Database,
+  viewer: AccessViewer
+): Promise<SharedCollectionListItem[]> {
+  const roleByCollectionId = await listSharedCollectionRolesForUser(db, viewer);
+  if (roleByCollectionId.size === 0) return [];
+
+  const collectionIds = [...roleByCollectionId.keys()];
+  const placeholders = collectionIds.map(() => '?').join(',');
+  const result = await db
+    .prepare(
+      `SELECT c.id, c.slug, c.title, c.description, c.readers_guide, c.what_its_about, c.who_its_for,
+              c.how_to_read_it, c.access, c.theme, c.created, c.updated, c.agent_published,
+              u.username AS owner_username
+       FROM collections c
+       LEFT JOIN users u ON u.id = c.user_id
+       WHERE c.id IN (${placeholders})
+       ORDER BY c.updated DESC`
+    )
+    .bind(...collectionIds)
+    .all<SharedCollectionRow & { owner_username: string | null }>();
+
+  return result.results.map((row) => {
+    const { owner_username, ...collectionFields } = row;
+    return {
+      collection: collectionFields,
+      shared_role: roleByCollectionId.get(row.id)!,
+      owner_username,
+    };
+  });
+}
+
+export function isSharedWithMeQuery(url: URL): boolean {
+  const value = url.searchParams.get('shared_to_me');
+  return value === '1' || value === 'true';
 }
 
 export async function getCollectionIdsForPage(db: D1Database, pageId: string): Promise<string[]> {

@@ -100,9 +100,15 @@ export async function startMcp() {
   // --- list_pages ---
   server.tool(
     'list_pages',
-    'List all pages owned by the authenticated user. Requires auth token.',
-    async () => {
-      const pages = await api.list();
+    'List pages for the authenticated user. Requires auth token.',
+    {
+      shared_to_me: z
+        .boolean()
+        .optional()
+        .describe('If true, list private pages others shared with you instead of your own pages'),
+    },
+    async ({ shared_to_me }) => {
+      const pages = await api.list(shared_to_me === true);
       return { content: [{ type: 'text', text: JSON.stringify(pages) }] };
     }
   );

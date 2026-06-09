@@ -2,16 +2,63 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb, getPageByUrlSegment } from '$lib/server/db';
 import {
+  getCollectionsSharedWithUser,
+  isSharedWithMeQuery,
+  toAccessViewer,
+  type SharedCollectionRow,
+} from '$lib/server/access';
+import {
   newCollectionEntityId,
   readerGuideFromBody,
   resolveCollectionAccess,
 } from '$lib/templates/collection/server';
 
+function formatCollectionListItem(
+  c: SharedCollectionRow,
+  baseUrl: string,
+  extra?: { shared: true; shared_role: string; owner: string | null }
+) {
+  return {
+    id: c.id,
+    slug: c.slug,
+    title: c.title,
+    description: c.description,
+    readers_guide: c.readers_guide,
+    what_its_about: c.what_its_about,
+    who_its_for: c.who_its_for,
+    how_to_read_it: c.how_to_read_it,
+    access: c.access,
+    theme: c.theme,
+    created: c.created,
+    updated: c.updated,
+    agent_published: c.agent_published === 1,
+    url: `${baseUrl}/c/${c.slug}`,
+    ...extra,
+  };
+}
+
 // List collections for the authenticated user
-export const GET: RequestHandler = async ({ locals, platform }) => {
+export const GET: RequestHandler = async ({ locals, platform, url }) => {
   if (!locals.user) throw error(401, 'Authentication required');
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
+  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
+
+  if (isSharedWithMeQuery(url)) {
+    const viewer = toAccessViewer(locals.user);
+    if (!viewer) throw error(401, 'Authentication required');
+
+    const shared = await getCollectionsSharedWithUser(db, viewer);
+    return json(
+      shared.map(({ collection, shared_role, owner_username }) =>
+        formatCollectionListItem(collection, baseUrl, {
+          shared: true,
+          shared_role,
+          owner: owner_username ? `@${owner_username}` : null,
+        })
+      )
+    );
+  }
 
   const collections = await db
     .prepare(
@@ -20,30 +67,9 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
        FROM collections WHERE user_id = ? ORDER BY updated DESC`
     )
     .bind(locals.user.id)
-    .all<{
-      id: string;
-      slug: string;
-      title: string;
-      description: string | null;
-      readers_guide: string | null;
-      what_its_about: string | null;
-      who_its_for: string | null;
-      how_to_read_it: string | null;
-      access: string;
-      theme: string;
-      created: string;
-      updated: string;
-      agent_published: number;
-    }>();
+    .all<SharedCollectionRow>();
 
-  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
-  return json(
-    collections.results.map((c) => ({
-      ...c,
-      agent_published: c.agent_published === 1,
-      url: `${baseUrl}/c/${c.slug}`,
-    }))
-  );
+  return json(collections.results.map((c) => formatCollectionListItem(c, baseUrl)));
 };
 
 export interface CreatePartInput {
