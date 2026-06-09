@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getUpdateSeverity } from '../../../cli/lib/check-update.js';
+import pkg from '../../../cli/package.json';
+
+function bumpedPatch(version: string): string {
+  const [major, minor, patch] = version.split('.').map(Number);
+  return `${major}.${minor}.${patch + 1}`;
+}
 
 describe('getUpdateSeverity', () => {
   it('returns none when current equals latest', () => {
@@ -61,6 +67,8 @@ describe('checkForUpdate', () => {
   });
 
   it('warns when a newer patch is available but does not block', async () => {
+    const latest = bumpedPatch(pkg.version);
+
     vi.doMock('../../../cli/lib/config.js', () => ({
       getConfig: vi.fn(() => ({})),
       saveConfig: vi.fn(),
@@ -68,7 +76,7 @@ describe('checkForUpdate', () => {
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
-      json: async () => ({ version: '0.2.1' }),
+      json: async () => ({ version: latest }),
     } as Response);
 
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -76,7 +84,7 @@ describe('checkForUpdate', () => {
     const { checkForUpdate } = await import('../../../cli/lib/check-update.js');
     await expect(checkForUpdate()).resolves.toBe(false);
 
-    expect(errSpy).toHaveBeenCalledWith('\nUpdate available: 0.2.0 → 0.2.1');
+    expect(errSpy).toHaveBeenCalledWith(`\nUpdate available: ${pkg.version} → ${latest}`);
     expect(errSpy).toHaveBeenCalledWith('\nPlease update manually:\n  npm install -g vibe-pub\n');
 
     errSpy.mockRestore();
