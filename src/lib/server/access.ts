@@ -146,10 +146,6 @@ export interface SharedPageListItem {
   owner_username: string | null;
 }
 
-function normalizePageRow(row: Page): Page {
-  return { ...row, agent_published: row.agent_published === 1 ? 1 : 0 };
-}
-
 /** Page ids the viewer can access via explicit share grants (not owner). */
 export async function listSharedPageRolesForUser(
   db: D1Database,
@@ -210,9 +206,9 @@ export async function getPagesSharedWithUser(
     .all<Page & { owner_username: string | null }>();
 
   return result.results.map((row) => {
-    const { owner_username, ...pageFields } = row;
+    const { owner_username, ...page } = row;
     return {
-      page: normalizePageRow(pageFields),
+      page,
       shared_role: roleByPageId.get(row.id)!,
       owner_username,
     };

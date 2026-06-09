@@ -5,6 +5,7 @@ import {
   getCollectionsSharedWithUser,
   isSharedWithMeQuery,
   toAccessViewer,
+  type SharedCollectionRow,
 } from '$lib/server/access';
 import {
   newCollectionEntityId,
@@ -12,24 +13,8 @@ import {
   resolveCollectionAccess,
 } from '$lib/templates/collection/server';
 
-type CollectionListRow = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string | null;
-  readers_guide: string | null;
-  what_its_about: string | null;
-  who_its_for: string | null;
-  how_to_read_it: string | null;
-  access: string;
-  theme: string;
-  created: string;
-  updated: string;
-  agent_published: number;
-};
-
 function formatCollectionListItem(
-  c: CollectionListRow,
+  c: SharedCollectionRow,
   baseUrl: string,
   extra?: { shared: true; shared_role: string; owner: string | null }
 ) {
@@ -82,7 +67,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
        FROM collections WHERE user_id = ? ORDER BY updated DESC`
     )
     .bind(locals.user.id)
-    .all<CollectionListRow>();
+    .all<SharedCollectionRow>();
 
   return json(collections.results.map((c) => formatCollectionListItem(c, baseUrl)));
 };
