@@ -1,6 +1,6 @@
 // src/lib/templates/doc/parser.ts
 import type { Block } from '../types';
-import matter from 'gray-matter';
+import { parseFrontmatter } from '$lib/server/markdown';
 
 /**
  * Parse markdown into doc blocks.
@@ -8,7 +8,7 @@ import matter from 'gray-matter';
  * Content between headings becomes paragraph blocks grouped under the heading.
  */
 export function parseDocBlocks(markdown: string): Block[] {
-  const { content } = matter(markdown);
+  const { content } = parseFrontmatter(markdown);
   const lines = content.split('\n');
   const blocks: Block[] = [];
   let currentHeadingSlug = '';

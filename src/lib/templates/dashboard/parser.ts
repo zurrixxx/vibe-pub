@@ -1,6 +1,6 @@
 // src/lib/templates/dashboard/parser.ts — server-only (imports gray-matter)
 import type { Block } from '../types';
-import matter from 'gray-matter';
+import { parseFrontmatter } from '$lib/server/markdown';
 
 export interface DashboardTable {
   headers: string[];
@@ -35,7 +35,7 @@ export interface DashboardParseResult {
  *   - 'text' if the section has no table (raw markdown content)
  */
 export function parseDashboardBlocks(markdown: string): DashboardParseResult {
-  const { content } = matter(markdown);
+  const { content } = parseFrontmatter(markdown);
   const lines = content.split('\n');
 
   const sections: DashboardSection[] = [];

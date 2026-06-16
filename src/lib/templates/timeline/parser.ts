@@ -1,6 +1,6 @@
 // src/lib/templates/timeline/parser.ts — server-only (imports gray-matter)
 import type { Block } from '../types';
-import matter from 'gray-matter';
+import { parseFrontmatter } from '$lib/server/markdown';
 
 export interface TimelineEvent {
   text: string;
@@ -32,7 +32,7 @@ export interface TimelineParseResult {
  *   - event text — detail      -> event with detail (split on em-dash)
  */
 export function parseTimelineBlocks(markdown: string): TimelineParseResult {
-  const { content } = matter(markdown);
+  const { content } = parseFrontmatter(markdown);
   const lines = content.split('\n');
 
   const sections: TimelineSection[] = [];
