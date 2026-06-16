@@ -5,7 +5,8 @@ export const RESOURCE_ACCESS = ['public', 'private'];
 /** Legacy scripts/MCP may still pass `unlisted`; coerced to `public` before API calls. */
 export const LEGACY_RESOURCE_ACCESS = 'unlisted';
 
-export const RESOURCE_ACCESS_INPUT = [...RESOURCE_ACCESS, LEGACY_RESOURCE_ACCESS];
+/** @type {[string, ...string[]]} */
+export const RESOURCE_ACCESS_INPUT = ['public', 'private', LEGACY_RESOURCE_ACCESS];
 
 /** @param {string | undefined} access */
 export function coerceLegacyAccess(access) {
@@ -14,6 +15,7 @@ export function coerceLegacyAccess(access) {
 }
 
 /** All `pages.view` values (DB CHECK). detectView() only heuristically returns the first four. */
+/** @type {[string, ...string[]]} */
 export const PAGE_VIEW_TYPE = ['doc', 'kanban', 'changelog', 'timeline', 'slides', 'dashboard'];
 
 export const PAGE_THEME = [
