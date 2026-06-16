@@ -1,4 +1,4 @@
-// src/lib/templates/timeline/parser.ts — server-only (imports gray-matter)
+// src/lib/templates/timeline/parser.ts — server-only (imports parseFrontmatter)
 import type { Block } from '../types';
 import { parseFrontmatter } from '$lib/server/markdown';
 

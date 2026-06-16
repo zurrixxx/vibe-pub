@@ -17,7 +17,7 @@ export function parseFrontmatter(raw: string): {
   content: string;
 } {
   const match = raw.match(FRONTMATTER_RE);
-  if (!match || match.index !== 0) {
+  if (!match) {
     return { data: {}, content: raw };
   }
 
