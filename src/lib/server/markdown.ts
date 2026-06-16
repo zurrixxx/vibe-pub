@@ -1,4 +1,4 @@
-import matter from 'gray-matter';
+import { load } from 'js-yaml';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,26 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSlug from 'rehype-slug';
 import { createHighlighter, createJavaScriptRegexEngine } from 'shiki';
 import type { PageFrontmatter } from '$lib/types';
+
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+
+export function parseFrontmatter(raw: string): {
+  data: Partial<PageFrontmatter>;
+  content: string;
+} {
+  const match = raw.match(FRONTMATTER_RE);
+  if (!match) {
+    return { data: {}, content: raw };
+  }
+
+  const parsed = load(match[1] ?? '');
+  const data =
+    parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Partial<PageFrontmatter>)
+      : {};
+
+  return { data, content: raw.slice(match[0].length) };
+}
 
 let highlighterPromise: ReturnType<typeof createHighlighter> | null = null;
 
@@ -45,11 +65,6 @@ function getHighlighter() {
     });
   }
   return highlighterPromise;
-}
-
-export function parseFrontmatter(raw: string): { data: Partial<PageFrontmatter>; content: string } {
-  const { data, content } = matter(raw);
-  return { data: data as Partial<PageFrontmatter>, content };
 }
 
 export async function renderMarkdown(md: string): Promise<string> {

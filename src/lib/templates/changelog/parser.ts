@@ -1,6 +1,6 @@
-// src/lib/templates/changelog/parser.ts — server-only (imports gray-matter)
+// src/lib/templates/changelog/parser.ts — server-only (imports parseFrontmatter)
 import type { Block } from '../types';
-import matter from 'gray-matter';
+import { parseFrontmatter } from '$lib/server/markdown';
 
 export interface ChangelogEntry {
   text: string;
@@ -32,7 +32,7 @@ export interface ChangelogParseResult {
  *   - item                      -> change entry
  */
 export function parseChangelogBlocks(markdown: string): ChangelogParseResult {
-  const { content } = matter(markdown);
+  const { content } = parseFrontmatter(markdown);
   const lines = content.split('\n');
 
   const releases: ChangelogRelease[] = [];

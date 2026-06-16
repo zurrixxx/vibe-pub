@@ -1,6 +1,6 @@
-// src/lib/templates/slides/parser.ts — server-only (imports gray-matter)
+// src/lib/templates/slides/parser.ts — server-only (imports parseFrontmatter)
 import type { Block } from '../types';
-import matter from 'gray-matter';
+import { parseFrontmatter } from '$lib/server/markdown';
 import { marked } from 'marked';
 
 export interface Slide {
@@ -19,11 +19,11 @@ export interface SlidesParseResult {
  *
  * Format:
  *   Content between --- horizontal rules becomes one slide.
- *   Frontmatter --- delimiters are stripped first (via gray-matter),
+ *   Frontmatter --- delimiters are stripped first (via parseFrontmatter),
  *   then the body is split on \n---\n boundaries.
  */
 export function parseSlidesBlocks(markdown: string): SlidesParseResult {
-  const { content } = matter(markdown);
+  const { content } = parseFrontmatter(markdown);
 
   // Split on --- that appear on their own line (slide separators)
   const rawSlides = content
