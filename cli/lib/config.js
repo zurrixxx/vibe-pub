@@ -13,6 +13,8 @@ export function getConfig() {
   }
 }
 
+/** @param {Record<string, unknown>} data */
+/** @param {Record<string, unknown>} data */
 export function saveConfig(data) {
   mkdirSync(CONFIG_DIR, { recursive: true });
   const current = getConfig();

@@ -18,7 +18,7 @@ export function out(data, format = 'json') {
   }
 }
 
-/** @param {string} message @param {number} [status] */
+/** @param {string} message @param {number} [status] @returns {never} */
 export function err(message, status = 1) {
   console.log(JSON.stringify({ error: message, status }));
   process.exit(1);
