@@ -1,6 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createSessionToken, getSessionCookie, cliAuthContinueResponse } from '$lib/server/auth';
+import { createSessionToken, postSignInRedirectResponse } from '$lib/server/auth';
 import { getUserByEmail, createUser, getDb } from '$lib/server/db';
 
 export const GET: RequestHandler = async ({ url, platform, cookies }) => {
@@ -65,15 +65,5 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
   }
 
   const sessionToken = await createSessionToken(user.id, platform.env.JWT_SECRET);
-
-  const cliContinue = cliAuthContinueResponse(sessionToken, cookies, url);
-  if (cliContinue) return cliContinue;
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: '/',
-      'Set-Cookie': getSessionCookie(sessionToken),
-    },
-  });
+  return postSignInRedirectResponse(sessionToken, cookies, url);
 };

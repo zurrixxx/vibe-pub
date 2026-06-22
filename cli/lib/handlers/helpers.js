@@ -5,6 +5,12 @@ import { err } from '../cli-helpers.js';
 import { RESOURCE_ACCESS, LEGACY_RESOURCE_ACCESS } from '../constants.js';
 
 /** @typedef {{ format: string }} HandlerCtx */
+/** @typedef {'viewer' | 'editor'} AccessRole */
+/** @typedef {{ email?: string, domain?: string, access_role?: AccessRole }} ShareBody */
+/** @typedef {{ grantee_type: string, grantee_id: string, label?: string, access_role?: AccessRole }} AccessShareRow */
+/** @typedef {{ email?: string, user_id: string, username?: string, access_role?: AccessRole }} SharedUserRow */
+/** @typedef {{ shares?: AccessShareRow[], shared_users?: SharedUserRow[], default_group_id?: string }} AccessStatusPayload */
+/** @typedef {{ email?: string, domain?: string }} UnshareTarget */
 
 /** @param {string | undefined} access */
 export function accessFromOption(access) {
@@ -25,6 +31,7 @@ export async function readStdin() {
   });
 }
 
+/** @param {string | undefined} fileArg */
 export function readMarkdown(fileArg) {
   if (fileArg) {
     try {
@@ -36,11 +43,13 @@ export function readMarkdown(fileArg) {
   return null;
 }
 
+/** @param {string} slug */
 export async function resolveSlug(slug) {
   try {
     return await api.getBySlug(slug);
   } catch (e) {
-    err(`Page not found: ${slug}`, e.status ?? 1);
+    const status = /** @type {{ status?: number }} */ (e).status ?? 1;
+    err(`Page not found: ${slug}`, status);
   }
 }
 
@@ -48,29 +57,38 @@ export function requireToken() {
   if (!getToken()) err('Not logged in. Run: vibe-pub login');
 }
 
+/** @param {string | undefined} role @returns {AccessRole | undefined} */
 function parseAccessRole(role) {
   if (!role) return undefined;
   if (role !== 'viewer' && role !== 'editor') err('--role must be viewer or editor');
-  return role;
+  return /** @type {AccessRole} */ (role);
 }
 
-/** @param {{ email?: string, domain?: string, role?: string }} opts */
+/** @param {{ email?: string, domain?: string, role?: string }} opts @returns {ShareBody} */
 export function buildShareBody(opts) {
   const email = opts.email;
   const domain = opts.domain;
   if (!email && !domain) err('Provide --email or --domain');
   if (email && domain) err('Provide only one of --email or --domain');
-  const body = email ? { email } : { domain };
   const role = parseAccessRole(opts.role);
+  if (email) {
+    /** @type {ShareBody & { email: string }} */
+    const body = { email };
+    if (role) body.access_role = role;
+    return body;
+  }
+  /** @type {ShareBody & { domain: string | undefined }} */
+  const body = { domain };
   if (role) body.access_role = role;
   return body;
 }
 
+/** @param {unknown} input */
 function normalizeDomainInput(input) {
   return String(input).replace(/^@+/, '').trim().toLowerCase();
 }
 
-/** @param {{ email?: string, domain?: string }} opts */
+/** @param {{ email?: string, domain?: string }} opts @returns {UnshareTarget} */
 export function parseUnshareTarget(opts) {
   const email = opts.email;
   const domain = opts.domain;
@@ -82,6 +100,12 @@ export function parseUnshareTarget(opts) {
   };
 }
 
+/**
+ * @param {AccessStatusPayload} payload
+ * @param {UnshareTarget} target
+ * @param {(granteeId: string) => Promise<unknown>} removeDomainShare
+ * @param {(groupId: string, userId: string) => Promise<unknown>} removeUserShare
+ */
 export async function revokeResourceShare(payload, target, removeDomainShare, removeUserShare) {
   if (target.domain) {
     const shares = Array.isArray(payload?.shares) ? payload.shares : [];
@@ -106,6 +130,7 @@ export async function revokeResourceShare(payload, target, removeDomainShare, re
   await removeUserShare(groupId, user.user_id);
 }
 
+/** @param {string} access @param {AccessStatusPayload} payload */
 export function formatAccessStatus(access, payload) {
   const shares = Array.isArray(payload?.shares) ? payload.shares : [];
   const sharedUsers = Array.isArray(payload?.shared_users) ? payload.shared_users : [];

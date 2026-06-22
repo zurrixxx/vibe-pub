@@ -1,10 +1,9 @@
-import { redirect, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
   verifyMagicLinkToken,
   createSessionToken,
-  getSessionCookie,
-  cliAuthContinueResponse,
+  postSignInRedirectResponse,
 } from '$lib/server/auth';
 import { getUserByEmail, createUser } from '$lib/server/db';
 
@@ -38,15 +37,5 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
   }
 
   const sessionToken = await createSessionToken(user.id, platform.env.JWT_SECRET);
-
-  const cliContinue = cliAuthContinueResponse(sessionToken, cookies, url);
-  if (cliContinue) return cliContinue;
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: '/',
-      'Set-Cookie': getSessionCookie(sessionToken),
-    },
-  });
+  return postSignInRedirectResponse(sessionToken, cookies, url);
 };

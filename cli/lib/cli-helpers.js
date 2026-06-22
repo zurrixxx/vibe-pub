@@ -1,4 +1,9 @@
-/** @typedef {import('commander').Command} Command */
+/**
+ * Minimal Commander surface used by CLI helpers.
+ * Defined locally so svelte-check (via server MCP imports) does not require cli/node_modules.
+ * @typedef {object} Command
+ * @property {() => { format?: string }} optsWithGlobals
+ */
 
 /** @param {Command} cmd */
 export function globalFormat(cmd) {
@@ -18,7 +23,7 @@ export function out(data, format = 'json') {
   }
 }
 
-/** @param {string} message @param {number} [status] */
+/** @param {string} message @param {number} [status] @returns {never} */
 export function err(message, status = 1) {
   console.log(JSON.stringify({ error: message, status }));
   process.exit(1);

@@ -1,5 +1,10 @@
 import type { Cookies } from '@sveltejs/kit';
 import { SignJWT, jwtVerify } from 'jose';
+import {
+  buildAuthorizeUrl,
+  parseOAuthPendingCookie,
+  OAUTH_PENDING_COOKIE,
+} from '$lib/server/oauth/authorize';
 
 const COOKIE_NAME = 'vibe_session';
 const TOKEN_EXPIRY = '7d';
@@ -36,6 +41,50 @@ export async function createSessionToken(userId: string, jwtSecret: string): Pro
     .setExpirationTime(TOKEN_EXPIRY)
     .setIssuedAt()
     .sign(getSecret(jwtSecret));
+}
+
+const OAUTH_ACCESS_EXPIRY = '1h';
+
+export async function createOAuthAccessToken(
+  userId: string,
+  scope: string,
+  jwtSecret: string,
+  resourceAud: string,
+  issuer: string
+): Promise<string> {
+  return new SignJWT({ sub: userId, scope, purpose: 'oauth-access' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(issuer)
+    .setAudience(resourceAud)
+    .setExpirationTime(OAUTH_ACCESS_EXPIRY)
+    .setIssuedAt()
+    .sign(getSecret(jwtSecret));
+}
+
+export type OAuthAccessClaims = {
+  userId: string;
+  scope: string;
+};
+
+export async function verifyOAuthAccessToken(
+  token: string,
+  jwtSecret: string,
+  resourceAud: string,
+  issuer: string
+): Promise<OAuthAccessClaims | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret(jwtSecret), {
+      issuer,
+      audience: resourceAud,
+    });
+    if (payload.purpose !== 'oauth-access' || typeof payload.sub !== 'string') return null;
+    return {
+      userId: payload.sub,
+      scope: typeof payload.scope === 'string' ? payload.scope : '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function verifySessionToken(token: string, jwtSecret: string): Promise<string | null> {
@@ -141,4 +190,40 @@ export function cliAuthContinueResponse(
   headers.append('Set-Cookie', getSessionCookie(sessionToken));
 
   return new Response(null, { status: 302, headers });
+}
+
+// --- OAuth MCP authorize (resume after sign-in) ---
+
+export { OAUTH_PENDING_COOKIE };
+
+export function oauthAuthContinueResponse(sessionToken: string, cookies: Cookies): Response | null {
+  const pending = parseOAuthPendingCookie(cookies.get(OAUTH_PENDING_COOKIE));
+  if (!pending) return null;
+
+  const headers = new Headers();
+  headers.set('Location', buildAuthorizeUrl(pending));
+  headers.append('Set-Cookie', getSessionCookie(sessionToken));
+
+  return new Response(null, { status: 302, headers });
+}
+
+/** After any sign-in path: CLI authorize → OAuth consent → home. */
+export function postSignInRedirectResponse(
+  sessionToken: string,
+  cookies: Cookies,
+  url?: URL
+): Response {
+  const cliContinue = cliAuthContinueResponse(sessionToken, cookies, url);
+  if (cliContinue) return cliContinue;
+
+  const oauthContinue = oauthAuthContinueResponse(sessionToken, cookies);
+  if (oauthContinue) return oauthContinue;
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: '/',
+      'Set-Cookie': getSessionCookie(sessionToken),
+    },
+  });
 }
