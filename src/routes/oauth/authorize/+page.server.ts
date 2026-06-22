@@ -71,8 +71,12 @@ export const actions: Actions = {
     await redirectWithAuthCode(params, locals.user.id, db, cookies);
   },
 
-  deny: async ({ cookies, url }) => {
+  deny: async ({ cookies, platform, url }) => {
+    if (!platform) return fail(500, { error: 'Platform unavailable' });
+
+    const db = getDb(platform);
     const params = resolveAuthorizeParams(url.searchParams, cookies.get(OAUTH_PENDING_COOKIE));
+    await validateAuthorizeRequest(params, db);
     clearOAuthPendingCookie(cookies);
 
     const redirectTo = new URL(params.redirect_uri);

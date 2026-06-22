@@ -173,10 +173,10 @@ export async function consumeRefreshToken(
     .first<RefreshTokenRow>();
 
   if (!row) return null;
-  if (row.expires_at < nowIso()) {
-    await db.prepare('DELETE FROM oauth_refresh_tokens WHERE token = ?').bind(token).run();
-    return null;
-  }
+
+  await db.prepare('DELETE FROM oauth_refresh_tokens WHERE token = ?').bind(token).run();
+
+  if (row.expires_at < nowIso()) return null;
   return row;
 }
 
@@ -187,7 +187,6 @@ export async function rotateRefreshToken(
 ): Promise<RefreshTokenRow | null> {
   const row = await consumeRefreshToken(db, oldToken);
   if (!row) return null;
-  await db.prepare('DELETE FROM oauth_refresh_tokens WHERE token = ?').bind(oldToken).run();
   await insertRefreshToken(db, {
     token: newToken,
     client_id: row.client_id,

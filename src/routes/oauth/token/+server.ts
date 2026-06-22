@@ -49,9 +49,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
     if (!code || !redirectUri || !clientId || !codeVerifier) {
       throw error(400, 'code, redirect_uri, client_id, and code_verifier are required');
     }
-    if (!clientId.startsWith('https://')) {
-      throw error(400, 'client_id must be an HTTPS URL');
-    }
 
     const row = await consumeAuthorizationCode(db, code);
     if (!row) throw error(400, 'Invalid or expired authorization code');
