@@ -19,6 +19,8 @@ declare global {
         GOOGLE_CLIENT_SECRET: string;
         /** Optional: Google AI Studio key for doc block “suggestion for revise”*/
         GEMINI_API_KEY?: string;
+        /** Bearer secret for POST /api/cron/oauth-cleanup */
+        CRON_SECRET?: string;
       };
     }
   }

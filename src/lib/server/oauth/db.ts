@@ -1,5 +1,35 @@
 import type { D1Database } from '@cloudflare/workers-types';
 
+// --- DCR clients ---
+
+type OAuthClientRow = {
+  client_id: string;
+  client_name: string | null;
+  redirect_uris: string;
+};
+
+export async function insertOAuthClient(
+  db: D1Database,
+  client: { client_id: string; client_name: string | null; redirect_uris: string[] }
+): Promise<void> {
+  await db
+    .prepare(`INSERT INTO oauth_clients (client_id, client_name, redirect_uris) VALUES (?, ?, ?)`)
+    .bind(client.client_id, client.client_name, JSON.stringify(client.redirect_uris))
+    .run();
+}
+
+export async function lookupOAuthClient(
+  db: D1Database,
+  clientId: string
+): Promise<{ redirect_uris: string[]; client_name: string | null } | null> {
+  const row = await db
+    .prepare(`SELECT client_id, client_name, redirect_uris FROM oauth_clients WHERE client_id = ?`)
+    .bind(clientId)
+    .first<OAuthClientRow>();
+  if (!row) return null;
+  return { redirect_uris: JSON.parse(row.redirect_uris) as string[], client_name: row.client_name };
+}
+
 export type AuthorizationCodeRow = {
   code: string;
   client_id: string;
@@ -87,6 +117,49 @@ export async function insertRefreshToken(
     .run();
 }
 
+export async function revokeRefreshTokensForUserClient(
+  db: D1Database,
+  userId: string,
+  clientId: string
+): Promise<number> {
+  const result = await db
+    .prepare(`DELETE FROM oauth_refresh_tokens WHERE user_id = ? AND client_id = ?`)
+    .bind(userId, clientId)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+/** One active refresh token per user + client (re-auth revokes prior tokens). */
+export async function replaceRefreshTokenForUserClient(
+  db: D1Database,
+  row: Omit<RefreshTokenRow, 'expires_at'> & { expires_at?: string }
+): Promise<string> {
+  await revokeRefreshTokensForUserClient(db, row.user_id, row.client_id);
+  await insertRefreshToken(db, row);
+  return row.token;
+}
+
+export type OAuthPurgeResult = {
+  authorizationCodes: number;
+  refreshTokens: number;
+};
+
+export async function purgeExpiredOAuthRows(db: D1Database): Promise<OAuthPurgeResult> {
+  const now = nowIso();
+  const codes = await db
+    .prepare(`DELETE FROM oauth_authorization_codes WHERE expires_at < ?`)
+    .bind(now)
+    .run();
+  const refreshTokens = await db
+    .prepare(`DELETE FROM oauth_refresh_tokens WHERE expires_at < ?`)
+    .bind(now)
+    .run();
+  return {
+    authorizationCodes: codes.meta.changes ?? 0,
+    refreshTokens: refreshTokens.meta.changes ?? 0,
+  };
+}
+
 export async function consumeRefreshToken(
   db: D1Database,
   token: string
@@ -100,10 +173,10 @@ export async function consumeRefreshToken(
     .first<RefreshTokenRow>();
 
   if (!row) return null;
-  if (row.expires_at < nowIso()) {
-    await db.prepare('DELETE FROM oauth_refresh_tokens WHERE token = ?').bind(token).run();
-    return null;
-  }
+
+  await db.prepare('DELETE FROM oauth_refresh_tokens WHERE token = ?').bind(token).run();
+
+  if (row.expires_at < nowIso()) return null;
   return row;
 }
 
@@ -121,4 +194,30 @@ export async function rotateRefreshToken(
     scope: row.scope,
   });
   return row;
+}
+
+export async function hasOAuthGrant(
+  db: D1Database,
+  userId: string,
+  clientId: string
+): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 FROM oauth_user_grants WHERE user_id = ? AND client_id = ?`)
+    .bind(userId, clientId)
+    .first();
+  return !!row;
+}
+
+export async function upsertOAuthGrant(
+  db: D1Database,
+  userId: string,
+  clientId: string
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO oauth_user_grants (user_id, client_id) VALUES (?, ?)
+       ON CONFLICT(user_id, client_id) DO UPDATE SET granted_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`
+    )
+    .bind(userId, clientId)
+    .run();
 }

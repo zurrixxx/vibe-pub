@@ -41,6 +41,9 @@
     <form method="POST" action="?/deny" use:enhance>
       <button type="submit" class="email-toggle">Deny</button>
     </form>
+    <p class="privacy-link">
+      <a href="/privacy">Privacy Policy</a>
+    </p>
   </div>
 {/snippet}
 
@@ -109,5 +112,17 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-button);
     cursor: pointer;
+  }
+
+  .privacy-link {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .privacy-link a {
+    color: var(--text-tertiary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 </style>

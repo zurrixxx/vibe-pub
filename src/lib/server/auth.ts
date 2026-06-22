@@ -43,7 +43,7 @@ export async function createSessionToken(userId: string, jwtSecret: string): Pro
     .sign(getSecret(jwtSecret));
 }
 
-const OAUTH_ACCESS_EXPIRY = '1h';
+const OAUTH_ACCESS_EXPIRY = '7d';
 
 export async function createOAuthAccessToken(
   userId: string,

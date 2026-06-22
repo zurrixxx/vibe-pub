@@ -10,6 +10,9 @@ export const OAUTH_SCOPES = [
 export const DEFAULT_MCP_SCOPE =
   'pages:read pages:write collections:read collections:write offline_access';
 
+/** Access token lifetime (Claude Code often skips refresh_token grant). */
+export const OAUTH_ACCESS_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+
 /** Tools callable without a bearer token (lazy auth). */
 export const MCP_PUBLIC_TOOLS = new Set([
   'format',

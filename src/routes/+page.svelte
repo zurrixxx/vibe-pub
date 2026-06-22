@@ -76,7 +76,7 @@
     <div class="alt-cta">
       <span>or &mdash; <a href="/new">paste markdown in the web editor</a></span>
       <span>&middot;</span>
-      <span><a href="/welcome">read the docs</a></span>
+      <span><a href="/docs/connectors">connect with Claude</a></span>
     </div>
   </section>
 
@@ -159,8 +159,8 @@
   <footer class="foot">
     <span>vibe.pub &middot; 2026</span>
     <nav class="foot-nav">
-      <a href="/welcome">docs</a>
-      <a href="/changelog">changelog</a>
+      <a href="/docs/connectors">connectors</a>
+      <a href="/privacy">privacy</a>
       <a href="https://github.com/zurrixxx/vibe-pub">github</a>
     </nav>
   </footer>
