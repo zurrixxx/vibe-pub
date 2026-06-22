@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createOAuthAccessToken } from '$lib/server/auth';
-import { fetchCimdDocument, redirectUriAllowed } from '$lib/server/oauth/cimd';
+import { getCachedCimdDocument, redirectUriAllowed } from '$lib/server/oauth/cimd';
 import {
   consumeAuthorizationCode,
   insertRefreshToken,
@@ -50,15 +50,16 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       throw error(400, 'client_id must be an HTTPS URL');
     }
 
-    const doc = await fetchCimdDocument(clientId);
-    if (!redirectUriAllowed(doc, redirectUri)) {
-      throw error(400, 'redirect_uri is not allowed for this client_id');
-    }
-
     const row = await consumeAuthorizationCode(db, code);
     if (!row) throw error(400, 'Invalid or expired authorization code');
     if (row.client_id !== clientId || row.redirect_uri !== redirectUri) {
       throw error(400, 'Authorization code does not match client_id or redirect_uri');
+    }
+
+    // Use the CIMD snapshot cached at authorization time — never re-fetch here (TOCTOU).
+    const cachedCimd = getCachedCimdDocument(clientId);
+    if (cachedCimd && !redirectUriAllowed(cachedCimd, redirectUri)) {
+      throw error(400, 'redirect_uri is not allowed for this client_id');
     }
 
     const pkceOk = await verifyPkceChallenge(

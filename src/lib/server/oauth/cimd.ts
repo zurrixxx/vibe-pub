@@ -4,7 +4,33 @@ export type CimdDocument = {
   redirect_uris: string[];
 };
 
-export async function fetchCimdDocument(clientId: string): Promise<CimdDocument> {
+/** Matches oauth pending cookie / auth code lifetime. */
+const CIMD_CACHE_TTL_MS = 15 * 60 * 1000;
+
+type CacheEntry = { doc: CimdDocument; expiresAt: number };
+
+const cimdCache = new Map<string, CacheEntry>();
+
+export function getCachedCimdDocument(clientId: string): CimdDocument | null {
+  const entry = cimdCache.get(clientId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    cimdCache.delete(clientId);
+    return null;
+  }
+  return entry.doc;
+}
+
+export function cacheCimdDocument(clientId: string, doc: CimdDocument): void {
+  cimdCache.set(clientId, { doc, expiresAt: Date.now() + CIMD_CACHE_TTL_MS });
+}
+
+/** @internal Test helper */
+export function clearCimdCache(): void {
+  cimdCache.clear();
+}
+
+async function fetchCimdDocumentFromNetwork(clientId: string): Promise<CimdDocument> {
   let url: URL;
   try {
     url = new URL(clientId);
@@ -29,6 +55,15 @@ export async function fetchCimdDocument(clientId: string): Promise<CimdDocument>
   if (!Array.isArray(doc.redirect_uris) || doc.redirect_uris.length === 0) {
     throw new Error('client_id metadata missing redirect_uris');
   }
+  return doc;
+}
+
+export async function fetchCimdDocument(clientId: string): Promise<CimdDocument> {
+  const cached = getCachedCimdDocument(clientId);
+  if (cached) return cached;
+
+  const doc = await fetchCimdDocumentFromNetwork(clientId);
+  cacheCimdDocument(clientId, doc);
   return doc;
 }
 
