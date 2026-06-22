@@ -116,12 +116,14 @@
   <h2>Contact</h2>
   <p>
     Questions or privacy requests:
-    <a href="https://github.com/zurrixxx/vibe-pub/issues">GitHub Issues</a>
-    or email the maintainers listed in the repository.
+    <a href="mailto:ricky@vibe.us">ricky@vibe.us</a>
+    or
+    <a href="https://github.com/zurrixxx/vibe-pub/issues">GitHub Issues</a>.
   </p>
 
   <p>
     Security vulnerabilities: please report privately via GitHub Security Advisories on
-    <a href="https://github.com/zurrixxx/vibe-pub">github.com/zurrixxx/vibe-pub</a>.
+    <a href="https://github.com/zurrixxx/vibe-pub">github.com/zurrixxx/vibe-pub</a>
+    or email <a href="mailto:ricky@vibe.us">ricky@vibe.us</a>.
   </p>
 </StaticDoc>

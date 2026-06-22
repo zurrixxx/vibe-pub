@@ -129,6 +129,12 @@ vibe-pub format kanban   # kanban: columns, cards, labels, ids
 
 `v0.1.x` — early but usable. APIs and flags may shift before `1.0`. File issues, send PRs, tell me what's broken.
 
+## Privacy Policy
+
+https://vibe.pub/privacy
+
+Privacy contact: [ricky@vibe.us](mailto:ricky@vibe.us)
+
 ## License
 
 MIT © Charles Yang
