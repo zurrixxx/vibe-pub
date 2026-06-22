@@ -10,10 +10,12 @@ export async function createVibePubMcpServer(options: {
   fetch: typeof fetch;
   baseUrl: string;
   token: string | null;
+  user?: { id: string; email: string; username: string } | null;
 }) {
-  const { fetch, baseUrl, token } = options;
+  const { fetch, baseUrl, token, user = null } = options;
   const getToken = () => token;
   const getBaseUrl = () => baseUrl;
+  const getAuthUser = () => user;
 
   const api = createApiClient({ fetch, getBaseUrl, getToken });
 
@@ -26,6 +28,7 @@ export async function createVibePubMcpServer(options: {
     api,
     getToken,
     getBaseUrl,
+    getAuthUser,
     formatDocs: { doc: DOC_FORMAT_DOC, kanban: KANBAN_FORMAT_DOC },
   });
 

@@ -42,6 +42,13 @@ const handleMcp: RequestHandler = async ({ request, platform, fetch }) => {
   const userId = await resolveUserIdFromBearer(token, platform.env.JWT_SECRET, baseUrl);
   const authed = !!userId;
 
+  let user: { id: string; email: string; username: string } | null = null;
+  if (userId) {
+    user = await platform.env.DB.prepare('SELECT id, email, username FROM users WHERE id = ?')
+      .bind(userId)
+      .first<{ id: string; email: string; username: string }>();
+  }
+
   if (!authed && request.method === 'POST' && callsProtectedMcpTool(parsedBody)) {
     return new Response(
       JSON.stringify({
@@ -63,7 +70,7 @@ const handleMcp: RequestHandler = async ({ request, platform, fetch }) => {
     enableJsonResponse: true,
   });
 
-  const server = await createVibePubMcpServer({ fetch, baseUrl, token });
+  const server = await createVibePubMcpServer({ fetch, baseUrl, token, user });
   await server.connect(transport);
 
   return transport.handleRequest(request, { parsedBody });

@@ -53,11 +53,12 @@ const readerGuideSchema = {
  *   api: ReturnType<import('./api-client.js').createApiClient>;
  *   getToken: () => string | null;
  *   getBaseUrl: () => string;
+ *   getAuthUser?: () => { id: string; email: string; username: string } | null;
  *   formatDocs: { doc: string; kanban: string };
  * }} handlers
  */
 export function registerVibePubTools(server, handlers) {
-  const { api, getToken, getBaseUrl, formatDocs } = handlers;
+  const { api, getToken, getBaseUrl, getAuthUser, formatDocs } = handlers;
 
   /** @param {string} slug */
   async function resolveSlug(slug) {
@@ -483,7 +484,14 @@ export function registerVibePubTools(server, handlers) {
     'whoami',
     'Show current authentication status and API base URL.',
     {},
-    async () => mcpJson({ authenticated: !!getToken(), base_url: getBaseUrl() }),
+    async () => {
+      const user = getAuthUser?.() ?? null;
+      return mcpJson({
+        authenticated: getAuthUser ? !!user : !!getToken(),
+        base_url: getBaseUrl(),
+        ...(user && { user: { id: user.id, email: user.email, username: user.username } }),
+      });
+    },
     { title: 'Who am I', readOnlyHint: true }
   );
 

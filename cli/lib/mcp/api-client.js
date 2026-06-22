@@ -22,7 +22,10 @@ export function createApiClient({ fetch, getBaseUrl, getToken }) {
     const token = getToken();
     /** @type {Record<string, string>} */
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Cookie'] = `vibe_session=${token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      headers['Cookie'] = `vibe_session=${token}`;
+    }
 
     /** @type {RequestInit} */
     const opts = { method, headers };
