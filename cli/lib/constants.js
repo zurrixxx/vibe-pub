@@ -6,7 +6,7 @@ export const RESOURCE_ACCESS = ['public', 'private'];
 export const LEGACY_RESOURCE_ACCESS = 'unlisted';
 
 /** @type {[string, ...string[]]} */
-export const RESOURCE_ACCESS_INPUT = ['public', 'private', LEGACY_RESOURCE_ACCESS];
+export const RESOURCE_ACCESS_INPUT = ['public', 'private'];
 
 /** @param {string | undefined} access */
 export function coerceLegacyAccess(access) {

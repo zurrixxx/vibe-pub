@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getCommentsByPage, createComment, getPageById } from '$lib/server/db';
+import { assertCanReadPage, toAccessViewer } from '$lib/server/access';
 import type { CommentAnchor } from '$lib/templates/types';
 
 function parseAnchor(raw: string | null): CommentAnchor | string | null {
@@ -13,14 +14,19 @@ function parseAnchor(raw: string | null): CommentAnchor | string | null {
   }
 }
 
-export const GET: RequestHandler = async ({ params, platform, url }) => {
+export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
   if (!platform) throw error(500, 'Platform not available');
+  const db = platform.env.DB;
+  const page = await getPageById(db, params.pageId);
+  if (!page) throw error(404, 'Page not found');
+  await assertCanReadPage(db, page, toAccessViewer(locals.user));
+
   const includeAll =
     url.searchParams.get('all') === '1' ||
     url.searchParams.get('all') === 'true' ||
     url.searchParams.get('include_resolved') === '1' ||
     url.searchParams.get('include_resolved') === 'true';
-  const rawComments = await getCommentsByPage(platform.env.DB, params.pageId, {
+  const rawComments = await getCommentsByPage(db, params.pageId, {
     unresolvedOnly: !includeAll,
   });
   // Parse anchor JSON for each comment

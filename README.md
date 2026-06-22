@@ -85,6 +85,27 @@ When producing markdown for vibe.pub (CLI, MCP, or API):
 
 The same rules apply when using the **vibe-pub MCP** `publish` tool: fetch the format reference first, then generate markdown, then call `publish`.
 
+### Connect with Claude
+
+vibe.pub runs a **remote MCP server** at `https://vibe.pub/mcp` with OAuth 2.0 (PKCE + CIMD).
+
+**Claude.ai / Desktop:** Settings → Connectors → add `https://vibe.pub/mcp` → Authenticate.
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http vibe-pub https://vibe.pub/mcp
+# then /mcp → vibe-pub → Authenticate
+```
+
+Full connector docs: [vibe.pub/docs/connectors](https://vibe.pub/docs/connectors) · [Privacy Policy](https://vibe.pub/privacy)
+
+For local development, use the stdio server instead:
+
+```bash
+npx vibe-pub --mcp   # set VIBE_PUB_TOKEN in env
+```
+
 ### Format commands
 
 ```bash

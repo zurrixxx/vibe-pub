@@ -4,10 +4,12 @@ import { createOAuthAccessToken } from '$lib/server/auth';
 import { getCachedCimdDocument, redirectUriAllowed } from '$lib/server/oauth/cimd';
 import {
   consumeAuthorizationCode,
-  insertRefreshToken,
+  lookupOAuthClient,
+  purgeExpiredOAuthRows,
+  replaceRefreshTokenForUserClient,
   rotateRefreshToken,
 } from '$lib/server/oauth/db';
-import { mcpResourcePath } from '$lib/server/oauth/constants';
+import { mcpResourcePath, OAUTH_ACCESS_EXPIRY_SECONDS } from '$lib/server/oauth/constants';
 import { verifyPkceChallenge } from '$lib/server/oauth/pkce';
 import { getDb } from '$lib/server/db';
 
@@ -36,6 +38,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
   const issuer = baseUrl.replace(/\/$/, '');
   const resourceAud = mcpResourcePath(baseUrl);
   const db = getDb(platform);
+  await purgeExpiredOAuthRows(db);
 
   if (grantType === 'authorization_code') {
     const code = body.get('code');
@@ -56,10 +59,24 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       throw error(400, 'Authorization code does not match client_id or redirect_uri');
     }
 
-    // Use the CIMD snapshot cached at authorization time — never re-fetch here (TOCTOU).
-    const cachedCimd = getCachedCimdDocument(clientId);
-    if (cachedCimd && !redirectUriAllowed(cachedCimd, redirectUri)) {
-      throw error(400, 'redirect_uri is not allowed for this client_id');
+    if (clientId.startsWith('https://')) {
+      // CIMD path: use the snapshot cached at authorization time (never re-fetch — TOCTOU).
+      const cachedCimd = getCachedCimdDocument(clientId);
+      if (cachedCimd && !redirectUriAllowed(cachedCimd, redirectUri)) {
+        throw error(400, 'redirect_uri is not allowed for this client_id');
+      }
+    } else {
+      // DCR path: look up the registered client and verify the redirect_uri.
+      const dcrClient = await lookupOAuthClient(db, clientId);
+      if (!dcrClient) throw error(400, 'Unknown client_id');
+      if (
+        !redirectUriAllowed(
+          { client_id: clientId, redirect_uris: dcrClient.redirect_uris },
+          redirectUri
+        )
+      ) {
+        throw error(400, 'redirect_uri is not allowed for this client_id');
+      }
     }
 
     const pkceOk = await verifyPkceChallenge(
@@ -77,24 +94,21 @@ export const POST: RequestHandler = async ({ request, platform }) => {
       issuer
     );
 
-    const includesOffline = row.scope.split(/\s+/).includes('offline_access');
     const response: Record<string, unknown> = {
       access_token: accessToken,
       token_type: 'Bearer',
-      expires_in: 3600,
+      expires_in: OAUTH_ACCESS_EXPIRY_SECONDS,
       scope: row.scope,
     };
 
-    if (includesOffline) {
-      const refreshToken = crypto.randomUUID().replace(/-/g, '');
-      await insertRefreshToken(db, {
-        token: refreshToken,
-        client_id: clientId,
-        user_id: row.user_id,
-        scope: row.scope,
-      });
-      response.refresh_token = refreshToken;
-    }
+    const refreshToken = crypto.randomUUID().replace(/-/g, '');
+    await replaceRefreshTokenForUserClient(db, {
+      token: refreshToken,
+      client_id: clientId,
+      user_id: row.user_id,
+      scope: row.scope,
+    });
+    response.refresh_token = refreshToken;
 
     return json(response);
   }
@@ -123,7 +137,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
     return json({
       access_token: accessToken,
       token_type: 'Bearer',
-      expires_in: 3600,
+      expires_in: OAUTH_ACCESS_EXPIRY_SECONDS,
       refresh_token: newRefreshToken,
       scope: row.scope,
     });

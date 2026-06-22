@@ -7,6 +7,8 @@ import {
   redirectUriAllowed,
 } from '$lib/server/oauth/cimd';
 import { callsProtectedMcpTool } from '$lib/server/oauth/lazy-auth';
+import { resolveAuthorizeParams, normalizeAuthorizeScope } from '$lib/server/oauth/authorize';
+import { purgeExpiredOAuthRows, revokeRefreshTokensForUserClient } from '$lib/server/oauth/db';
 import { verifyPkceChallenge } from '$lib/server/oauth/pkce';
 
 describe('callsProtectedMcpTool', () => {
@@ -80,5 +82,85 @@ describe('verifyPkceChallenge', () => {
       .replace(/=+$/g, '');
 
     await expect(verifyPkceChallenge(verifier, challenge, 'S256')).resolves.toBe(true);
+  });
+});
+
+describe('resolveAuthorizeParams', () => {
+  const pending = {
+    response_type: 'code' as const,
+    client_id: 'https://claude.ai/oauth/claude-code-client-metadata',
+    redirect_uri: 'http://127.0.0.1:51234/callback',
+    scope: 'pages:read',
+    code_challenge: 'abc',
+    code_challenge_method: 'S256' as const,
+  };
+
+  it('reads full query string on GET', () => {
+    const q = new URLSearchParams({
+      response_type: 'code',
+      client_id: pending.client_id,
+      redirect_uri: pending.redirect_uri,
+      code_challenge: pending.code_challenge,
+      code_challenge_method: 'S256',
+    });
+    const resolved = resolveAuthorizeParams(q, undefined);
+    expect(resolved.client_id).toBe(pending.client_id);
+  });
+
+  it('falls back to pending cookie on POST (empty query)', () => {
+    const resolved = resolveAuthorizeParams(new URLSearchParams(), JSON.stringify(pending));
+    expect(resolved.redirect_uri).toBe(pending.redirect_uri);
+  });
+});
+
+describe('normalizeAuthorizeScope', () => {
+  it('adds offline_access when client omits it', () => {
+    expect(normalizeAuthorizeScope('pages:read')).toBe('pages:read offline_access');
+  });
+
+  it('keeps offline_access when already present', () => {
+    expect(normalizeAuthorizeScope('pages:read offline_access')).toBe('pages:read offline_access');
+  });
+});
+
+function mockD1(runCalls: { sql: string; args: unknown[]; changes: number }[]) {
+  return {
+    prepare(sql: string) {
+      return {
+        bind(...args: unknown[]) {
+          return {
+            async run() {
+              runCalls.push({ sql, args, changes: 2 });
+              return { meta: { changes: 2 } };
+            },
+          };
+        },
+      };
+    },
+  } as unknown as import('@cloudflare/workers-types').D1Database;
+}
+
+describe('OAuth cleanup', () => {
+  it('purges expired authorization codes and refresh tokens', async () => {
+    const calls: { sql: string; args: unknown[]; changes: number }[] = [];
+    const result = await purgeExpiredOAuthRows(mockD1(calls));
+    expect(result).toEqual({ authorizationCodes: 2, refreshTokens: 2 });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.sql).toContain('oauth_authorization_codes');
+    expect(calls[1]?.sql).toContain('oauth_refresh_tokens');
+  });
+
+  it('revokes refresh tokens for a user and client pair', async () => {
+    const calls: { sql: string; args: unknown[]; changes: number }[] = [];
+    const deleted = await revokeRefreshTokensForUserClient(
+      mockD1(calls),
+      'user-1',
+      'https://claude.ai/oauth/claude-code-client-metadata'
+    );
+    expect(deleted).toBe(2);
+    expect(calls[0]?.args).toEqual([
+      'user-1',
+      'https://claude.ai/oauth/claude-code-client-metadata',
+    ]);
   });
 });

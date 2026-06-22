@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { parseAssignableAccess, RESOURCE_ACCESS_VALIDATION_MESSAGE } from '$lib/constants/page';
+import { assertCanReadCollection, toAccessViewer } from '$lib/server/access';
 import {
   assertCollectionAccessForOwner,
   assertCollectionOwner,
@@ -13,7 +14,7 @@ import {
 } from '$lib/templates/collection/server';
 
 // Get collection details with parts and pages
-export const GET: RequestHandler = async ({ params, platform }) => {
+export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
   const db = getDb(platform);
 
@@ -41,6 +42,12 @@ export const GET: RequestHandler = async ({ params, platform }) => {
     }>();
 
   if (!collection) throw error(404, 'Collection not found');
+
+  await assertCanReadCollection(
+    db,
+    { id: collection.id, access: collection.access, user_id: collection.user_id },
+    toAccessViewer(locals.user)
+  );
 
   const parts = await db
     .prepare(
