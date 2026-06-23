@@ -133,6 +133,8 @@ vibe-pub format kanban   # kanban: columns, cards, labels, ids
 
 https://vibe.pub/privacy
 
+vibe.pub is operated by [Vibe Inc.](https://vibe.us/) Product-specific privacy practices are described on the page above. For company-wide policies (devices, SaaS, and other Vibe products), see [vibe.us/privacy](https://vibe.us/privacy/).
+
 Privacy contact: [ricky@vibe.us](mailto:ricky@vibe.us)
 
 ## License
