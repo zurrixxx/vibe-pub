@@ -181,7 +181,9 @@ export function buildPageBlockTextMap(
   const view = page.view || 'doc';
   if (view === 'doc') {
     if (options.docHtml === undefined) {
-      throw new Error('buildPageBlockTextMap: doc view requires options.docHtml (render markdown first)');
+      throw new Error(
+        'buildPageBlockTextMap: doc view requires options.docHtml (render markdown first)'
+      );
     }
     return blockTextMapFromDocHtml(options.docHtml);
   }

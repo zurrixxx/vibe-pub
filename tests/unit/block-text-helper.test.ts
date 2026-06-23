@@ -105,8 +105,6 @@ describe('buildPageBlockTextMap', () => {
   });
 
   it('throws when non-doc view is missing templateBlocks', () => {
-    expect(() => buildPageBlockTextMap({ view: 'kanban', markdown: '' })).toThrow(
-      /templateBlocks/
-    );
+    expect(() => buildPageBlockTextMap({ view: 'kanban', markdown: '' })).toThrow(/templateBlocks/);
   });
 });
