@@ -183,7 +183,7 @@ export function registerVibePubTools(server, handlers) {
 
   tool(
     'get_comments',
-    'List comments for a page by slug. Existing comments expose anchor.block_id for reuse when anchoring new replies. By default only unresolved (open) comments; set include_resolved to include resolved threads.',
+    'List comments for a page by slug. Each block-anchored comment includes block_text (plain-text preview of the anchored block). Existing comments expose anchor.block_id for reuse when anchoring new replies. By default only unresolved (open) comments; set include_resolved to include resolved threads.',
     {
       slug: z.string().describe('Page id, or `slug-id` URL fragment'),
       include_resolved: z

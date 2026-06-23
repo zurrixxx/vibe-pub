@@ -13,7 +13,7 @@
     parseBlockAnchorId,
     shouldCollapseCommentBody,
   } from './utils';
-  import { listDocViewBlockIdsInOrder } from '$lib/doc-view-block-ids';
+  import { listBlockIdsInOrder, type CommentWithBlockText } from '$lib/block-text-helper';
   import { closeReaderAppearancePanel } from '$lib/components/topbar';
   import {
     cancelDeferredCommentsPanelBlockClear,
@@ -80,9 +80,7 @@
 
   const effectivePageId = $derived(panelPageId ?? pageId);
 
-  let docBlockIdsInOrder = $derived.by(() =>
-    listDocViewBlockIdsInOrder(docHtml ?? '', slugifyHeading)
-  );
+  let docBlockIdsInOrder = $derived.by(() => listBlockIdsInOrder(docHtml ?? '', slugifyHeading));
 
   async function loadCommentsForPage(targetPageId: string) {
     if (!browser || !targetPageId) return;
@@ -90,8 +88,8 @@
     try {
       const res = await fetch(`/api/comment/${encodeURIComponent(targetPageId)}?all=1`);
       if (!res.ok) return;
-      const rows = (await res.json()) as Comment[];
-      comments = rows.map((c) => ({
+      const rows = (await res.json()) as CommentWithBlockText[];
+      comments = rows.map(({ block_text: _blockText, ...c }) => ({
         ...c,
         anchor:
           c.anchor == null
