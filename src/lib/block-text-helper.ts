@@ -180,9 +180,15 @@ export function buildPageBlockTextMap(
 ): Map<string, string> {
   const view = page.view || 'doc';
   if (view === 'doc') {
-    if (options.docHtml !== undefined) return blockTextMapFromDocHtml(options.docHtml);
-    return new Map();
+    if (options.docHtml === undefined) {
+      throw new Error('buildPageBlockTextMap: doc view requires options.docHtml (render markdown first)');
+    }
+    return blockTextMapFromDocHtml(options.docHtml);
   }
-  if (options.templateBlocks) return blockTextMapFromBlocks(options.templateBlocks);
-  return new Map();
+  if (!options.templateBlocks) {
+    throw new Error(
+      `buildPageBlockTextMap: view "${view}" requires options.templateBlocks (parseBlocks first)`
+    );
+  }
+  return blockTextMapFromBlocks(options.templateBlocks);
 }

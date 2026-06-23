@@ -99,4 +99,14 @@ describe('buildPageBlockTextMap', () => {
     const map = buildPageBlockTextMap({ view: 'doc', markdown: '' }, { docHtml: html });
     expect(map.get('security')).toBe('Security');
   });
+
+  it('throws when doc view is missing docHtml', () => {
+    expect(() => buildPageBlockTextMap({ view: 'doc', markdown: '' })).toThrow(/docHtml/);
+  });
+
+  it('throws when non-doc view is missing templateBlocks', () => {
+    expect(() => buildPageBlockTextMap({ view: 'kanban', markdown: '' })).toThrow(
+      /templateBlocks/
+    );
+  });
 });
