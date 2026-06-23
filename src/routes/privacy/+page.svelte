@@ -36,34 +36,34 @@
     </li>
     <li>
       <strong>MCP Connector</strong> — the remote Model Context Protocol server at
-      <code>https://vibe.pub/mcp</code>, including OAuth authorization when you connect from Claude or
-      other MCP clients.
+      <code>https://vibe.pub/mcp</code>, including OAuth authorization when you connect from Claude
+      or other MCP clients.
     </li>
     <li>
-      <strong>Integrations you enable</strong> — optional sign-in with Google or GitHub, and
-      third-party AI clients (e.g., Anthropic Claude) that initiate OAuth on your behalf.
+      <strong>Integrations you enable</strong> — optional sign-in with Google or GitHub, and third-party
+      AI clients (e.g., Anthropic Claude) that initiate OAuth on your behalf.
     </li>
   </ol>
   <p>
-    This policy does <strong>not</strong> cover third-party services that have their own privacy
-    policies (e.g., Google, GitHub, Anthropic). Those providers process data under their terms when
-    you use their products.
+    This policy does <strong>not</strong> cover third-party services that have their own privacy policies
+    (e.g., Google, GitHub, Anthropic). Those providers process data under their terms when you use their
+    products.
   </p>
 
   <h2>2. Definitions</h2>
   <ul>
     <li>
-      <strong>“Personal Data”</strong> means information that identifies, relates to, describes, or
-      could reasonably be linked to an individual (e.g., email address, username).
+      <strong>“Personal Data”</strong> means information that identifies, relates to, describes, or could
+      reasonably be linked to an individual (e.g., email address, username).
     </li>
     <li>
-      <strong>“Customer Content”</strong> means content you submit to or create within the Service —
-      markdown pages, collections, comments, version snapshots, and related metadata (title, slug,
-      theme, access settings).
+      <strong>“Customer Content”</strong> means content you submit to or create within the Service — markdown
+      pages, collections, comments, version snapshots, and related metadata (title, slug, theme, access
+      settings).
     </li>
     <li>
-      <strong>“Subprocessor”</strong> means a third-party service provider that processes Personal
-      Data on our behalf.
+      <strong>“Subprocessor”</strong> means a third-party service provider that processes Personal Data
+      on our behalf.
     </li>
   </ul>
 
@@ -73,13 +73,11 @@
   <p>When you create or use a vibe.pub account, we may collect:</p>
   <ul>
     <li>
-      <strong>Identity data:</strong> email address, username (e.g., <code>@username</code> profile
-      URL), and display information from optional Google or GitHub sign-in (provider account ID and
-      email).
+      <strong>Identity data:</strong> email address, username (e.g., <code>@username</code> profile URL),
+      and display information from optional Google or GitHub sign-in (provider account ID and email).
     </li>
     <li>
-      <strong>Authentication data:</strong> session cookies, login events, and security-related
-      signals.
+      <strong>Authentication data:</strong> session cookies, login events, and security-related signals.
     </li>
   </ul>
 
@@ -98,9 +96,9 @@
     <li>OAuth authorization codes, access tokens, and refresh tokens (with scopes you approve).</li>
     <li>OAuth client metadata (client name, redirect URIs) for registered MCP clients.</li>
     <li>
-      API requests authenticated with your token — tool calls such as publish, update, or list pages.
-      We do <strong>not</strong> receive the full text of your conversations in Claude or other AI
-      clients; we only receive authorization requests and Service API calls you initiate through the
+      API requests authenticated with your token — tool calls such as publish, update, or list
+      pages. We do <strong>not</strong> receive the full text of your conversations in Claude or other
+      AI clients; we only receive authorization requests and Service API calls you initiate through the
       connector.
     </li>
   </ul>
@@ -108,12 +106,12 @@
   <h3>3.4 Technical and usage data</h3>
   <ul>
     <li>
-      <strong>Device/browser data:</strong> IP address, browser type, request path, timestamps, and
-      similar server log fields collected by our hosting provider.
+      <strong>Device/browser data:</strong> IP address, browser type, request path, timestamps, and similar
+      server log fields collected by our hosting provider.
     </li>
     <li>
-      <strong>Email delivery metadata</strong> when we send magic-link sign-in messages (e.g.,
-      recipient address, delivery status).
+      <strong>Email delivery metadata</strong> when we send magic-link sign-in messages (e.g., recipient
+      address, delivery status).
     </li>
   </ul>
   <p>
@@ -125,24 +123,24 @@
   <p>We use Personal Data to:</p>
   <ol>
     <li>
-      <strong>Provide and operate the Service</strong> — publish and host pages, enforce access
-      controls, sync content across web/CLI/API/MCP, and deliver commenting and version history.
+      <strong>Provide and operate the Service</strong> — publish and host pages, enforce access controls,
+      sync content across web/CLI/API/MCP, and deliver commenting and version history.
     </li>
     <li>
-      <strong>Authenticate users and connectors</strong> — magic-link email, OAuth (including PKCE),
-      and session management across clients.
+      <strong>Authenticate users and connectors</strong> — magic-link email, OAuth (including PKCE), and
+      session management across clients.
     </li>
     <li>
-      <strong>Communicate with you</strong> — transactional email (sign-in links, authorization
-      notices) and responses to support requests.
+      <strong>Communicate with you</strong> — transactional email (sign-in links, authorization notices)
+      and responses to support requests.
     </li>
     <li>
-      <strong>Maintain security and reliability</strong> — detect abuse, troubleshoot incidents, and
-      protect accounts and infrastructure.
+      <strong>Maintain security and reliability</strong> — detect abuse, troubleshoot incidents, and protect
+      accounts and infrastructure.
     </li>
     <li>
-      <strong>Improve the product</strong> — understand aggregate usage patterns to improve
-      performance and usability (without selling your data).
+      <strong>Improve the product</strong> — understand aggregate usage patterns to improve performance
+      and usability (without selling your data).
     </li>
   </ol>
 
@@ -160,12 +158,12 @@
       We <strong>do not</strong> use your Customer Content to train or fine-tune foundation models.
     </li>
     <li>
-      We <strong>do not</strong> receive or store your full chat history with Anthropic or other AI
-      providers — only the API calls and content explicitly sent to vibe.pub.
+      We <strong>do not</strong> receive or store your full chat history with Anthropic or other AI providers
+      — only the API calls and content explicitly sent to vibe.pub.
     </li>
     <li>
-      Public pages may be read by anyone with the URL; set <code>private</code> access if content
-      should not be publicly visible.
+      Public pages may be read by anyone with the URL; set <code>private</code> access if content should
+      not be publicly visible.
     </li>
   </ul>
   <p>
@@ -183,13 +181,12 @@
   <p>We use Subprocessors to operate vibe.pub, including:</p>
   <ul>
     <li>
-      <strong>Cloudflare</strong> — hosting, Workers, D1 database, and R2 object storage (primary
-      infrastructure for the Service).
+      <strong>Cloudflare</strong> — hosting, Workers, D1 database, and R2 object storage (primary infrastructure
+      for the Service).
     </li>
     <li><strong>Resend</strong> — transactional email for magic-link authentication.</li>
     <li>
-      <strong>Google / GitHub</strong> — optional identity providers when you choose those sign-in
-      methods.
+      <strong>Google / GitHub</strong> — optional identity providers when you choose those sign-in methods.
     </li>
   </ul>
   <p>
@@ -200,8 +197,8 @@
   <p>
     When you connect vibe.pub from Claude or another MCP client, that client initiates OAuth and may
     display our authorization screen. Anthropic processes your use of Claude under
-    <a href="https://www.anthropic.com/legal/privacy">Anthropic’s privacy policy</a>. We receive only
-    the authorization and API traffic described in Section 3.3.
+    <a href="https://www.anthropic.com/legal/privacy">Anthropic’s privacy policy</a>. We receive
+    only the authorization and API traffic described in Section 3.3.
   </p>
 
   <h3>6.3 Legal, safety, and compliance</h3>
@@ -214,7 +211,9 @@
   <p>We do <strong>not</strong> sell Personal Data.</p>
 
   <h2>7. Data Retention and Deletion</h2>
-  <p>We retain Personal Data only as long as necessary for the purposes described in this policy.</p>
+  <p>
+    We retain Personal Data only as long as necessary for the purposes described in this policy.
+  </p>
   <ul>
     <li>
       <strong>Customer Content:</strong> stored until you (or an authorized editor) delete it, or until
@@ -228,8 +227,7 @@
       sign-out or disconnecting the connector).
     </li>
     <li>
-      <strong>Server logs:</strong> retained according to our hosting provider’s default retention
-      windows.
+      <strong>Server logs:</strong> retained according to our hosting provider’s default retention windows.
     </li>
   </ul>
   <p>
@@ -251,9 +249,9 @@
 
   <h2>9. International Data Transfers</h2>
   <p>
-    Vibe Inc. is based in the United States. Personal Data may be processed and stored in the U.S. and
-    in regions where our Subprocessors operate (including Cloudflare’s global network). We take steps
-    designed to protect Personal Data consistent with this policy and applicable law.
+    Vibe Inc. is based in the United States. Personal Data may be processed and stored in the U.S.
+    and in regions where our Subprocessors operate (including Cloudflare’s global network). We take
+    steps designed to protect Personal Data consistent with this policy and applicable law.
   </p>
 
   <h2>10. Security</h2>
@@ -288,7 +286,10 @@
   </p>
 
   <h2>13. Your Choices and Rights</h2>
-  <p>Depending on where you live, you may have rights to access, correct, delete, or export Personal Data, or to object to certain processing. To exercise these rights:</p>
+  <p>
+    Depending on where you live, you may have rights to access, correct, delete, or export Personal
+    Data, or to object to certain processing. To exercise these rights:
+  </p>
   <ul>
     <li>Delete content you own directly in the Service.</li>
     <li>Disconnect the vibe.pub connector in Claude or sign out of your account.</li>
@@ -304,7 +305,7 @@
     <strong>Mail:</strong> Vibe Inc., 2018 156th Ave NE, Office 165, Bellevue, WA 98007, United States
   </p>
   <p>
-  <strong>Open source:</strong>
-  <a href="https://github.com/zurrixxx/vibe-pub">github.com/zurrixxx/vibe-pub</a>
+    <strong>Open source:</strong>
+    <a href="https://github.com/zurrixxx/vibe-pub">github.com/zurrixxx/vibe-pub</a>
   </p>
 </StaticDoc>
