@@ -2,6 +2,9 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getCommentsByPage, createComment, getPageById } from '$lib/server/db';
 import { assertCanReadPage, toAccessViewer } from '$lib/server/access';
+import { parseFrontmatter, renderMarkdown } from '$lib/server/markdown';
+import { buildPageBlockTextMap, enrichCommentsWithBlockText } from '$lib/block-text-helper';
+import { parseBlocks } from '$lib/templates';
 import type { CommentAnchor } from '$lib/templates/types';
 
 function parseAnchor(raw: string | null): CommentAnchor | string | null {
@@ -29,11 +32,22 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
   const rawComments = await getCommentsByPage(db, params.pageId, {
     unresolvedOnly: !includeAll,
   });
-  // Parse anchor JSON for each comment
-  const comments = rawComments.map((c) => ({
+  const parsedComments = rawComments.map((c) => ({
     ...c,
     anchor: parseAnchor(c.anchor),
   }));
+  const view = page.view || 'doc';
+  let blockTextById: Map<string, string>;
+  if (view === 'doc') {
+    const { content } = parseFrontmatter(page.markdown);
+    const docHtml = await renderMarkdown(content);
+    blockTextById = buildPageBlockTextMap(page, { docHtml });
+  } else {
+    blockTextById = buildPageBlockTextMap(page, {
+      templateBlocks: parseBlocks(view, page.markdown),
+    });
+  }
+  const comments = enrichCommentsWithBlockText(parsedComments, blockTextById);
   return json(comments);
 };
 

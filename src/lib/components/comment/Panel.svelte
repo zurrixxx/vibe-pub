@@ -13,7 +13,7 @@
     parseBlockAnchorId,
     shouldCollapseCommentBody,
   } from './utils';
-  import { listDocViewBlockIdsInOrder } from '$lib/doc-view-block-ids';
+  import { listBlockIdsInOrder } from '$lib/block-text-helper';
   import { closeReaderAppearancePanel } from '$lib/components/topbar';
   import {
     cancelDeferredCommentsPanelBlockClear,
@@ -80,9 +80,7 @@
 
   const effectivePageId = $derived(panelPageId ?? pageId);
 
-  let docBlockIdsInOrder = $derived.by(() =>
-    listDocViewBlockIdsInOrder(docHtml ?? '', slugifyHeading)
-  );
+  let docBlockIdsInOrder = $derived.by(() => listBlockIdsInOrder(docHtml ?? '', slugifyHeading));
 
   async function loadCommentsForPage(targetPageId: string) {
     if (!browser || !targetPageId) return;

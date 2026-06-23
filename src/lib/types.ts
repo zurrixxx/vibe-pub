@@ -68,6 +68,8 @@ export interface Comment {
   /** 1 = POST set agent_published: true (CLI/MCP); 0 = web / omitted */
   agent_published: number;
   created: string;
+  /** Plain-text preview of anchored block (GET /api/comment only) */
+  block_text?: string | null;
 }
 
 export interface CollectionPart {
