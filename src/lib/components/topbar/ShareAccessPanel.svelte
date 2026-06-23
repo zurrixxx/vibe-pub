@@ -484,8 +484,7 @@
     align-items: center;
   }
 
-  .access-row select,
-  .access-row input {
+  .access-row select {
     flex: 1 1 120px;
     min-width: 0;
     font-family: var(--font-sans);
