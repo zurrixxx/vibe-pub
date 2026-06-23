@@ -13,7 +13,7 @@
     parseBlockAnchorId,
     shouldCollapseCommentBody,
   } from './utils';
-  import { listBlockIdsInOrder } from '$lib/block-text-helper';
+  import { listBlockIdsInOrder, type CommentWithBlockText } from '$lib/block-text-helper';
   import { closeReaderAppearancePanel } from '$lib/components/topbar';
   import {
     cancelDeferredCommentsPanelBlockClear,
@@ -88,8 +88,8 @@
     try {
       const res = await fetch(`/api/comment/${encodeURIComponent(targetPageId)}?all=1`);
       if (!res.ok) return;
-      const rows = (await res.json()) as Comment[];
-      comments = rows.map((c) => ({
+      const rows = (await res.json()) as CommentWithBlockText[];
+      comments = rows.map(({ block_text: _blockText, ...c }) => ({
         ...c,
         anchor:
           c.anchor == null

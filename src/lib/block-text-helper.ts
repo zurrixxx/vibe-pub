@@ -152,8 +152,10 @@ export function blockIdFromCommentAnchor(anchor: CommentAnchor | string | null):
   return null;
 }
 
+/** GET /api/comment response row — always includes parsed anchor and block_text. */
 export type CommentWithBlockText = Omit<Comment, 'anchor'> & {
   anchor: CommentAnchor | string | null;
+  /** Plain-text preview of the anchored block; null for page-level comments or unknown block_id. */
   block_text: string | null;
 };
 
