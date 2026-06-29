@@ -1,6 +1,7 @@
 import * as api from '../api.js';
 import { out, err } from '../cli-helpers.js';
 import { accessFromOption, readStdin, readMarkdown } from './helpers.js';
+import { prepareMarkdownWithAssets } from '../images.js';
 
 /** @param {{ file?: string, slug?: string, view?: string, access?: string, theme?: string, noAgentPublished?: boolean, format: string }} ctx */
 export async function publishHandler({
@@ -15,13 +16,21 @@ export async function publishHandler({
   const markdown = readMarkdown(file) ?? (await readStdin());
   if (!markdown || !markdown.trim()) err('No markdown content');
 
+  let payload;
   try {
-    const result = await api.publish(markdown, {
+    payload = prepareMarkdownWithAssets(markdown);
+  } catch (e) {
+    err(e.message);
+  }
+
+  try {
+    const result = await api.publish(payload.markdown, {
       slug,
       view,
       access: accessFromOption(access),
       theme,
       agentPublished: noAgentPublished ? false : true,
+      assets: payload.assets,
     });
     out(result, format);
   } catch (e) {

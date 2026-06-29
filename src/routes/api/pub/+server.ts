@@ -1,11 +1,19 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDb, createPage, getPagesByUser, appendPageVersionSnapshot } from '$lib/server/db';
+import {
+  getDb,
+  createPage,
+  getPagesByUser,
+  appendPageVersionSnapshot,
+  updatePage,
+  deletePage,
+} from '$lib/server/db';
 import { getPagesSharedWithUser, isSharedWithMeQuery, toAccessViewer } from '$lib/server/access';
 import { isValidSlug, buildCanonicalPath } from '$lib/server/slug';
 import { parseFrontmatter } from '$lib/server/markdown';
 import { detectView } from '$lib/templates/detect';
 import { resolveAssignableAccess, type PageView, type ResourceAccess } from '$lib/constants/page';
+import { ingestPageAssets, type AssetInput } from '$lib/server/assets';
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
   if (!platform) throw error(500, 'No platform');
@@ -20,6 +28,8 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
   /** Only `true` when JSON body explicitly sets `agent_published: true` (CLI/MCP). */
   let agentPublished = false;
 
+  let assets: AssetInput[] | undefined;
+
   if (contentType.includes('application/json')) {
     const body = (await request.json()) as {
       markdown?: string;
@@ -29,6 +39,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
       access?: typeof accessOverride;
       /** When true, page counts as "agent-published" on /@user profile filter */
       agent_published?: boolean;
+      assets?: AssetInput[];
     };
     markdown = body.markdown ?? '';
     slugOverride = body.slug;
@@ -36,6 +47,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     themeOverride = body.theme;
     accessOverride = body.access;
     agentPublished = body.agent_published === true;
+    assets = body.assets;
   } else {
     // Plain text body treated as raw markdown
     markdown = await request.text();
@@ -80,17 +92,31 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
     agent_published: agentPublished,
   });
 
+  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
+  let finalMarkdown = page.markdown;
+  try {
+    finalMarkdown = await ingestPageAssets(db, page.id, markdown, assets, baseUrl);
+  } catch (e) {
+    await deletePage(db, page.id);
+    const message = e instanceof Error ? e.message : 'Invalid image assets';
+    throw error(400, message);
+  }
+
+  if (finalMarkdown !== page.markdown) {
+    await updatePage(db, page.id, { markdown: finalMarkdown });
+    page.markdown = finalMarkdown;
+  }
+
   // Initial snapshot at publish time
   try {
     await appendPageVersionSnapshot(db, page.id, {
-      markdown: page.markdown,
+      markdown: finalMarkdown,
       title: page.title ?? null,
     });
   } catch (e) {
     console.error('Initial version snapshot failed:', e);
   }
 
-  const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
   const url = `${baseUrl}${buildCanonicalPath(page)}`;
 
   return json({ id: page.id, slug: page.slug, url }, { status: 201 });

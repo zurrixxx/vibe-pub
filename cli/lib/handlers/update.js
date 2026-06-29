@@ -1,6 +1,7 @@
 import * as api from '../api.js';
 import { out, err } from '../cli-helpers.js';
 import { accessFromOption, readStdin, readMarkdown, resolveSlug } from './helpers.js';
+import { prepareMarkdownWithAssets } from '../images.js';
 
 /** @param {{ slug: string, file?: string, access?: string, format: string }} ctx */
 export async function updateHandler({ slug, file, access, format }) {
@@ -19,8 +20,15 @@ export async function updateHandler({ slug, file, access, format }) {
   const markdown = readMarkdown(file) ?? (await readStdin());
   if (!markdown || !markdown.trim()) err('No markdown content');
 
+  let payload;
   try {
-    const result = await api.update(page.id, markdown, {});
+    payload = prepareMarkdownWithAssets(markdown);
+  } catch (e) {
+    err(e.message);
+  }
+
+  try {
+    const result = await api.update(page.id, payload.markdown, { assets: payload.assets });
     out(result, format);
   } catch (e) {
     err(e.message, e.status);
