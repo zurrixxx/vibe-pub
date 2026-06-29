@@ -15,6 +15,7 @@ import { parseAssignableAccess, RESOURCE_ACCESS_VALIDATION_MESSAGE } from '$lib/
 import { reconcileComments } from '$lib/templates/reconcile';
 import { parseKanbanBlocks } from '$lib/templates/kanban/parser';
 import { parseDocBlocks } from '$lib/templates/doc/parser';
+import { ingestPageAssets, type AssetInput } from '$lib/server/assets';
 
 export const GET: RequestHandler = async ({ params, platform, locals }) => {
   if (!platform) throw error(500, 'No platform');
@@ -41,6 +42,7 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
   let accessOverride: string | undefined;
   let titleOverride: string | undefined;
   let themeOverride: string | undefined;
+  let assets: AssetInput[] | undefined;
 
   if (contentType.includes('application/json')) {
     const body = (await request.json()) as {
@@ -49,12 +51,14 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
       access?: string;
       title?: string;
       theme?: string;
+      assets?: AssetInput[];
     };
     markdown = body.markdown;
     viewOverride = body.view;
     accessOverride = body.access;
     titleOverride = body.title;
     themeOverride = body.theme;
+    assets = body.assets;
   } else {
     markdown = (await request.text()) || undefined;
   }
@@ -86,6 +90,14 @@ export const PUT: RequestHandler = async ({ params, request, locals, platform })
     themeOverride !== undefined;
 
   if (markdown) {
+    const baseUrl = platform.env.BASE_URL ?? 'https://vibe.pub';
+    try {
+      markdown = await ingestPageAssets(db, params.id, markdown, assets, baseUrl);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Invalid image assets';
+      throw error(400, message);
+    }
+
     const { data: fm } = parseFrontmatter(markdown);
     if (isOwner) {
       viewOverride = viewOverride ?? fm.view;

@@ -59,6 +59,27 @@ SECTIONS & OUTLINE
 - \`##\` and \`###\` form the outline (left rail) and get stable anchor ids for comments.
 - Main sections should use \`##\`; use \`###\` for subsections.
 
+IMAGES (local paths — uploaded automatically on publish)
+---------------------------------------------------------
+Use standard markdown image syntax with a **local absolute path** to the image file on disk.
+When you publish via \`vibe-pub publish\`, the CLI/MCP reads each referenced file, uploads it,
+and rewrites the link to a hosted URL — you do not upload images yourself.
+
+  ![Architecture diagram](/Users/you/project/docs/architecture.png)
+
+Rules:
+- Path must be **absolute** (Unix \`/path/to/image.png\` or Windows \`C:/path/image.png\`).
+- The file must exist at that path when publish runs (CLI/MCP runs on the same machine).
+- Supported formats: PNG, JPEG, GIF, WebP (max ~1.5 MB per image, 10 images per page).
+- **Remote URLs are left unchanged** — use \`https://...\` when the image is already hosted elsewhere.
+- Do **not** use \`data:\` URLs or relative paths like \`./images/foo.png\`.
+
+Example with a local screenshot and a remote logo:
+
+  ![Screenshot](/Users/you/project/screen.png)
+
+  ![Logo](https://example.com/logo.png)
+
 MINIMAL EXAMPLE (recommended shape)
 -----------------------------------
 ---

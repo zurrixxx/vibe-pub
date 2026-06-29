@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PAGE_VIEW_TYPE, RESOURCE_ACCESS_INPUT, coerceLegacyAccess } from '../constants.js';
 import { formatAccessStatus } from '../handlers/helpers.js';
+import { prepareMarkdownWithAssets } from '../images.js';
 import { buildShareBody, mcpJson, parseUnshareTarget, revokeResourceShare } from './helpers.js';
 
 const resourceAccessEnum = RESOURCE_ACCESS_INPUT;
@@ -86,7 +87,7 @@ export function registerVibePubTools(server, handlers) {
 
   tool(
     'publish',
-    'Publish markdown content to vibe.pub. Returns the page id, slug, and URL.',
+    'Publish markdown content to vibe.pub. Local absolute-path images in ![alt](/path/to/file.png) are uploaded automatically. Returns the page id, slug, and URL.',
     {
       markdown: z.string().describe('Markdown content to publish'),
       slug: z.string().optional().describe('Custom URL slug'),
@@ -104,12 +105,14 @@ export function registerVibePubTools(server, handlers) {
         ),
     },
     async ({ markdown, slug, view, access, theme, agent_published }) => {
-      const result = await api.publish(markdown, {
+      const payload = prepareMarkdownWithAssets(markdown);
+      const result = await api.publish(payload.markdown, {
         slug,
         view,
         access: coerceLegacyAccess(access),
         theme,
         agentPublished: agent_published !== false,
+        assets: payload.assets,
       });
       return mcpJson(result);
     },
@@ -149,7 +152,13 @@ export function registerVibePubTools(server, handlers) {
         throw new Error('Provide markdown and/or access');
       }
 
-      return mcpJson(await api.update(page.id, markdown, { access: coercedAccess }));
+      const payload = prepareMarkdownWithAssets(markdown);
+      return mcpJson(
+        await api.update(page.id, payload.markdown, {
+          access: coercedAccess,
+          assets: payload.assets,
+        })
+      );
     },
     { title: 'Update page', destructiveHint: true }
   );

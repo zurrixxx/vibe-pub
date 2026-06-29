@@ -59,6 +59,7 @@ export function createApiClient({ fetch, getBaseUrl, getToken }) {
       if (options.access) body.access = options.access;
       if (options.theme) body.theme = options.theme;
       if (options.agentPublished !== false) body.agent_published = true;
+      if (options.assets?.length) body.assets = options.assets;
       return request('POST', '/api/pub', body);
     },
 
@@ -97,6 +98,7 @@ export function createApiClient({ fetch, getBaseUrl, getToken }) {
       /** @type {Record<string, any>} */
       const data = { markdown };
       if (options.access) data.access = options.access;
+      if (options.assets?.length) data.assets = options.assets;
       return request('PUT', `/api/pub/${encodeURIComponent(id)}`, data);
     },
 
