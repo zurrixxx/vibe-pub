@@ -7,6 +7,7 @@ import {
   normalizeAssetPath,
   rewriteMarkdownImagePaths,
   extractLocalImagePaths,
+  extractHostedAssetIds,
 } from '$lib/shared/page-images';
 
 export interface PageAssetRow {
@@ -52,20 +53,15 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-/** D1/miniflare may return BLOB columns as ArrayBuffer, Uint8Array, Blob, base64 string, etc. */
+/** D1/miniflare may return BLOB columns as ArrayBuffer, Uint8Array, Blob, or an ambiguous string. */
 async function readD1Blob(db: D1Database, id: string, raw: unknown): Promise<ArrayBuffer | null> {
   if (raw instanceof ArrayBuffer) return raw;
   if (raw instanceof Uint8Array) return toArrayBuffer(raw);
-  if (typeof raw === 'string') {
-    if (/^[0-9a-fA-F]+$/.test(raw) && raw.length % 2 === 0) {
-      return toArrayBuffer(decodeHex(raw));
-    }
-    return toArrayBuffer(decodeBase64(raw));
-  }
   if (typeof Blob !== 'undefined' && raw instanceof Blob) {
     return raw.arrayBuffer();
   }
 
+  // String/other shapes: do not guess hex vs base64 — SQLite hex() is unambiguous.
   const hexRow = await db
     .prepare('SELECT hex(data) AS hex FROM page_assets WHERE id = ?')
     .bind(id)
@@ -138,7 +134,7 @@ function validateAssetInput(
 
 /**
  * Store uploaded images for a page and rewrite local absolute paths in markdown
- * to hosted `/i/{id}` URLs.
+ * to hosted `/i/{id}` URLs. Drops page_assets rows no longer referenced afterward.
  */
 export async function ingestPageAssets(
   db: D1Database,
@@ -147,56 +143,62 @@ export async function ingestPageAssets(
   assets: AssetInput[] | undefined,
   baseUrl: string
 ): Promise<string> {
-  if (!assets?.length) return markdown;
-  if (assets.length > MAX_PAGE_IMAGES) {
-    throw new Error(`Too many images (max ${MAX_PAGE_IMAGES})`);
-  }
+  let result = markdown;
 
-  const localPaths = extractLocalImagePaths(markdown);
-  const assetPaths = new Set(assets.map((a) => normalizeAssetPath(a.path)));
-  for (const localPath of localPaths) {
-    if (!assetPaths.has(localPath)) {
-      throw new Error(`Missing asset upload for local image path: ${localPath}`);
-    }
-  }
-
-  const pathToUrl = new Map<string, string>();
-
-  for (let i = 0; i < assets.length; i++) {
-    const validated = validateAssetInput(assets[i], i);
-    const hash = await sha256Hex(validated.data);
-
-    const existing = await db
-      .prepare('SELECT id FROM page_assets WHERE page_id = ? AND sha256 = ?')
-      .bind(pageId, hash)
-      .first<{ id: string }>();
-
-    let assetId = existing?.id;
-    if (!assetId) {
-      assetId = generateAssetId();
-      await db
-        .prepare(
-          `INSERT INTO page_assets (id, page_id, filename, mime_type, size_bytes, sha256, data)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          assetId,
-          pageId,
-          validated.filename,
-          validated.mimeType,
-          validated.data.byteLength,
-          hash,
-          validated.data
-        )
-        .run();
+  if (assets?.length) {
+    if (assets.length > MAX_PAGE_IMAGES) {
+      throw new Error(`Too many images (max ${MAX_PAGE_IMAGES})`);
     }
 
-    const url = assetPublicUrl(baseUrl, assetId);
-    pathToUrl.set(validated.path, url);
+    const localPaths = extractLocalImagePaths(markdown);
+    const assetPaths = new Set(assets.map((a) => normalizeAssetPath(a.path)));
+    for (const localPath of localPaths) {
+      if (!assetPaths.has(localPath)) {
+        throw new Error(`Missing asset upload for local image path: ${localPath}`);
+      }
+    }
+
+    const pathToUrl = new Map<string, string>();
+
+    for (let i = 0; i < assets.length; i++) {
+      const validated = validateAssetInput(assets[i], i);
+      const hash = await sha256Hex(validated.data);
+
+      const existing = await db
+        .prepare('SELECT id FROM page_assets WHERE page_id = ? AND sha256 = ?')
+        .bind(pageId, hash)
+        .first<{ id: string }>();
+
+      let assetId = existing?.id;
+      if (!assetId) {
+        assetId = generateAssetId();
+        await db
+          .prepare(
+            `INSERT INTO page_assets (id, page_id, filename, mime_type, size_bytes, sha256, data)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            assetId,
+            pageId,
+            validated.filename,
+            validated.mimeType,
+            validated.data.byteLength,
+            hash,
+            validated.data
+          )
+          .run();
+      }
+
+      const url = assetPublicUrl(baseUrl, assetId);
+      pathToUrl.set(validated.path, url);
+    }
+
+    const rewritten = rewriteMarkdownImagePaths(markdown, pathToUrl);
+    result = finalizeRewrittenMarkdown(rewritten);
   }
 
-  const rewritten = rewriteMarkdownImagePaths(markdown, pathToUrl);
-  return finalizeRewrittenMarkdown(rewritten);
+  await pruneUnreferencedPageAssets(db, pageId, result);
+  return result;
 }
 
 function finalizeRewrittenMarkdown(rewritten: string): string {
@@ -205,6 +207,25 @@ function finalizeRewrittenMarkdown(rewritten: string): string {
     throw new Error(`Failed to rewrite local image paths: ${remaining.join(', ')}`);
   }
   return rewritten;
+}
+
+/** Remove page_assets rows no longer referenced in markdown `/i/{id}` links. */
+async function pruneUnreferencedPageAssets(
+  db: D1Database,
+  pageId: string,
+  markdown: string
+): Promise<void> {
+  const referenced = extractHostedAssetIds(markdown);
+  if (referenced.length === 0) {
+    await db.prepare('DELETE FROM page_assets WHERE page_id = ?').bind(pageId).run();
+    return;
+  }
+
+  const placeholders = referenced.map(() => '?').join(', ');
+  await db
+    .prepare(`DELETE FROM page_assets WHERE page_id = ? AND id NOT IN (${placeholders})`)
+    .bind(pageId, ...referenced)
+    .run();
 }
 
 export async function getAssetById(db: D1Database, id: string): Promise<PageAssetRow | null> {

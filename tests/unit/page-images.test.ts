@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractLocalImagePaths,
+  extractHostedAssetIds,
   isLocalImagePath,
   normalizeAssetPath,
   rewriteMarkdownImagePaths,
@@ -56,6 +57,22 @@ describe('rewriteMarkdownImagePaths', () => {
       new Map([['/Users/a/diagram.png', 'https://vibe.pub/i/abc123']])
     );
     expect(out).toBe('![diagram](https://vibe.pub/i/abc123) and ![logo](https://x/y.png)');
+  });
+});
+
+describe('extractHostedAssetIds', () => {
+  it('collects unique asset ids from hosted image URLs', () => {
+    const md = `# Doc
+
+![keep](https://vibe.pub/i/aabbccddeeff)
+![also](/i/001122334455)
+![remote](https://cdn.example/x.png)
+![dup](https://vibe.pub/i/aabbccddeeff)`;
+    expect(extractHostedAssetIds(md)).toEqual(['aabbccddeeff', '001122334455']);
+  });
+
+  it('returns empty when no hosted assets', () => {
+    expect(extractHostedAssetIds('![x](https://cdn/x.png)')).toEqual([]);
   });
 });
 

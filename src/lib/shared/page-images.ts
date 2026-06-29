@@ -58,6 +58,24 @@ export function extractLocalImagePaths(markdown: string): string[] {
   return paths;
 }
 
+/** Matches `/i/{id}` in hosted asset URLs (ids are 12 lowercase hex chars). */
+const HOSTED_ASSET_ID_RE = /\/i\/([0-9a-f]{12})(?:\?|#|$|[^0-9a-f])/i;
+
+/** Asset ids referenced by markdown image links pointing at `/i/{id}`. */
+export function extractHostedAssetIds(markdown: string): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const ref of extractMarkdownImageRefs(markdown)) {
+    const match = ref.src.trim().match(HOSTED_ASSET_ID_RE);
+    if (!match) continue;
+    const id = match[1].toLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
 export function rewriteMarkdownImagePaths(
   markdown: string,
   pathToUrl: ReadonlyMap<string, string>

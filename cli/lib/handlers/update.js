@@ -20,7 +20,12 @@ export async function updateHandler({ slug, file, access, format }) {
   const markdown = readMarkdown(file) ?? (await readStdin());
   if (!markdown || !markdown.trim()) err('No markdown content');
 
-  const payload = prepareMarkdownWithAssets(markdown);
+  let payload;
+  try {
+    payload = prepareMarkdownWithAssets(markdown);
+  } catch (e) {
+    err(e.message);
+  }
 
   try {
     const result = await api.update(page.id, payload.markdown, { assets: payload.assets });

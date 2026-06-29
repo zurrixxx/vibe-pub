@@ -16,7 +16,12 @@ export async function publishHandler({
   const markdown = readMarkdown(file) ?? (await readStdin());
   if (!markdown || !markdown.trim()) err('No markdown content');
 
-  const payload = prepareMarkdownWithAssets(markdown);
+  let payload;
+  try {
+    payload = prepareMarkdownWithAssets(markdown);
+  } catch (e) {
+    err(e.message);
+  }
 
   try {
     const result = await api.publish(payload.markdown, {

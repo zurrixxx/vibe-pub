@@ -1,5 +1,4 @@
 import { readFileSync, existsSync } from 'fs';
-import { err } from './cli-helpers.js';
 
 /** Keep in sync with src/lib/shared/page-images.ts */
 export const MAX_PAGE_IMAGE_BYTES = 1_500_000;
@@ -86,7 +85,7 @@ function detectImageMimeType(data) {
 export function collectLocalImageAssets(markdown) {
   const pathMap = extractLocalImagePathMap(markdown);
   if (pathMap.size > MAX_PAGE_IMAGES) {
-    err(`Too many local images (max ${MAX_PAGE_IMAGES})`);
+    throw new Error(`Too many local images (max ${MAX_PAGE_IMAGES})`);
   }
   if (pathMap.size === 0) return [];
 
@@ -94,21 +93,21 @@ export function collectLocalImageAssets(markdown) {
   const assets = [];
   for (const [normalizedPath, readPath] of pathMap) {
     if (!existsSync(readPath)) {
-      err(`Image not found: ${readPath}`);
+      throw new Error(`Image not found: ${readPath}`);
     }
     let buf;
     try {
       buf = readFileSync(readPath);
     } catch {
-      err(`Could not read image: ${readPath}`);
+      throw new Error(`Could not read image: ${readPath}`);
     }
-    if (buf.byteLength === 0) err(`Image is empty: ${readPath}`);
+    if (buf.byteLength === 0) throw new Error(`Image is empty: ${readPath}`);
     if (buf.byteLength > MAX_PAGE_IMAGE_BYTES) {
-      err(`Image too large (max ${MAX_PAGE_IMAGE_BYTES} bytes): ${readPath}`);
+      throw new Error(`Image too large (max ${MAX_PAGE_IMAGE_BYTES} bytes): ${readPath}`);
     }
     const mime = detectImageMimeType(buf);
     if (!mime || !ALLOWED_IMAGE_MIMES.has(mime)) {
-      err(`Unsupported image type (use png, jpeg, gif, or webp): ${readPath}`);
+      throw new Error(`Unsupported image type (use png, jpeg, gif, or webp): ${readPath}`);
     }
     assets.push({
       path: normalizedPath,
